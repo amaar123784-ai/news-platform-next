@@ -22,7 +22,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     onFilesSubmit,
     onCancel,
     accept = 'image/*',
-    maxSize = 10,
+    maxSize = 50,
     multiple = true,
 }) => {
     const [isDragging, setIsDragging] = useState(false);

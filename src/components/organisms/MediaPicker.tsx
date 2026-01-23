@@ -271,7 +271,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
                     onFilesSubmit={handleUploadFiles}
                     onCancel={() => setUploadOpen(false)}
                     accept="image/*"
-                    maxSize={10}
+                    maxSize={50}
                     multiple
                 />
             </Modal>

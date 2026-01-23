@@ -41,8 +41,8 @@ export function createApp(): Express {
     app.use(rateLimiter);
 
     // Body parsing
-    app.use(express.json({ limit: '10mb' }));
-    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json({ limit: '50mb' }));
+    app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
     // Serve uploaded files statically
     // Files are accessible at /uploads/filename.png
