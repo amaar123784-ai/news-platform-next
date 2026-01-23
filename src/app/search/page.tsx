@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Header, Footer } from "@/components/organisms";
 import { Container, Icon, Input, Button } from "@/components/atoms";
-import { getArticles } from "@/lib/api";
+import { getArticles, type Article } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
 import Link from "next/link";
 
@@ -17,7 +17,7 @@ interface SearchPageProps {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
     const { q: query } = await searchParams;
 
-    let articles = [];
+    let articles: Article[] = [];
     if (query) {
         const response = await getArticles({
             search: query,
