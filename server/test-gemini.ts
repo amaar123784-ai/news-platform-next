@@ -25,7 +25,7 @@ async function test() {
                 contents: [{ role: 'user', parts: [{ text: 'Hello, are you working?' }] }],
             });
             console.log('✅ gemini-1.5-flash is WORKING!');
-            console.log('Response:', response?.text ? response.text() : 'No response text');
+            console.log('Response:', response?.text || 'No response text');
         } catch (e: any) {
             console.error('❌ gemini-1.5-flash FAILED:', e.message);
             console.error(JSON.stringify(e, null, 2));
