@@ -214,8 +214,8 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         sourceId: source.id,
-                        status: source.autoApprove ? 'APPROVED' : 'PENDING',
-                        approvedAt: source.autoApprove ? new Date() : null,
+                        status: 'PENDING',
+                        approvedAt: null,
                     },
                 });
                 newArticles++;

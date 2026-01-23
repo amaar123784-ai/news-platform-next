@@ -24,7 +24,6 @@ const createSourceSchema = z.object({
     description: z.string().optional().nullable(),
     categoryId: z.string().uuid('معرف التصنيف غير صالح'),
     fetchInterval: z.number().min(5).max(1440).default(15),
-    autoApprove: z.boolean().default(false),
 });
 
 const updateSourceSchema = z.object({
@@ -35,7 +34,6 @@ const updateSourceSchema = z.object({
     description: z.string().optional().nullable(),
     categoryId: z.string().uuid().optional(),
     fetchInterval: z.number().min(5).max(1440).optional(),
-    autoApprove: z.boolean().optional(),
     isActive: z.boolean().optional(),
     status: z.enum(['ACTIVE', 'PAUSED']).optional(),
 });
@@ -196,7 +194,6 @@ router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, nex
                 description: data.description,
                 categoryId: data.categoryId,
                 fetchInterval: data.fetchInterval,
-                autoApprove: data.autoApprove,
             },
             include: {
                 category: { select: { id: true, name: true, slug: true } },
@@ -392,7 +389,6 @@ router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, nex
                 description: data.description,
                 categoryId: data.categoryId,
                 fetchInterval: data.fetchInterval,
-                autoApprove: data.autoApprove,
             },
             include: {
                 category: { select: { id: true, name: true, slug: true } },

@@ -38,7 +38,6 @@ export default function RSSSourcesPage() {
         description: '',
         categoryId: '',
         fetchInterval: 15,
-        autoApprove: false,
     });
 
     // Fetch RSS sources
@@ -118,7 +117,6 @@ export default function RSSSourcesPage() {
             description: '',
             categoryId: '',
             fetchInterval: 15,
-            autoApprove: false,
         });
     };
 
@@ -140,7 +138,6 @@ export default function RSSSourcesPage() {
             description: source.description || '',
             categoryId: source.categoryId,
             fetchInterval: source.fetchInterval,
-            autoApprove: source.autoApprove,
         });
         setEditingSource(source);
     };
@@ -449,17 +446,6 @@ export default function RSSSourcesPage() {
                                 max={1440}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             />
-                        </div>
-                        <div className="flex items-center pt-6">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.autoApprove}
-                                    onChange={(e) => setFormData({ ...formData, autoApprove: e.target.checked })}
-                                    className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                                />
-                                <span className="text-sm text-gray-700">موافقة تلقائية</span>
-                            </label>
                         </div>
                     </div>
 

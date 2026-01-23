@@ -220,7 +220,6 @@ model RSSSource {
   lastError      String?         @db.Text
   errorCount     Int             @default(0)
   
-  autoApprove    Boolean         @default(false)          // Skip moderation queue
   isActive       Boolean         @default(true)
   
   categoryId     String                                   // Map to platform category

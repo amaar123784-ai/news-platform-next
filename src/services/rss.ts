@@ -19,7 +19,6 @@ export interface RSSSource {
     lastFetchedAt?: string | null;
     lastError?: string | null;
     errorCount: number;
-    autoApprove: boolean;
     isActive: boolean;
     categoryId: string;
     category: {
@@ -82,7 +81,6 @@ export interface CreateRSSSourceData {
     description?: string | null;
     categoryId: string;
     fetchInterval?: number;
-    autoApprove?: boolean;
 }
 
 export interface UpdateRSSSourceData {
@@ -93,7 +91,6 @@ export interface UpdateRSSSourceData {
     description?: string | null;
     categoryId?: string;
     fetchInterval?: number;
-    autoApprove?: boolean;
     isActive?: boolean;
     status?: 'ACTIVE' | 'PAUSED';
 }
