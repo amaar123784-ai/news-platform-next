@@ -5,6 +5,7 @@
 
 import Parser from 'rss-parser';
 import crypto from 'crypto';
+import path from 'path';
 import { prisma } from '../index.js';
 
 // Custom parser with Arabic-friendly settings
@@ -36,6 +37,41 @@ function hashTitle(title: string): string {
     return crypto.createHash('sha256').update(normalized).digest('hex');
 }
 
+import { imageProcessor } from './imageProcessor.js';
+import axios from 'axios';
+
+/**
+ * Download and process external image
+ */
+async function downloadAndProcessImage(url: string | null, baseUrl: string): Promise<string | null> {
+    if (!url) return null;
+
+    const absoluteUrl = ensureAbsoluteUrl(url, baseUrl);
+    if (!absoluteUrl) return null;
+
+    try {
+        // Download image with 10s timeout
+        const response = await axios.get(absoluteUrl, {
+            responseType: 'arraybuffer',
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'YemenNewsBot/1.0',
+            },
+            maxContentLength: 10 * 1024 * 1024 // 10MB limit for external images
+        });
+
+        const buffer = Buffer.from(response.data);
+        const originalName = path.basename(new URL(absoluteUrl).pathname) || 'rss-image.jpg';
+
+        // Process and save locally
+        const processed = await imageProcessor.process(buffer, originalName);
+        return processed.url;
+    } catch (error: any) {
+        console.warn(`[RSS] Failed to download image ${absoluteUrl}:`, error.message);
+        return absoluteUrl; // Fallback to original URL if download fails
+    }
+}
+
 /**
  * Helper to ensure absolute URL
  */
@@ -52,7 +88,7 @@ function ensureAbsoluteUrl(url: string | undefined | null, baseUrl: string): str
  * Extract image URL from feed item
  * Checks multiple common feed image formats and resolves relative URLs
  */
-function extractImage(item: any, feedLink: string): string | null {
+function extractImage(item: any): string | null {
     let imageUrl: string | null = null;
 
     // Check enclosure (common in podcasts and some feeds)
@@ -76,7 +112,7 @@ function extractImage(item: any, feedLink: string): string | null {
         }
     }
 
-    return ensureAbsoluteUrl(imageUrl, feedLink);
+    return imageUrl;
 }
 
 /**
@@ -163,13 +199,18 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
             }
 
             try {
+                // Download and process image locally
+                const baseFeedUrl = source.websiteUrl || source.feedUrl;
+                const rawImageUrl = extractImage(item);
+                const localImageUrl = await downloadAndProcessImage(rawImageUrl, baseFeedUrl);
+
                 await prisma.rSSArticle.create({
                     data: {
                         guid,
                         title,
                         excerpt: truncateExcerpt(item.contentSnippet || item.content || (item as any).description),
                         sourceUrl: item.link || '',
-                        imageUrl: extractImage(item, source.websiteUrl || source.feedUrl),
+                        imageUrl: localImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         sourceId: source.id,
