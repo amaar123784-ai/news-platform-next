@@ -300,15 +300,209 @@ router.post('/sources/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), 
 // ============= ADMIN: MODERATION =============
 
 /**
+```
+    }
+});
+
+// ============= ADMIN: SOURCES MANAGEMENT =============
+
+/**
+ * GET /api/rss/sources - List all RSS sources
+ */
+router.get('/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+    try {
+        const sources = await prisma.rSSSource.findMany({
+            include: {
+                category: { select: { id: true, name: true, slug: true, color: true } },
+                _count: { select: { articles: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        res.json({ success: true, data: sources });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * GET /api/rss/sources/:id - Get single RSS source details
+ */
+router.get('/sources/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+    try {
+        const source = await prisma.rSSSource.findUnique({
+            where: { id: req.params.id },
+            include: {
+                category: { select: { id: true, name: true, slug: true } },
+                _count: { select: { articles: true } },
+                articles: {
+                    take: 10,
+                    orderBy: { publishedAt: 'desc' },
+                    select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                        publishedAt: true,
+                    },
+                },
+            },
+        });
+
+        if (!source) {
+            throw createError(404, 'المصدر غير موجود', 'RSS_SOURCE_NOT_FOUND');
+        }
+
+        res.json({ success: true, data: source });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/rss/sources - Add new RSS source
+ */
+router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        const data = createSourceSchema.parse(req.body);
+
+        // Check if feed URL already exists
+        const existing = await prisma.rSSSource.findUnique({
+            where: { feedUrl: data.feedUrl },
+        });
+
+        if (existing) {
+            throw createError(400, 'هذا المصدر موجود بالفعل', 'RSS_SOURCE_EXISTS');
+        }
+
+        // Verify category exists
+        const category = await prisma.category.findUnique({
+            where: { id: data.categoryId },
+        });
+
+        if (!category) {
+            throw createError(400, 'التصنيف غير موجود', 'CATEGORY_NOT_FOUND');
+        }
+
+        const source = await prisma.rSSSource.create({
+            data: {
+                name: data.name,
+                feedUrl: data.feedUrl,
+                websiteUrl: data.websiteUrl,
+                logoUrl: data.logoUrl,
+                description: data.description,
+                categoryId: data.categoryId,
+                fetchInterval: data.fetchInterval,
+                autoApprove: data.autoApprove,
+            },
+            include: {
+                category: { select: { id: true, name: true, slug: true } },
+            },
+        });
+
+        // Log activity
+        await prisma.activityLog.create({
+            data: {
+                action: 'CREATE',
+                targetType: 'rss_source',
+                targetId: source.id,
+                targetTitle: source.name,
+                userId: req.user!.userId,
+            },
+        });
+
+        res.status(201).json({ success: true, data: source });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * PATCH /api/rss/sources/:id - Update RSS source
+ */
+router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        const data = updateSourceSchema.parse(req.body);
+
+        const source = await prisma.rSSSource.update({
+            where: { id: req.params.id },
+            data,
+            include: {
+                category: { select: { id: true, name: true, slug: true } },
+            },
+        });
+
+        res.json({ success: true, data: source });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * DELETE /api/rss/sources/:id - Remove RSS source and its articles
+ */
+router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        const source = await prisma.rSSSource.findUnique({
+            where: { id: req.params.id },
+        });
+
+        if (!source) {
+            throw createError(404, 'المصدر غير موجود', 'RSS_SOURCE_NOT_FOUND');
+        }
+
+        await prisma.rSSSource.delete({
+            where: { id: req.params.id },
+        });
+
+        // Log activity
+        await prisma.activityLog.create({
+            data: {
+                action: 'DELETE',
+                targetType: 'rss_source',
+                targetId: source.id,
+                targetTitle: source.name,
+                userId: req.user!.userId,
+            },
+        });
+
+        res.json({ success: true, message: 'تم حذف المصدر بنجاح' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/rss/sources/:id/fetch - Manually trigger feed fetch
+ */
+router.post('/sources/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+    try {
+        const result = await fetchRSSFeed(req.params.id);
+
+        res.json({
+            success: result.success,
+            data: {
+                newArticles: result.newArticles,
+                errors: result.errors,
+            },
+            message: result.success
+                ? `تم جلب ${result.newArticles} مقال جديد`
+                : 'فشل جلب الأخبار',
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ============= ADMIN: MODERATION =============
+
+/**
  * GET /api/rss/moderation/sources - Get sources with pending articles
  */
 router.get('/moderation/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
     try {
         const sources = await prisma.rSSSource.findMany({
             where: {
-                articles: {
-                    some: { status: 'PENDING' }
-                }
+                status: 'ACTIVE'
             },
             select: {
                 id: true,
@@ -341,7 +535,7 @@ router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (r
         const categoryId = req.query.categoryId as string | undefined;
 
         const where: any = { status: 'PENDING' };
-        
+
         if (sourceId) {
             where.sourceId = sourceId;
         }

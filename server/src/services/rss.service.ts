@@ -37,33 +37,46 @@ function hashTitle(title: string): string {
 }
 
 /**
- * Extract image URL from feed item
- * Checks multiple common feed image formats
+ * Helper to ensure absolute URL
  */
-function extractImage(item: any): string | null {
+function ensureAbsoluteUrl(url: string | undefined | null, baseUrl: string): string | null {
+    if (!url) return null;
+    try {
+        return new URL(url, baseUrl).toString();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Extract image URL from feed item
+ * Checks multiple common feed image formats and resolves relative URLs
+ */
+function extractImage(item: any, feedLink: string): string | null {
+    let imageUrl: string | null = null;
+
     // Check enclosure (common in podcasts and some feeds)
     if (item.enclosure?.url && item.enclosure?.type?.startsWith('image/')) {
-        return item.enclosure.url;
+        imageUrl = item.enclosure.url;
     }
-
     // Check media:content
-    if (item.mediaContent?.$?.url) {
-        return item.mediaContent.$.url;
+    else if (item.mediaContent?.$?.url) {
+        imageUrl = item.mediaContent.$.url;
     }
-
     // Check media:thumbnail
-    if (item.mediaThumbnail?.$?.url) {
-        return item.mediaThumbnail.$.url;
+    else if (item.mediaThumbnail?.$?.url) {
+        imageUrl = item.mediaThumbnail.$.url;
     }
-
     // Try to extract from content or description
-    const content = item.content || item['content:encoded'] || item.description || '';
-    const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-    if (imgMatch) {
-        return imgMatch[1];
+    else {
+        const content = item.content || item['content:encoded'] || item.description || '';
+        const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (imgMatch) {
+            imageUrl = imgMatch[1];
+        }
     }
 
-    return null;
+    return ensureAbsoluteUrl(imageUrl, feedLink);
 }
 
 /**
@@ -156,7 +169,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         title,
                         excerpt: truncateExcerpt(item.contentSnippet || item.content || (item as any).description),
                         sourceUrl: item.link || '',
-                        imageUrl: extractImage(item),
+                        imageUrl: extractImage(item, source.websiteUrl || source.feedUrl),
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         sourceId: source.id,
