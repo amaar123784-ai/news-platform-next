@@ -25,6 +25,9 @@ export async function generateMetadata(): Promise<Metadata> {
         default: metaTitle,
       },
       description: metaDesc,
+      verification: {
+        google: "googlea4c038509d2813c1",
+      },
       metadataBase: new URL(siteUrl),
       openGraph: {
         type: "website",
