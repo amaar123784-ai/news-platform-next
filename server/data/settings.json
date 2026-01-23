@@ -1,0 +1,29 @@
+{
+    "general": {
+        "siteName": "Voice of Tihama",
+        "officialEmail": "admin@yemennews.com",
+        "phoneNumber": "+967 777 000 000",
+        "defaultLanguage": "ar",
+        "footerDescription": "منصة إخبارية يمنية شاملة تغطي كافة الأحداث المحلية والدولية..."
+    },
+    "seo": {
+        "metaTitle": "يمن نيوز | المصدر الأول للأخبار في اليمن",
+        "keywords": "أخبار, اليمن, سياسة, اقتصاد, رياضة, عاجل",
+        "metaDescription": "تابع آخر أخبار اليمن والعالم لحظة بلحظة على منصة يمن نيوز. تغطية شاملة للأحداث السياسية والاقتصادية والرياضية.",
+        "allowIndexing": true
+    },
+    "social": {
+        "facebook": "https://facebook.com/yemennews",
+        "twitter": "https://twitter.com/yemennews",
+        "instagram": "https://instagram.com/yemennews",
+        "youtube": "https://youtube.com/yemennews",
+        "whatsapp": "+967777000000",
+        "telegram": "https://t.me/yemennews"
+    },
+    "notifications": {
+        "userRegistration": true,
+        "newComment": true,
+        "contactForm": true,
+        "securityAlerts": false
+    }
+}
