@@ -95,7 +95,7 @@ export default function ActivityPage() {
                                 header: 'المستخدم',
                                 render: (log: ActivityLog) => (
                                     <div className="flex items-center gap-3">
-                                        <Avatar name={log.user?.name || 'Java'} size="xs" />
+                                        <Avatar name={log.user?.name || 'Java'} size="sm" />
                                         <span className="font-medium text-gray-900">{log.user?.name || 'System'}</span>
                                     </div>
                                 )
