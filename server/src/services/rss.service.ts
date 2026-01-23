@@ -154,7 +154,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     data: {
                         guid,
                         title,
-                        excerpt: truncateExcerpt(item.contentSnippet || item.content || item.description),
+                        excerpt: truncateExcerpt(item.contentSnippet || item.content || (item as any).description),
                         sourceUrl: item.link || '',
                         imageUrl: extractImage(item),
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
