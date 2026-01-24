@@ -1,6 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
-import { processScrapeQueue, scrapeArticle } from '../src/services/scraper.service.js';
+import { processScrapeQueue, scrapeArticle } from './src/services/scraper.service.js';
 
 const prisma = new PrismaClient();
 
