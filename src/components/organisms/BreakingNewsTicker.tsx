@@ -50,7 +50,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 
                     {/* Marquee Content */}
                     <div className="overflow-hidden flex-1 relative">
-                        <div className="animate-marquee whitespace-nowrap flex items-center">
+                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center">
                             {/* Original Set (Repeated 4x) */}
                             {contentItems.map((item, i) => (
                                 <span key={`original-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
