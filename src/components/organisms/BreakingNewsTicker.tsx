@@ -28,9 +28,9 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 }) => {
     if (!visible || items.length === 0) return null;
 
-    // Repeat items to ensure they fill the screen width
-    // We repeat 4 times strictly to ensure length > 100vw even on huge screens
-    const contentItems = [...items, ...items, ...items, ...items];
+    // Repeat items substantially to ensure seamless scrolling on all screen sizes
+    // 10x repetition guarantees width > viewport width even for 8K screens with short text
+    const contentItems = Array(10).fill(items).flat();
 
     return (
         <div
@@ -41,7 +41,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
             <Container>
                 <div className="flex items-center">
                     {/* Breaking News Label */}
-                    <div className="flex items-center gap-2 ml-4 whitespace-nowrap flex-shrink-0">
+                    <div className="flex items-center gap-2 ml-4 whitespace-nowrap flex-shrink-0 z-10 bg-inherit pl-4">
                         <div className="w-6 h-6 flex items-center justify-center">
                             <Icon name="ri-notification-3-fill" size="lg" />
                         </div>
@@ -50,19 +50,19 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 
                     {/* Marquee Content */}
                     <div className="overflow-hidden flex-1 relative">
-                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center">
-                            {/* Original Set (Repeated 4x) */}
+                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center gap-16 min-w-full">
+                            {/* Original Set */}
                             {contentItems.map((item, i) => (
-                                <span key={`original-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
+                                <span key={`original-${i}`} className="inline-flex items-center text-sm font-medium">
                                     {typeof item === 'string' ? item : item.title}
-                                    <span className="mr-8 text-white/40">•</span>
+                                    <span className="mr-16 text-white/40">•</span>
                                 </span>
                             ))}
-                            {/* Duplicate Set for Seamless Loop (Repeated 4x) */}
+                            {/* Duplicate Set for Seamless Loop */}
                             {contentItems.map((item, i) => (
-                                <span key={`duplicate-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
+                                <span key={`duplicate-${i}`} className="inline-flex items-center text-sm font-medium">
                                     {typeof item === 'string' ? item : item.title}
-                                    <span className="mr-8 text-white/40">•</span>
+                                    <span className="mr-16 text-white/40">•</span>
                                 </span>
                             ))}
                         </div>
