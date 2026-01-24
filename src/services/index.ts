@@ -14,3 +14,4 @@ export { categoryService } from './category.service';
 export { commentService } from './comment.service';
 export { settingsService } from './settings.service';
 export { activityService } from './activity.service';
+export { rssService } from './rss';

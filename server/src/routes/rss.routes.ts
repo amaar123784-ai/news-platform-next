@@ -579,6 +579,34 @@ router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (r
 });
 
 /**
+ * GET /api/rss/articles/:id - Get single RSS article details
+ */
+router.get('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+    try {
+        const article = await prisma.rSSArticle.findUnique({
+            where: { id: req.params.id },
+            include: {
+                source: {
+                    select: {
+                        name: true,
+                        logoUrl: true,
+                        category: { select: { id: true, name: true, slug: true } }
+                    }
+                }
+            }
+        });
+
+        if (!article) {
+            throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
+        }
+
+        res.json({ success: true, data: article });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * PATCH /api/rss/articles/:id - Approve/reject single article
  */
 router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {

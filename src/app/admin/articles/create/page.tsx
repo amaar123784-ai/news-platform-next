@@ -4,40 +4,56 @@ import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArticleForm } from '@/components/templates/ArticleForm';
-import { categoryService } from '@/services';
+import { categoryService, rssService } from '@/services';
 
 function CreateArticleContent() {
-    const { data: categories = [], isLoading } = useQuery({
+    const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
         queryKey: ['categories'],
         queryFn: () => categoryService.getCategories(),
     });
 
     const searchParams = useSearchParams();
+    const rssArticleId = searchParams.get('rssArticleId');
 
-    // Construct initial data from URL parameters (e.g. from RSS conversion)
+    // Fetch RSS article details if converting
+    const { data: rssData, isLoading: isLoadingRSS } = useQuery({
+        queryKey: ['rss-article', rssArticleId],
+        queryFn: () => rssArticleId ? rssService.getArticle(rssArticleId) : null,
+        enabled: !!rssArticleId,
+    });
+
+    // Determine initial data
     const getInitialData = () => {
-        if (!searchParams.toString()) return undefined;
+        if (rssData?.data) {
+            const article = rssData.data;
+            return {
+                title: article.rewrittenTitle || article.title,
+                excerpt: article.rewrittenExcerpt || article.excerpt || '',
+                content: article.fullContent || article.rewrittenExcerpt || article.excerpt || '',
+                imageUrl: article.imageUrl || '',
+                status: 'draft' as const,
+                // Pass source info potentially as tags or extra meta if needed
+            };
+        }
 
+        // Fallback for legacy URL params or empty state
         const title = searchParams.get('title') || '';
         const rawContent = searchParams.get('content') || '';
         const rawImageUrl = searchParams.get('imageUrl') || '';
         const imageUrl = rawImageUrl ? decodeURIComponent(rawImageUrl) : '';
-        const sourceUrl = searchParams.get('sourceUrl');
-        const sourceName = searchParams.get('sourceName');
 
-        const content = rawContent;
-
+        if (!title && !rawContent) return undefined;
 
         return {
             title,
             excerpt: rawContent,
-            content,
+            content: rawContent,
             imageUrl,
             status: 'draft' as const,
         };
     };
 
-    if (isLoading) {
+    if (isLoadingCategories || isLoadingRSS) {
         return <div className="p-8 text-center">جاري التحميل...</div>;
     }
 

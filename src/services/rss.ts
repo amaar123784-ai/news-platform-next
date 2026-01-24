@@ -209,6 +209,14 @@ export const rssService = {
     },
 
     /**
+     * Get single RSS article by ID (admin)
+     */
+    async getArticle(id: string): Promise<SingleResponse<RSSArticle>> {
+        const response = await api.get(`/rss/articles/${id}`);
+        return response.data;
+    },
+
+    /**
      * Approve or reject single article (admin)
      */
     async updateArticleStatus(

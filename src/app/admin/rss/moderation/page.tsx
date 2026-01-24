@@ -291,16 +291,9 @@ export default function RSSModerationPage() {
     };
 
     const handleConvertToArticle = (article: RSSArticle) => {
-        // Use fullContent if available, otherwise fall back to excerpt
-        const articleContent = article.fullContent || article.rewrittenExcerpt || article.excerpt || '';
-
+        // Only pass ID to avoid URL length limits (414 Request-URI Too Large)
         const params = new URLSearchParams({
-            title: article.rewrittenTitle || article.title,
-            content: articleContent,
-            imageUrl: article.imageUrl || '',
-            sourceUrl: article.sourceUrl,
-            sourceName: article.source.name,
-            rssArticleId: article.id, // Track source for image processing
+            rssArticleId: article.id,
         });
         router.push(`/admin/articles/create?${params.toString()}`);
     };
