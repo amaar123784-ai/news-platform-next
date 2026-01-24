@@ -45,12 +45,20 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
                     </div>
 
                     {/* Marquee Content */}
-                    <div className="overflow-hidden flex-1 relative">
-                        <div className="animate-marquee whitespace-nowrap inline-block">
+                    <div className="overflow-hidden flex-1 relative mask-linear-fade">
+                        <div className="animate-marquee whitespace-nowrap flex items-center">
+                            {/* Original Items */}
                             {items.map((item, i) => (
-                                <span key={i} className="mx-4 inline-flex items-center">
+                                <span key={`original-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
                                     {typeof item === 'string' ? item : item.title}
-                                    {i < items.length - 1 && <span className="mr-4 text-white/50">•</span>}
+                                    <span className="mr-8 text-white/40">•</span>
+                                </span>
+                            ))}
+                            {/* Duplicate Items for Seamless Loop */}
+                            {items.map((item, i) => (
+                                <span key={`duplicate-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
+                                    {typeof item === 'string' ? item : item.title}
+                                    <span className="mr-8 text-white/40">•</span>
                                 </span>
                             ))}
                         </div>
