@@ -84,9 +84,9 @@ export const updateCategorySchema = createCategorySchema.partial();
 // ============= Comment Schemas =============
 
 export const createCommentSchema = z.object({
-    content: z.string().min(3, 'التعليق يجب أن يكون 3 أحرف على الأقل').max(1000),
-    articleId: z.string().min(1),
-    parentId: z.string().min(1).optional().nullable(),
+    content: z.string().min(1, 'التعليق مطلوب').max(1000),
+    articleId: z.string(),
+    parentId: z.string().optional().nullable(),
 });
 
 export const moderateCommentSchema = z.object({
