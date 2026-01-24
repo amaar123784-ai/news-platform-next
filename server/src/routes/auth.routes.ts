@@ -174,6 +174,10 @@ router.post('/login', authLimiter, async (req, res, next) => {
         }
 
         // Verify password
+        if (!user.password) {
+            throw createError(401, 'هذا الحساب يستخدم الدخول الاجتماعي. يرجى تسجيل الدخول عبر جوجل أو فيسبوك', 'SOCIAL_AUTH_ONLY');
+        }
+
         const validPassword = await bcrypt.compare(data.password, user.password);
         if (!validPassword) {
             throw createError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة', 'INVALID_CREDENTIALS');
@@ -350,6 +354,10 @@ router.post('/change-password', authenticate, async (req, res, next) => {
         const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
         if (!user) {
             throw createError(404, 'المستخدم غير موجود', 'USER_NOT_FOUND');
+        }
+
+        if (!user.password) {
+            throw createError(400, 'هذا الحساب لا يمتلك كلمة مرور (دخول اجتماعي)', 'SOCIAL_AUTH_ONLY');
         }
 
         const validPassword = await bcrypt.compare(data.currentPassword, user.password);
