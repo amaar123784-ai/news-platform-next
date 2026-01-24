@@ -9,12 +9,12 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon } from '@/components/atoms';
-import { TableSkeleton, ConfirmModal } from '@/components/molecules';
+import { TableSkeleton, ConfirmModal, FullContentModal } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
 import { rssService, type RSSArticle } from '@/services/rss';
 
 // Helper component for rendering rows (prevents code duplication)
-const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrite, onConvert, isProcessing }: any) => (
+const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrite, onConvert, onViewContent, isProcessing }: any) => (
     <div className="p-4 hover:bg-gray-50 flex flex-col gap-4 group">
         <div className="flex gap-4">
             <input
@@ -61,6 +61,16 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                             ✨ تمت الصياغة
                         </span>
                     )}
+                    {article.contentScraped && (
+                        <span className="inline-flex items-center text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded mr-2">
+                            📄 محتوى كامل
+                        </span>
+                    )}
+                    {article.scrapeError && (
+                        <span className="inline-flex items-center text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded mr-2" title={article.scrapeError}>
+                            ⚠️ فشل الجلب
+                        </span>
+                    )}
                 </h3>
 
                 {(article.rewrittenExcerpt || article.excerpt) && (
@@ -69,15 +79,26 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                     </p>
                 )}
 
-                <a
-                    href={article.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-xs text-blue-500 hover:underline mt-2"
-                >
-                    <Icon name="ri-external-link-line" className="ml-1" size="sm" />
-                    عرض المصدر
-                </a>
+                <div className="flex gap-3 mt-2">
+                    <a
+                        href={article.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-xs text-blue-500 hover:underline"
+                    >
+                        <Icon name="ri-external-link-line" className="ml-1" size="sm" />
+                        عرض المصدر
+                    </a>
+                    {article.contentScraped && (
+                        <button
+                            onClick={onViewContent}
+                            className="inline-flex items-center text-xs text-green-600 hover:underline"
+                        >
+                            <Icon name="ri-file-text-line" className="ml-1" size="sm" />
+                            عرض المحتوى الكامل
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
 
@@ -139,6 +160,7 @@ export default function RSSModerationPage() {
     const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
     const [sourceSearch, setSourceSearch] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+    const [viewArticle, setViewArticle] = useState<RSSArticle | null>(null);
 
     // Reset page when source or category changes
     React.useEffect(() => {
@@ -481,6 +503,7 @@ export default function RSSModerationPage() {
                                         onReject={() => rejectMutation.mutate(article.id)}
                                         onRewrite={() => rewriteMutation.mutate(article.id)}
                                         onConvert={() => handleConvertToArticle(article)}
+                                        onViewContent={() => setViewArticle(article)}
                                         isProcessing={{
                                             approve: approveMutation.isPending,
                                             reject: rejectMutation.isPending,
@@ -545,6 +568,7 @@ export default function RSSModerationPage() {
                                                     onReject={() => rejectMutation.mutate(article.id)}
                                                     onRewrite={() => rewriteMutation.mutate(article.id)}
                                                     onConvert={() => handleConvertToArticle(article)}
+                                                    onViewContent={() => setViewArticle(article)}
                                                     isProcessing={{
                                                         approve: approveMutation.isPending,
                                                         reject: rejectMutation.isPending,
@@ -585,6 +609,12 @@ export default function RSSModerationPage() {
                     </Button>
                 </div>
             )}
+
+            <FullContentModal
+                isOpen={!!viewArticle}
+                onClose={() => setViewArticle(null)}
+                article={viewArticle}
+            />
         </div>
     );
 }
