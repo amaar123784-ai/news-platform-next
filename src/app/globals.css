@@ -61,7 +61,7 @@ blockquote {
 .animate-marquee-seamless {
   display: inline-flex;
   white-space: nowrap;
-  animation: marquee-scroll-seamless 300s linear infinite;
+  animation: marquee-scroll-seamless 60s linear infinite;
 }
 
 .animate-marquee:hover {

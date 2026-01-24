@@ -28,9 +28,10 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 }) => {
     if (!visible || items.length === 0) return null;
 
-    // Repeat items substantially to ensure seamless scrolling on all screen sizes
-    // 10x repetition guarantees width > viewport width even for 8K screens with short text
-    const contentItems = Array(10).fill(items).flat();
+    // Double items for seamless loop (0% -> -50% move shifts exactly one full set length)
+    // We repeat enough times to ensure it covers screen, but 2x items usually enough if items are long.
+    // If items are very few/short, we might need 4x. Let's stick to a safe 4x for robustness.
+    const contentItems = [...items, ...items, ...items, ...items];
 
     return (
         <div
@@ -50,7 +51,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 
                     {/* Marquee Content */}
                     <div className="overflow-hidden flex-1 relative">
-                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center gap-16 min-w-full">
+                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center gap-16">
                             {/* Original Set */}
                             {contentItems.map((item, i) => (
                                 <span key={`original-${i}`} className="inline-flex items-center text-sm font-medium">
