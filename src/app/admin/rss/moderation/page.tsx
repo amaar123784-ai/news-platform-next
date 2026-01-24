@@ -291,12 +291,16 @@ export default function RSSModerationPage() {
     };
 
     const handleConvertToArticle = (article: RSSArticle) => {
+        // Use fullContent if available, otherwise fall back to excerpt
+        const articleContent = article.fullContent || article.rewrittenExcerpt || article.excerpt || '';
+
         const params = new URLSearchParams({
             title: article.rewrittenTitle || article.title,
-            content: article.rewrittenExcerpt || article.excerpt || '',
+            content: articleContent,
             imageUrl: article.imageUrl || '',
             sourceUrl: article.sourceUrl,
             sourceName: article.source.name,
+            rssArticleId: article.id, // Track source for image processing
         });
         router.push(`/admin/articles/create?${params.toString()}`);
     };

@@ -50,6 +50,11 @@ export interface RSSArticle {
     rewrittenExcerpt?: string | null;
     isRewritten?: boolean;
     rewrittenAt?: string | null;
+    // Web Scraper fields
+    fullContent?: string | null;
+    contentScraped?: boolean;
+    scrapeError?: string | null;
+    scrapedAt?: string | null;
     source: {
         id?: string;
         name: string;

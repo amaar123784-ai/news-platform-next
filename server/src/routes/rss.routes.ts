@@ -648,7 +648,9 @@ router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'
             throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
 
-        const result = await rewriteArticle(article.title, article.excerpt || '');
+        // Use fullContent if available for better AI rewriting
+        const contentToRewrite = article.fullContent || article.excerpt || '';
+        const result = await rewriteArticle(article.title, contentToRewrite);
 
         if (!result) {
             throw createError(500, 'فشل إعادة صياغة المقال', 'REWRITE_FAILED');

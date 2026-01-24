@@ -243,6 +243,31 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
         const wordCount = data.content.split(/\s+/).length;
         const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
+        // Handle external image - download to local media library
+        let finalImageUrl = data.imageUrl;
+        if (data.imageUrl && (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://')) && !data.imageUrl.includes('/uploads/')) {
+            try {
+                const { imageProcessor } = await import('../services/imageProcessor.js');
+                const axios = (await import('axios')).default;
+
+                const response = await axios.get(data.imageUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 15000,
+                    headers: { 'User-Agent': 'YemenNewsBot/1.0' },
+                    maxContentLength: 10 * 1024 * 1024
+                });
+
+                const buffer = Buffer.from(response.data);
+                const originalName = 'rss-image-' + Date.now() + '.jpg';
+                const processed = await imageProcessor.process(buffer, originalName);
+                finalImageUrl = processed.url;
+                console.log(`[Article] Downloaded external image: ${data.imageUrl} -> ${finalImageUrl}`);
+            } catch (imgError: any) {
+                console.warn(`[Article] Failed to download image: ${imgError.message}. Using original URL.`);
+                // Keep original URL as fallback
+            }
+        }
+
         const article = await prisma.article.create({
             data: {
                 title: data.title,
@@ -252,7 +277,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 categoryId: data.categoryId,
                 authorId: req.user!.userId,
                 status: data.status || 'DRAFT',
-                imageUrl: data.imageUrl,
+                imageUrl: finalImageUrl,
                 seoTitle: data.seoTitle,
                 seoDesc: data.seoDesc,
                 isBreaking: data.isBreaking,
