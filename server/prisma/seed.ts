@@ -226,7 +226,6 @@ async function main() {
                 description: 'آخر الأخبار من بي بي سي عربي',
                 categoryId: categories[0].id, // Politics
                 fetchInterval: 15,
-                autoApprove: true,
                 status: 'ACTIVE',
             },
         }),
@@ -241,7 +240,6 @@ async function main() {
                 description: 'آخر الأخبار من قناة الجزيرة',
                 categoryId: categories[0].id, // Politics
                 fetchInterval: 15,
-                autoApprove: true,
                 status: 'ACTIVE',
             },
         }),
@@ -256,7 +254,6 @@ async function main() {
                 description: 'آخر الأخبار من سكاي نيوز عربية',
                 categoryId: categories[1].id, // Economy
                 fetchInterval: 20,
-                autoApprove: false,
                 status: 'ACTIVE',
             },
         }),
