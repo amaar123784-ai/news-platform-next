@@ -17,13 +17,16 @@ async function main() {
 
         const app = createApp();
 
-        app.listen(Number(env.PORT), () => {
+        const server = app.listen(Number(env.PORT), () => {
             console.log(`🚀 Server running on http://localhost:${env.PORT}`);
             console.log(`📝 Environment: ${env.NODE_ENV}`);
 
             // Initialize RSS scheduler after server starts
             initializeScheduler();
         });
+
+        // Increase server timeout to 5 minutes for AI processing
+        server.timeout = 300000;
     } catch (error) {
         console.error('❌ Failed to start server:', error);
         process.exit(1);
