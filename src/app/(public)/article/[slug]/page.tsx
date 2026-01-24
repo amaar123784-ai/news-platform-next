@@ -8,7 +8,6 @@ import { Tag } from '@/components/atoms/Tag';
 import { Icon } from '@/components/atoms/Icon';
 import { ArticleMeta } from '@/components/molecules/ArticleMeta';
 import { ShareButtons } from '@/components/molecules/ShareButtons';
-import { AuthorCard } from '@/components/organisms/AuthorCard';
 import { CommentSection } from '@/components/organisms/CommentSection';
 import { ArticleContent } from "@/components/organisms/ArticleContent";
 import { categoryBadges } from '@/design-system/tokens';
@@ -216,20 +215,7 @@ export default async function ArticlePage({ params }: Props) {
                                 </div>
                             </article>
 
-                            {/* Author Card */}
-                            {article.author && (
-                                <div className="mt-8">
-                                    <AuthorCard
-                                        name={article.author.name}
-                                        role="كاتب"
-                                        bio={article.author.bio || ''}
-                                        imageUrl={article.author.avatar ? getImageUrl(article.author.avatar) : undefined}
-                                        articleCount={0}
-                                        profileUrl={`/author/${article.author.id}`}
-                                        className="border-none shadow-sm ring-1 ring-gray-100"
-                                    />
-                                </div>
-                            )}
+                            {/* Comments Section */}
 
                             {/* Comments Section */}
                             <div className="mt-8">
