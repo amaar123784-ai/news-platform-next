@@ -261,7 +261,20 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 const originalName = 'rss-image-' + Date.now() + '.jpg';
                 const processed = await imageProcessor.process(buffer, originalName);
                 finalImageUrl = processed.url;
-                console.log(`[Article] Downloaded external image: ${data.imageUrl} -> ${finalImageUrl}`);
+
+                // Save to Media library
+                await prisma.media.create({
+                    data: {
+                        filename: processed.filename,
+                        url: processed.url,
+                        type: processed.mimeType,
+                        size: processed.size,
+                        uploaderId: req.user!.userId, // Associate with current user
+                        alt: data.title // Use article title as alt text default
+                    }
+                });
+
+                console.log(`[Article] Downloaded external image: ${data.imageUrl} -> ${finalImageUrl} (Saved to Media Library)`);
             } catch (imgError: any) {
                 console.warn(`[Article] Failed to download image: ${imgError.message}. Using original URL.`);
                 // Keep original URL as fallback
