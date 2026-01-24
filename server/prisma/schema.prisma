@@ -265,9 +265,16 @@ model RSSArticle {
   isRewritten       Boolean          @default(false)
   rewrittenAt       DateTime?
   
+  // Web Scraper fields
+  fullContent       String?          @db.LongText              // Scraped full article content
+  contentScraped    Boolean          @default(false)
+  scrapeError       String?          @db.Text
+  scrapedAt         DateTime?
+  
   @@index([status])
   @@index([sourceId])
   @@index([publishedAt])
   @@index([guid])
   @@index([titleHash])
+  @@index([contentScraped])
 }

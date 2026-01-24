@@ -5,6 +5,7 @@
 
 import cron from 'node-cron';
 import { fetchAllActiveFeeds, cleanupOldArticles, expireOldArticles } from './rss.service.js';
+import { processScrapeQueue } from './scraper.service.js';
 
 let isSchedulerInitialized = false;
 
@@ -52,9 +53,21 @@ export function initializeScheduler(): void {
         }
     });
 
+    // Process scrape queue every 5 minutes
+    cron.schedule('*/5 * * * *', async () => {
+        console.log('[Scheduler] Processing scrape queue...');
+        try {
+            const result = await processScrapeQueue(5);
+            console.log(`[Scheduler] Scrape complete: ${result.successful}/${result.processed} articles`);
+        } catch (error) {
+            console.error('[Scheduler] Scrape queue error:', error);
+        }
+    });
+
     isSchedulerInitialized = true;
     console.log('[Scheduler] Background jobs initialized successfully');
     console.log('[Scheduler] - RSS fetch: every 15 minutes');
+    console.log('[Scheduler] - Scrape queue: every 5 minutes');
     console.log('[Scheduler] - Article expiry: daily at 2 AM');
     console.log('[Scheduler] - Cleanup: daily at 3 AM');
 }
