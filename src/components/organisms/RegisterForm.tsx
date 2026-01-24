@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/atoms';
-import { FormField } from '@/components/molecules';
+import { FormField, SocialButtons } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
 import { authService } from '@/services/auth.service';
 
@@ -156,6 +156,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel 
                     {isLoading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب جديد'}
                 </Button>
             </div>
+
+            {/* Social Login */}
+            <SocialButtons />
         </form>
     );
 };

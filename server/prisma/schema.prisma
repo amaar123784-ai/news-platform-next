@@ -51,13 +51,15 @@ enum RSSArticleStatus {
 
 model User {
   id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(READER)
-  avatar    String?
-  bio       String?  @db.Text
-  isActive  Boolean  @default(true)
+  email      String   @unique
+  password   String?
+  name       String
+  role       Role     @default(READER)
+  avatar     String?
+  bio        String?  @db.Text
+  googleId   String?  @unique @db.VarChar(100)
+  facebookId String?  @unique @db.VarChar(100)
+  isActive   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

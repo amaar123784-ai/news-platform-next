@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react';
 import { Icon, Button } from '@/components/atoms';
-import { FormField } from '@/components/molecules';
+import { FormField, SocialButtons } from '@/components/molecules';
 
 export interface LoginFormProps {
     /** Form submit handler */
@@ -129,35 +129,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                         تسجيل الدخول
                     </Button>
 
-                    {/* Divider */}
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-300" />
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white text-gray-500">أو</span>
-                        </div>
-                    </div>
-
                     {/* Social Login */}
-                    <div className="space-y-3">
-                        <button
-                            type="button"
-                            onClick={() => onSocialLogin?.('google')}
-                            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
-                        >
-                            <Icon name="ri-google-fill" className="text-red-500" />
-                            <span>تسجيل الدخول بـ Google</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onSocialLogin?.('facebook')}
-                            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
-                        >
-                            <Icon name="ri-facebook-fill" className="text-blue-600" />
-                            <span>تسجيل الدخول بـ Facebook</span>
-                        </button>
-                    </div>
+                    <SocialButtons />
 
                     {/* Create Account */}
                     <div className="text-center">

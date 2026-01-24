@@ -19,6 +19,26 @@ export const authService = {
     },
 
     /**
+     * Google Login
+     */
+    async loginWithGoogle(token: string): Promise<LoginResponse> {
+        const response = await api.post<ApiResponse<LoginResponse>>('/auth/google', { token });
+        const { user, token: accessToken, refreshToken } = response.data.data;
+        setAuthToken(accessToken, refreshToken);
+        return { user, token: accessToken, refreshToken };
+    },
+
+    /**
+     * Facebook Login
+     */
+    async loginWithFacebook(token: string): Promise<LoginResponse> {
+        const response = await api.post<ApiResponse<LoginResponse>>('/auth/facebook', { token });
+        const { user, token: accessToken, refreshToken } = response.data.data;
+        setAuthToken(accessToken, refreshToken);
+        return { user, token: accessToken, refreshToken };
+    },
+
+    /**
      * Register new user
      */
     async register(data: RegisterRequest): Promise<LoginResponse> {

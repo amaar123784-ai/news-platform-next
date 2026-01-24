@@ -56,9 +56,15 @@ export interface User {
     role: 'admin' | 'editor' | 'journalist' | 'reader';
     avatar?: string;
     bio?: string;
+    googleId?: string;
+    facebookId?: string;
     createdAt: string;
     updatedAt: string;
     isActive?: boolean;
+}
+
+export interface SocialLoginRequest {
+    token: string;
 }
 
 // Article types

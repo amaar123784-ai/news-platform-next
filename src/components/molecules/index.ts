@@ -10,6 +10,7 @@ export { FormField, type FormFieldProps } from './FormField';
 export { NewsCardSmall, type NewsCardSmallProps } from './NewsCardSmall';
 export { ArticleMeta, type ArticleMetaProps } from './ArticleMeta';
 export { ShareButtons, type ShareButtonsProps } from './ShareButtons';
+export { SocialButtons, type SocialButtonsProps } from './SocialButtons';
 export { SearchInput, type SearchInputProps } from './SearchInput';
 export { Pagination, type PaginationProps } from './Pagination';
 export { ConfirmModal } from './ConfirmModal';
