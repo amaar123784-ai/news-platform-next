@@ -11,6 +11,7 @@ import { Icon } from '@/components/atoms';
 import { useToast } from '@/components/organisms/Toast';
 import { authService } from '@/services/auth.service';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface SocialButtonsProps {
     onSuccess?: () => void;
@@ -19,6 +20,7 @@ export interface SocialButtonsProps {
 
 export const SocialButtons: React.FC<SocialButtonsProps> = ({ onSuccess, isLoading: parentLoading }) => {
     const { success, error: showError } = useToast();
+    const { login } = useAuth();
     const router = useRouter();
     const [localLoading, setLocalLoading] = React.useState<string | null>(null);
 
@@ -54,6 +56,9 @@ export const SocialButtons: React.FC<SocialButtonsProps> = ({ onSuccess, isLoadi
         setLocalLoading('google');
         try {
             const loginRes = await authService.loginWithGoogle(response.credential);
+            // Update global AuthContext state
+            login(loginRes.user);
+
             success(`مرحباً بك مجدداً، ${loginRes.user.name}`);
             onSuccess?.();
             router.push('/');
