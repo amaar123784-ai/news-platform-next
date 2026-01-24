@@ -61,7 +61,7 @@ blockquote {
 .animate-marquee-continuous {
   display: inline-flex;
   white-space: nowrap;
-  animation: marquee-continuous 120s linear infinite;
+  animation: marquee-continuous 30s linear infinite;
   min-width: 100%;
 }
 
