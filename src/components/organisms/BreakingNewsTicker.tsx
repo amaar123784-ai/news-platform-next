@@ -26,7 +26,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
     const repeatedItems = [...items, ...items, ...items, ...items];
 
     return (
-        <div className="sticky top-0 z-[100] w-full bg-red-700 text-white shadow-md border-b-2 border-red-800">
+        <div className="relative z-[100] w-full bg-red-700 text-white shadow-md border-b-2 border-red-800">
             <div className="container mx-auto px-4 h-10 flex items-center overflow-hidden">
 
                 {/* Label Badge - Static */}
