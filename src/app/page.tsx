@@ -16,13 +16,16 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Breaking News Ticker */}
-      {breakingNews && breakingNews.length > 0 && (
-        <BreakingNewsTicker items={breakingNews} />
-      )}
+      {/* Fixed Top Section: Ticker + Header */}
+      <div className="sticky top-0 z-[100] w-full bg-white shadow-sm">
+        {/* Breaking News Ticker */}
+        {breakingNews && breakingNews.length > 0 && (
+          <BreakingNewsTicker items={breakingNews} />
+        )}
 
-      {/* Header */}
-      <Header />
+        {/* Header */}
+        <Header />
+      </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 min-h-screen">
