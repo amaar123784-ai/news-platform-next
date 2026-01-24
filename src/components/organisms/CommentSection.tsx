@@ -115,7 +115,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             if (err?.response?.status === 401 || err?.status === 401) {
                 showError("يجب تسجيل الدخول لإضافة تعليق");
             } else {
-                showError("فشل إضافة التعليق: " + (err?.message || "خطأ غير معروف"));
+                console.error("Comment Error Details:", err?.response?.data || err);
+                const details = err?.response?.data?.details;
+                const detailMsg = details ? Object.values(details).flat().join(', ') : '';
+                showError("فشل إضافة التعليق: " + (detailMsg || err?.message || "خطأ غير معروف"));
             }
         },
     });
