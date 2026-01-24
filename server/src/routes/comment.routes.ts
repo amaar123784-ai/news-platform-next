@@ -133,8 +133,8 @@ router.post('/', authenticate, async (req, res, next) => {
                 articleId: data.articleId,
                 authorId: req.user!.userId,
                 parentId: data.parentId,
-                // Auto-approve for editors+
-                status: ['ADMIN', 'EDITOR'].includes(req.user!.role) ? 'APPROVED' : 'PENDING',
+                // Auto-approve for all users (or change based on settings)
+                status: 'APPROVED',
             },
             include: {
                 author: { select: { id: true, name: true, avatar: true } },
