@@ -96,7 +96,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
 
     const handleImageSelect = (file: MediaFile) => {
         if (editorImageCallback) {
-            const fullUrl = file.url.startsWith('http') ? file.url : `http://localhost:5000${file.url}`;
+            const fullUrl = file.url.startsWith('http') ? file.url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${file.url}`;
             editorImageCallback(fullUrl);
             setEditorImageCallback(null);
         } else {
@@ -294,7 +294,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                                 {formData.imageUrl ? (
                                     <>
                                         <img
-                                            src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `http://localhost:5000${formData.imageUrl}`}
+                                            src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${formData.imageUrl}`}
                                             alt="Featured"
                                             className="w-full h-40 object-cover rounded-md"
                                         />
