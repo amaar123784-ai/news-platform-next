@@ -3,7 +3,7 @@ import { Header, Footer } from "@/components/organisms";
 import { Container } from "@/components/atoms";
 
 export const metadata = {
-    title: "إنشاء حساب | أخبار اليمن",
+    title: "إنشاء حساب | صوت تهامة",
     description: "انضم إلينا وأنشئ حسابك الجديد",
 };
 

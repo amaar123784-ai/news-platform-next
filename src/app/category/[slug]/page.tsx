@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: CategoryPageProps) {
     const categoryName = CATEGORY_NAMES[slug] || slug;
 
     return {
-        title: `${categoryName} | أخبار اليمن`,
+        title: `${categoryName} | صوت تهامة`,
         description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
     };
 }

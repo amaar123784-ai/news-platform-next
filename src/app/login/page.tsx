@@ -4,7 +4,7 @@ import { Container } from "@/components/atoms";
 import Link from "next/link";
 
 export const metadata = {
-    title: "تسجيل الدخول | أخبار اليمن",
+    title: "تسجيل الدخول | صوت تهامة",
     description: "تسجيل الدخول إلى حسابك",
 };
 

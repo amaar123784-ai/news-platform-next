@@ -6,7 +6,7 @@ import { NewsCard } from "@/components/organisms";
 import Link from "next/link";
 
 export const metadata = {
-    title: "البحث | أخبار اليمن",
+    title: "البحث | صوت تهامة",
     description: "البحث في الأخبار والمقالات",
 };
 

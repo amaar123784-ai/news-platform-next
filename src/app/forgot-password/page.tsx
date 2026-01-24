@@ -4,7 +4,7 @@ import { FormField } from "@/components/molecules";
 import Link from "next/link";
 
 export const metadata = {
-    title: "نسيت كلمة المرور | أخبار اليمن",
+    title: "استعادة كلمة المرور | صوت تهامة",
     description: "استعادة كلمة المرور الخاصة بحسابك",
 };
 
