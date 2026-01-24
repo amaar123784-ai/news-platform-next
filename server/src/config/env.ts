@@ -19,6 +19,8 @@ const envSchema = z.object({
     OLLAMA_MODEL: z.string().default('gemma2'),
     OLLAMA_HOST: z.string().default('http://127.0.0.1:11434'),
     GEMINI_API_KEY: z.string().optional(),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

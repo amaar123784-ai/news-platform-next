@@ -28,13 +28,40 @@ export const SocialButtons: React.FC<SocialButtonsProps> = ({ onSuccess, isLoadi
      * Handle Google Login flow
      * This typically triggers the Google Identity Services popup
      */
-    const handleGoogleLogin = async () => {
-        // Implementation note: In a real environment, you would use @react-oauth/google 
-        // or the native window.google.accounts.id.initialize load.
-        // For now, we simulate the token retrieval or provide instructions.
+    const handleGoogleLogin = () => {
+        // Load Google Identity Services script dynamically
+        const script = document.createElement('script');
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            // @ts-ignore
+            window.google.accounts.id.initialize({
+                client_id: "586909783605-njeiscdsa6kf303nu4ll3art3so3293l.apps.googleusercontent.com",
+                callback: handleGoogleCallback,
+                ux_mode: 'popup',
+            });
+            // @ts-ignore
+            window.google.accounts.id.prompt(); // Show One Tap if possible
+        };
+        document.head.appendChild(script);
+    };
 
-        showError('يرجى تهيئة مفاتيح Google Client ID أولاً في الإعدادات');
-        console.warn('[SocialAuth] Google login triggered. Requires Client ID.');
+    /**
+     * Handle Google Credential Callback
+     */
+    const handleGoogleCallback = async (response: any) => {
+        setLocalLoading('google');
+        try {
+            const loginRes = await authService.loginWithGoogle(response.credential);
+            success(`مرحباً بك مجدداً، ${loginRes.user.name}`);
+            onSuccess?.();
+            router.push('/');
+        } catch (err: any) {
+            showError(err.message || 'فشل تسجيل الدخول عبر جوجل');
+        } finally {
+            setLocalLoading(null);
+        }
     };
 
     /**
