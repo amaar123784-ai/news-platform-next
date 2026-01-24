@@ -28,6 +28,10 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 }) => {
     if (!visible || items.length === 0) return null;
 
+    // Repeat items to ensure they fill the screen width
+    // We repeat 4 times strictly to ensure length > 100vw even on huge screens
+    const contentItems = [...items, ...items, ...items, ...items];
+
     return (
         <div
             className="breaking-news-bg text-white py-2 overflow-hidden"
@@ -45,17 +49,17 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
                     </div>
 
                     {/* Marquee Content */}
-                    <div className="overflow-hidden flex-1 relative mask-linear-fade">
+                    <div className="overflow-hidden flex-1 relative">
                         <div className="animate-marquee whitespace-nowrap flex items-center">
-                            {/* Original Items */}
-                            {items.map((item, i) => (
+                            {/* Original Set (Repeated 4x) */}
+                            {contentItems.map((item, i) => (
                                 <span key={`original-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
                                     {typeof item === 'string' ? item : item.title}
                                     <span className="mr-8 text-white/40">•</span>
                                 </span>
                             ))}
-                            {/* Duplicate Items for Seamless Loop */}
-                            {items.map((item, i) => (
+                            {/* Duplicate Set for Seamless Loop (Repeated 4x) */}
+                            {contentItems.map((item, i) => (
                                 <span key={`duplicate-${i}`} className="mx-8 inline-flex items-center text-sm font-medium">
                                     {typeof item === 'string' ? item : item.title}
                                     <span className="mr-8 text-white/40">•</span>
