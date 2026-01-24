@@ -48,6 +48,7 @@ export function createApp(): Express {
     // Files are accessible at /uploads/filename.png
     const uploadsPath = path.join(process.cwd(), 'uploads');
     app.use('/uploads', express.static(uploadsPath));
+    app.use('/api/uploads', express.static(uploadsPath)); // Fix for proxy setups passing full path
 
     // Log uploads path for debugging
     console.log('📂 Serving uploads from:', uploadsPath);
