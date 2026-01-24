@@ -3,22 +3,15 @@
 /**
  * BreakingNewsTicker Component
  * 
- * Animated breaking news marquee bar with auto-scroll.
- * Pauses on hover for accessibility.
- * 
- * @see components.breakingNews in design-system.json
- * 
- * @example
- * <BreakingNewsTicker items={['خبر عاجل 1', 'خبر عاجل 2']} />
+ * Fixed top bar for breaking news.
+ * Uses widely supported CSS animation for seamless looping.
  */
 
 import React from 'react';
 import { Container, Icon } from '@/components/atoms';
 
 export interface BreakingNewsTickerProps {
-    /** Array of news headlines or articles */
     items: (string | { title: string })[];
-    /** Whether to show the ticker */
     visible?: boolean;
 }
 
@@ -28,48 +21,38 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
 }) => {
     if (!visible || items.length === 0) return null;
 
-    // Double items for seamless loop (0% -> -50% move shifts exactly one full set length)
-    // We repeat enough times to ensure it covers screen, but 2x items usually enough if items are long.
-    // If items are very few/short, we might need 4x. Let's stick to a safe 4x for robustness.
-    const contentItems = [...items, ...items, ...items, ...items];
+    // Ensure we have enough content to scroll smoothly
+    // 4 repetitions is a safe balance for performance and infinite feel
+    const repeatedItems = [...items, ...items, ...items, ...items];
 
     return (
-        <div
-            className="breaking-news-bg text-white py-2 overflow-hidden"
-            role="region"
-            aria-label="أخبار عاجلة"
-        >
-            <Container>
-                <div className="flex items-center">
-                    {/* Breaking News Label */}
-                    <div className="flex items-center gap-2 ml-4 whitespace-nowrap flex-shrink-0 z-10 bg-inherit pl-4">
-                        <div className="w-6 h-6 flex items-center justify-center">
-                            <Icon name="ri-notification-3-fill" size="lg" />
-                        </div>
-                        <span className="font-bold">عاجل</span>
-                    </div>
+        <div className="sticky top-0 z-[100] w-full bg-red-700 text-white shadow-md border-b-2 border-red-800">
+            <div className="container mx-auto px-4 h-10 flex items-center overflow-hidden">
 
-                    {/* Marquee Content */}
-                    <div className="overflow-hidden flex-1 relative">
-                        <div className="animate-marquee-seamless whitespace-nowrap flex items-center gap-16">
-                            {/* Original Set */}
-                            {contentItems.map((item, i) => (
-                                <span key={`original-${i}`} className="inline-flex items-center text-sm font-medium">
-                                    {typeof item === 'string' ? item : item.title}
-                                    <span className="mr-16 text-white/40">•</span>
-                                </span>
-                            ))}
-                            {/* Duplicate Set for Seamless Loop */}
-                            {contentItems.map((item, i) => (
-                                <span key={`duplicate-${i}`} className="inline-flex items-center text-sm font-medium">
-                                    {typeof item === 'string' ? item : item.title}
-                                    <span className="mr-16 text-white/40">•</span>
-                                </span>
-                            ))}
-                        </div>
+                {/* Label Badge - Static */}
+                <div className="flex items-center gap-2 pl-6 pr-2 bg-red-800 h-full relative z-20 flex-shrink-0 font-bold text-sm">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                    </span>
+                    <span>عاجل</span>
+
+                    {/* Angled Divider */}
+                    <div className="absolute left-full top-0 h-0 w-0 border-t-[40px] border-t-red-800 border-r-[20px] border-r-transparent"></div>
+                </div>
+
+                {/* Marquee Track */}
+                <div className="flex-1 overflow-hidden relative h-full flex items-center mask-fade-sides">
+                    <div className="animate-marquee-continuous whitespace-nowrap flex items-center">
+                        {repeatedItems.map((item, i) => (
+                            <span key={i} className="inline-flex items-center mx-8 text-sm font-medium">
+                                {typeof item === 'string' ? item : item.title}
+                                <span className="mr-8 w-1.5 h-1.5 rounded-full bg-white/40"></span>
+                            </span>
+                        ))}
                     </div>
                 </div>
-            </Container>
+            </div>
         </div>
     );
 };

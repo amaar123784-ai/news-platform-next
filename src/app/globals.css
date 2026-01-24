@@ -48,7 +48,7 @@ blockquote {
   background-color: rgba(0, 0, 0, 0.7);
 }
 
-@keyframes marquee-scroll-seamless {
+@keyframes marquee-continuous {
   0% {
     transform: translateX(0);
   }
@@ -58,13 +58,14 @@ blockquote {
   }
 }
 
-.animate-marquee-seamless {
+.animate-marquee-continuous {
   display: inline-flex;
   white-space: nowrap;
-  animation: marquee-scroll-seamless 60s linear infinite;
+  animation: marquee-continuous 120s linear infinite;
+  min-width: 100%;
 }
 
-.animate-marquee:hover {
+.animate-marquee-continuous:hover {
   animation-play-state: paused;
 }
 
