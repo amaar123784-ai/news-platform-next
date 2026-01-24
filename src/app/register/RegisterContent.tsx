@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { AddUserForm } from "@/components/organisms/AddUserForm";
+import { RegisterForm } from "@/components/organisms/RegisterForm";
 
 export function RegisterContent() {
     const router = useRouter();
@@ -15,7 +15,7 @@ export function RegisterContent() {
     };
 
     return (
-        <AddUserForm
+        <RegisterForm
             onSuccess={handleSuccess}
             onCancel={handleCancel}
         />
