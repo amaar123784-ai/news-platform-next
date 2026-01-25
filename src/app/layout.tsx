@@ -39,12 +39,12 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       icons: {
         icon: [
-          { url: '/images/log8o.png', type: 'image/png' },
-          { url: '/images/log8o.png', type: 'image/png', sizes: '32x32' },
+          { url: '/images/logo.png', type: 'image/png' },
+          { url: '/images/logo.png', type: 'image/png', sizes: '32x32' },
         ],
-        shortcut: '/images/log8o.png',
+        shortcut: '/images/logo.png',
         apple: [
-          { url: '/images/log8o.png', sizes: '180x180', type: 'image/png' },
+          { url: '/images/logo.png', sizes: '180x180', type: 'image/png' },
         ],
       }
     };
@@ -53,6 +53,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "صوت تهامة - Tihama Voice",
       description: "صوت تهامة - صوت الحقيقة",
       metadataBase: new URL(siteUrl),
+      icons: {
+        icon: '/images/logo.png',
+        shortcut: '/images/logo.png',
+        apple: '/images/logo.png',
+      }
     };
   }
 }
@@ -73,6 +78,9 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
           rel="stylesheet"
         />
+        <link rel="icon" href="/images/logo.png" />
+        <link rel="shortcut icon" href="/images/logo.png" />
+        <link rel="apple-touch-icon" href="/images/logo.png" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen">
         {/* Logo Watermark Background */}
