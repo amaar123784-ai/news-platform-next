@@ -7,6 +7,7 @@ import Parser from 'rss-parser';
 import crypto from 'crypto';
 import path from 'path';
 import { prisma } from '../index.js';
+import { processYemenFilter, type FilterResult } from './yemenFilter.service.js';
 
 // Custom parser with Arabic-friendly settings
 const parser = new Parser({
@@ -198,11 +199,37 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 continue; // Similar article already exists
             }
 
+            // ========== YEMEN FILTER GATE ==========
+            const filterResult = processYemenFilter({
+                guid,
+                title,
+                description: item.contentSnippet || item.content || (item as any).description,
+                sourceUrl: item.link || '',
+                publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+                sourceId: source.id,
+                sourceName: source.name,
+            });
+
+            // Handle filter decisions
+            if (filterResult.status === 'REJECTED') {
+                console.log(`[RSS] ❌ Rejected: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
+                continue; // Skip non-Yemen content
+            }
+
+            if (filterResult.status === 'MERGED' && filterResult.mergeWithId) {
+                console.log(`[RSS] 🔗 Merged with existing article: ${title.substring(0, 40)}...`);
+                continue; // Duplicate detected
+            }
+
             try {
                 // Download and process image locally
                 const baseFeedUrl = source.websiteUrl || source.feedUrl;
                 const rawImageUrl = extractImage(item);
                 const localImageUrl = await downloadAndProcessImage(rawImageUrl, baseFeedUrl);
+
+                // Determine status based on filter result
+                // Note: FLAGGED articles go to PENDING but are logged for attention
+                const articleStatus = 'PENDING' as const;
 
                 await prisma.rSSArticle.create({
                     data: {
@@ -214,10 +241,20 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         sourceId: source.id,
-                        status: 'PENDING',
+                        status: articleStatus,
                         approvedAt: null,
+                        // Yemen filter metadata (optional fields - may need schema update)
+                        // relevanceScore: filterResult.relevanceScore,
+                        // sourceTier: filterResult.tierCategory,
                     },
                 });
+
+                if (filterResult.status === 'FLAGGED') {
+                    console.log(`[RSS] ⚠️ Flagged for review: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
+                } else {
+                    console.log(`[RSS] ✅ Accepted: ${title.substring(0, 40)}... (Score: ${filterResult.relevanceScore}, Tier: ${filterResult.tierCategory})`);
+                }
+
                 newArticles++;
             } catch (err: any) {
                 const errorMsg = `فشل حفظ المقال: ${title.substring(0, 50)}`;
