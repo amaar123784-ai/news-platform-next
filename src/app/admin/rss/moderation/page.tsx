@@ -286,7 +286,7 @@ export default function RSSModerationPage() {
             setSelectedIds(prev => prev.filter(id => !allIds.includes(id)));
         } else {
             const allIds = articles.map((a: RSSArticle) => a.id);
-            setSelectedIds(prev => [...new Set([...prev, ...allIds])]);
+            setSelectedIds(prev => Array.from(new Set([...prev, ...allIds])));
         }
     };
 
