@@ -296,7 +296,7 @@ export async function scrapeArticle(articleId: string): Promise<{
                 const el = $(selector);
                 if (el.length > 0) {
                     const paragraphs: string[] = [];
-                    el.find('p').each((_: number, p: Element) => {
+                    el.find('p').each((_: number, p: any) => {
                         const text = $(p).text().trim();
                         if (text.length > 30) paragraphs.push(text);
                     });
