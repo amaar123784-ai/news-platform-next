@@ -43,6 +43,8 @@ const YEMEN_PRIMARY_KEYWORDS = [
     'اليمن', 'يمني', 'يمنية', 'اليمنية', 'اليمنيين', 'اليمنيون',
     // English
     'yemen', 'yemeni',
+    // Sports
+    'المنتخب الوطني', 'منتخب الناشئين', 'منتخب الشباب', 'المنتخب اليمني',
 ];
 
 /**
@@ -57,6 +59,11 @@ const YEMEN_SECONDARY_ENTITIES = {
         // English transliterations
         "sana'a", 'sanaa', 'aden', 'taiz', 'marib', 'hodeidah', 'hodeida', 'ibb',
         'hadramout', 'mukalla', 'socotra', 'tihama',
+    ],
+    sports: [
+        'اتحاد الكرة', 'الدوري اليمني', 'كأس الجمهورية', 'أهلي صنعاء', 'وحدة صنعاء',
+        'التلال', 'شعب إب', 'الصقر', 'اليرموك', 'الهلال الساحلي', 'شعب حضرموت',
+        'استاد سيئون', 'ملعب المريسي',
     ],
     political: [
         // Houthis
@@ -237,6 +244,7 @@ function calculateEntityDensity(text: string): number {
     const allEntities = [
         ...YEMEN_SECONDARY_ENTITIES.geographic,
         ...YEMEN_SECONDARY_ENTITIES.political,
+        ...YEMEN_SECONDARY_ENTITIES.sports,
     ];
 
     const count = countKeywords(text, allEntities);
@@ -330,7 +338,8 @@ export function processYemenFilter(item: RSSItemInput): FilterResult {
     // Check secondary entities
     const geoCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.geographic);
     const politicalCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.political);
-    const secondaryCount = geoCount + politicalCount;
+    const sportsCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.sports);
+    const secondaryCount = geoCount + politicalCount + sportsCount;
 
     // Tier 1 sources get relaxed secondary requirement
     const secondaryRequired = tierInfo.tier === 1 ? 0 : 1;

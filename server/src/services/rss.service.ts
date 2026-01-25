@@ -203,16 +203,60 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 continue; // Similar article already exists
             }
 
-            // ========== YEMEN FILTER GATE ==========
-            const filterResult = processYemenFilter({
-                guid,
-                title,
-                description: item.contentSnippet || item.content || (item as any).description,
-                sourceUrl: item.link || '',
-                publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-                sourceId: source.id,
-                sourceName: source.name,
-            });
+            // ========== 1. CLASSIFICATION & CATEGORY DETERMINATION ==========
+            let articleCategoryId: string | null = null;
+            let targetCategorySlug = source.category?.slug || '';
+            const excerpt = item.contentSnippet || item.content || (item as any).description || '';
+
+            // If source is Mixed, try to auto-classify first
+            if (isMixedCategory(targetCategorySlug)) {
+                const classification = classifyArticle(title, excerpt);
+                if (classification.categorySlug) {
+                    targetCategorySlug = classification.categorySlug;
+                    // Find ID for the classified category
+                    const matchedCategory = await prisma.category.findUnique({
+                        where: { slug: classification.categorySlug },
+                        select: { id: true },
+                    });
+                    if (matchedCategory) {
+                        articleCategoryId = matchedCategory.id;
+                    }
+                }
+            } else {
+                // Non-mixed source: inherit source category ID
+                articleCategoryId = source.categoryId;
+            }
+
+            // ========== 2. YEMEN FILTER GATE (Conditional) ==========
+            // Global categories bypass the filter (News is considered global unless it's politics)
+            // Allowed Global: Economy, Sports, Technology, Culture
+            const GLOBAL_CATEGORIES = ['economy', 'sports', 'technology', 'culture'];
+            const isGlobalCategory = GLOBAL_CATEGORIES.includes(targetCategorySlug);
+
+            let filterResult: FilterResult;
+
+            if (isGlobalCategory) {
+                // BYPASS FILTER: Accept immediately for global categories
+                filterResult = {
+                    status: 'ACCEPTED',
+                    relevanceScore: 1.0,
+                    tierCategory: 1, // Treat as high relevance
+                    reasoning: `Global category (${targetCategorySlug}) - Bypass Yemen Filter`,
+                    action: 'PUBLISH',
+                };
+                console.log(`[RSS] 🌍 Global Content (${targetCategorySlug}): ${title.substring(0, 40)}...`);
+            } else {
+                // APPLY FILTER: For Politics, Mixed (unclassified), or others
+                filterResult = processYemenFilter({
+                    guid,
+                    title,
+                    description: excerpt,
+                    sourceUrl: item.link || '',
+                    publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+                    sourceId: source.id,
+                    sourceName: source.name,
+                });
+            }
 
             // Handle filter decisions
             if (filterResult.status === 'REJECTED') {
@@ -234,35 +278,6 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 // Determine status based on filter result
                 // Note: FLAGGED articles go to PENDING but are logged for attention
                 const articleStatus = 'PENDING' as const;
-
-                // ========== AUTO-CLASSIFICATION FOR MIXED SOURCES ==========
-                let articleCategoryId: string | null = null;
-                const sourceCategory = source.category?.slug || '';
-
-                if (isMixedCategory(sourceCategory)) {
-                    const excerpt = item.contentSnippet || item.content || (item as any).description || '';
-                    const classification = classifyArticle(title, excerpt);
-
-                    if (classification.categorySlug) {
-                        // Find category by slug
-                        const matchedCategory = await prisma.category.findUnique({
-                            where: { slug: classification.categorySlug },
-                            select: { id: true },
-                        });
-                        if (matchedCategory) {
-                            articleCategoryId = matchedCategory.id;
-                        }
-                    }
-                } else {
-                    // Non-mixed source: inherit source category
-                    const sourceFullCategory = await prisma.category.findUnique({
-                        where: { id: source.categoryId },
-                        select: { id: true },
-                    });
-                    if (sourceFullCategory) {
-                        articleCategoryId = sourceFullCategory.id;
-                    }
-                }
 
                 await prisma.rSSArticle.create({
                     data: {
