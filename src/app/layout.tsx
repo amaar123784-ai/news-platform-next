@@ -38,8 +38,14 @@ export async function generateMetadata(): Promise<Metadata> {
         card: "summary_large_image",
       },
       icons: {
-        icon: '/images/logo.png',
-        apple: '/images/logo.png',
+        icon: [
+          { url: '/images/log8o.png', type: 'image/png' },
+          { url: '/images/log8o.png', type: 'image/png', sizes: '32x32' },
+        ],
+        shortcut: '/images/log8o.png',
+        apple: [
+          { url: '/images/log8o.png', sizes: '180x180', type: 'image/png' },
+        ],
       }
     };
   } catch (error) {
