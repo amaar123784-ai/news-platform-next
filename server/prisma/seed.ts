@@ -123,6 +123,18 @@ async function main() {
                 sortOrder: 5,
             },
         }),
+        prisma.category.upsert({
+            where: { slug: 'mixed' },
+            update: {},
+            create: {
+                name: 'منوع',
+                slug: 'mixed',
+                color: '#6B7280',
+                icon: 'ri-apps-line',
+                description: 'أخبار متنوعة من مصادر متعددة الفئات - يتم تصنيفها تلقائياً',
+                sortOrder: 10,
+            },
+        }),
     ]);
     console.log('✅ Categories created:', categories.length);
 

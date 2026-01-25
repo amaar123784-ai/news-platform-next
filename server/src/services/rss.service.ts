@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { prisma } from '../index.js';
 import { processYemenFilter, type FilterResult } from './yemenFilter.service.js';
+import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
 
 // Custom parser with Arabic-friendly settings
 const parser = new Parser({
@@ -152,6 +153,9 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
     try {
         const source = await prisma.rSSSource.findUnique({
             where: { id: sourceId },
+            include: {
+                category: { select: { slug: true } },
+            },
         });
 
         if (!source) {
@@ -231,6 +235,35 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 // Note: FLAGGED articles go to PENDING but are logged for attention
                 const articleStatus = 'PENDING' as const;
 
+                // ========== AUTO-CLASSIFICATION FOR MIXED SOURCES ==========
+                let articleCategoryId: string | null = null;
+                const sourceCategory = source.category?.slug || '';
+
+                if (isMixedCategory(sourceCategory)) {
+                    const excerpt = item.contentSnippet || item.content || (item as any).description || '';
+                    const classification = classifyArticle(title, excerpt);
+
+                    if (classification.categorySlug) {
+                        // Find category by slug
+                        const matchedCategory = await prisma.category.findUnique({
+                            where: { slug: classification.categorySlug },
+                            select: { id: true },
+                        });
+                        if (matchedCategory) {
+                            articleCategoryId = matchedCategory.id;
+                        }
+                    }
+                } else {
+                    // Non-mixed source: inherit source category
+                    const sourceFullCategory = await prisma.category.findUnique({
+                        where: { id: source.categoryId },
+                        select: { id: true },
+                    });
+                    if (sourceFullCategory) {
+                        articleCategoryId = sourceFullCategory.id;
+                    }
+                }
+
                 await prisma.rSSArticle.create({
                     data: {
                         guid,
@@ -243,9 +276,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         sourceId: source.id,
                         status: articleStatus,
                         approvedAt: null,
-                        // Yemen filter metadata (optional fields - may need schema update)
-                        // relevanceScore: filterResult.relevanceScore,
-                        // sourceTier: filterResult.tierCategory,
+                        categoryId: articleCategoryId,
                     },
                 });
 

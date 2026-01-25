@@ -115,8 +115,9 @@ model Category {
   isActive    Boolean @default(true)
   sortOrder   Int     @default(0)
 
-  articles   Article[]
-  rssSources RSSSource[]
+  articles    Article[]
+  rssSources  RSSSource[]
+  rssArticles RSSArticle[]
 
   @@index([slug])
   @@index([isActive, sortOrder])
@@ -256,6 +257,10 @@ model RSSArticle {
   sourceId       String
   source         RSSSource        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   
+  // Auto-classified category (for mixed sources)
+  categoryId     String?
+  category       Category?        @relation(fields: [categoryId], references: [id])
+  
   // Duplicate detection helpers
   titleHash      String?          @db.VarChar(64)           // SHA-256 of normalized title
   
@@ -277,4 +282,5 @@ model RSSArticle {
   @@index([guid])
   @@index([titleHash])
   @@index([contentScraped])
+  @@index([categoryId])
 }

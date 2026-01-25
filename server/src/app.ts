@@ -29,6 +29,9 @@ import rssRoutes from './routes/rss.routes.js';
 export function createApp(): Express {
     const app = express();
 
+    // Enable trust proxy for rate limiting behind load balancers/proxies
+    app.set('trust proxy', 1);
+
     // Security middleware
     app.use(helmet({
         crossOriginResourcePolicy: { policy: "cross-origin" },

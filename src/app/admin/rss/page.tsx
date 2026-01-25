@@ -122,6 +122,7 @@ export default function RSSSourcesPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (editingSource) {
             updateMutation.mutate({ id: editingSource.id, data: formData });
         } else {
@@ -416,6 +417,7 @@ export default function RSSSourcesPage() {
                         </div>
                     </div>
 
+                    {/* Category Selection - Choose 'منوع' for mixed sources with auto-classification */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             التصنيف <span className="text-red-500">*</span>
@@ -431,6 +433,9 @@ export default function RSSSourcesPage() {
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                            اختر &quot;منوع&quot; للمصادر متعددة الفئات - سيتم تصنيف المقالات تلقائياً
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -449,6 +454,8 @@ export default function RSSSourcesPage() {
                         </div>
                     </div>
 
+                    {/* Description HIDDEN */}
+                    {/*
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             الوصف
@@ -460,6 +467,7 @@ export default function RSSSourcesPage() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
                     </div>
+                    */}
 
                     <div className="flex gap-3 pt-4">
                         <Button
