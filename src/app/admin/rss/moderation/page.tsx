@@ -295,7 +295,7 @@ export default function RSSModerationPage() {
         const params = new URLSearchParams({
             rssArticleId: article.id,
         });
-        router.push(`/admin/articles/create?${params.toString()}`);
+        window.open(`/admin/articles/create?${params.toString()}`, '_blank');
     };
 
     return (
