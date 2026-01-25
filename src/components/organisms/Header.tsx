@@ -168,9 +168,19 @@ export const Header: React.FC = () => {
 
                         <div className="p-4 border-t mt-auto">
                             {user ? (
-                                <Button variant="secondary" className="w-full justify-center" onClick={() => { logout(); setMobileMenuOpen(false); }}>
-                                    تسجيل خروج
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
+                                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                                            <Button variant="secondary" className="w-full justify-center">
+                                                <Icon name="ri-dashboard-line" className="ml-2" />
+                                                لوحة التحكم
+                                            </Button>
+                                        </Link>
+                                    )}
+                                    <Button variant="secondary" className="w-full justify-center !text-red-600 !border-red-100 hover:!bg-red-50" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                                        تسجيل خروج
+                                    </Button>
+                                </div>
                             ) : (
                                 <div className="flex flex-col gap-2">
                                     <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
