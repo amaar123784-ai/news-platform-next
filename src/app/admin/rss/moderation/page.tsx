@@ -546,7 +546,7 @@ export default function RSSModerationPage() {
                                                         if (allSelected) {
                                                             setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
                                                         } else {
-                                                            setSelectedIds(prev => [...new Set([...prev, ...ids])]);
+                                                            setSelectedIds(prev => Array.from(new Set([...prev, ...ids])));
                                                         }
                                                     }}
                                                 >
