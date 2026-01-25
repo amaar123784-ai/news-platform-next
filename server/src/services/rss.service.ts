@@ -10,6 +10,135 @@ import { prisma } from '../index.js';
 import { processYemenFilter, type FilterResult } from './yemenFilter.service.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
 
+// ============= FALLBACK XML PARSER FOR NON-STANDARD FEEDS =============
+
+interface ParsedFeedItem {
+    guid: string;
+    title: string;
+    link: string;
+    description?: string;
+    contentSnippet?: string;
+    pubDate?: string;
+    imageUrl?: string;
+}
+
+interface ParsedFeed {
+    items: ParsedFeedItem[];
+    title?: string;
+}
+
+/**
+ * Fallback parser for non-standard XML feeds (sitemap-style, custom formats)
+ * Handles: <urlset>, <channel><item>, <feed><entry>, and other variations
+ */
+async function parseNonStandardFeed(feedUrl: string): Promise<ParsedFeed> {
+    const response = await axios.get(feedUrl, {
+        timeout: 30000,
+        headers: {
+            'User-Agent': 'YemenNewsBot/1.0',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        },
+        responseType: 'text',
+    });
+
+    const xml = response.data;
+    const items: ParsedFeedItem[] = [];
+
+    // Extract feed title
+    const titleMatch = xml.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const feedTitle = titleMatch ? titleMatch[1].trim() : undefined;
+
+    // Strategy 1: Look for <item> tags (standard RSS structure inside urlset or channel)
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+    let match;
+
+    while ((match = itemRegex.exec(xml)) !== null) {
+        const itemXml = match[1];
+        const item = extractItemFromXml(itemXml);
+        if (item) items.push(item);
+    }
+
+    // Strategy 2: If no items found, try <entry> tags (Atom format)
+    if (items.length === 0) {
+        const entryRegex = /<entry[^>]*>([\s\S]*?)<\/entry>/gi;
+        while ((match = entryRegex.exec(xml)) !== null) {
+            const itemXml = match[1];
+            const item = extractItemFromXml(itemXml, true);
+            if (item) items.push(item);
+        }
+    }
+
+    // Strategy 3: If still no items, try <url> tags (sitemap format - less likely for articles)
+    if (items.length === 0) {
+        const urlRegex = /<url[^>]*>([\s\S]*?)<\/url>/gi;
+        while ((match = urlRegex.exec(xml)) !== null) {
+            const itemXml = match[1];
+            const item = extractItemFromXml(itemXml);
+            if (item) items.push(item);
+        }
+    }
+
+    console.log(`[RSS Fallback] Parsed ${items.length} items from ${feedUrl}`);
+    return { items, title: feedTitle };
+}
+
+/**
+ * Extract a single item from XML fragment
+ */
+function extractItemFromXml(xml: string, isAtom = false): ParsedFeedItem | null {
+    // Extract link
+    let link = '';
+    if (isAtom) {
+        const linkMatch = xml.match(/<link[^>]+href=["']([^"']+)["']/i);
+        link = linkMatch ? linkMatch[1] : '';
+    } else {
+        const linkMatch = xml.match(/<link[^>]*>([^<]+)<\/link>/i);
+        link = linkMatch ? linkMatch[1].trim() : '';
+    }
+
+    // Extract title
+    const titleMatch = xml.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : '';
+
+    // Skip if no title or link
+    if (!title && !link) return null;
+
+    // Extract description/content
+    const descMatch = xml.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)
+        || xml.match(/<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i)
+        || xml.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i);
+    const description = descMatch ? descMatch[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : undefined;
+
+    // Extract pubDate
+    const pubMatch = xml.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/i)
+        || xml.match(/<published[^>]*>([^<]+)<\/published>/i)
+        || xml.match(/<updated[^>]*>([^<]+)<\/updated>/i)
+        || xml.match(/<lastmod[^>]*>([^<]+)<\/lastmod>/i);
+    const pubDate = pubMatch ? pubMatch[1].trim() : undefined;
+
+    // Extract image
+    let imageUrl: string | undefined;
+    const imgMatch = xml.match(/<image[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i)
+        || xml.match(/<image[^>]*>[\s\S]*?<url[^>]*>([^<]+)<\/url>/i)
+        || xml.match(/<media:content[^>]+url=["']([^"']+)["']/i)
+        || xml.match(/<enclosure[^>]+url=["']([^"']+)["']/i)
+        || xml.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (imgMatch) imageUrl = imgMatch[1];
+
+    // Generate guid from link or title
+    const guid = link || crypto.createHash('md5').update(title).digest('hex');
+
+    return {
+        guid,
+        title,
+        link,
+        description,
+        contentSnippet: description?.replace(/<[^>]*>/g, '').substring(0, 200),
+        pubDate,
+        imageUrl,
+    };
+}
+
 // Custom parser with Arabic-friendly settings
 const parser = new Parser({
     timeout: 30000,
@@ -168,10 +297,31 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
         console.log(`[RSS] Fetching feed: ${source.name} (${source.feedUrl})`);
 
-        const feed = await parser.parseURL(source.feedUrl);
-        console.log(`[RSS] Parsed ${feed.items.length} items from ${source.name}`);
+        // Try standard RSS parser first, fallback to custom parser if it fails
+        let feedItems: any[] = [];
+        let usedFallback = false;
 
-        for (const item of feed.items) {
+        try {
+            const feed = await parser.parseURL(source.feedUrl);
+            feedItems = feed.items;
+            console.log(`[RSS] Parsed ${feedItems.length} items from ${source.name}`);
+        } catch (parseError: any) {
+            console.log(`[RSS] Standard parser failed for ${source.name}: ${parseError.message}`);
+            console.log(`[RSS] Trying fallback parser...`);
+
+            try {
+                const fallbackFeed = await parseNonStandardFeed(source.feedUrl);
+                feedItems = fallbackFeed.items;
+                usedFallback = true;
+                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${source.name}`);
+            } catch (fallbackError: any) {
+                console.error(`[RSS] Both parsers failed for ${source.name}`);
+                errors.push(`فشل تحليل الخلاصة: ${parseError.message}`);
+                return { success: false, newArticles: 0, errors };
+            }
+        }
+
+        for (const item of feedItems) {
             // Skip items without a unique identifier
             if (!item.guid && !item.link) {
                 errors.push('تم تخطي مقال بدون معرف فريد');
