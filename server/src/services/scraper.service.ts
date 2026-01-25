@@ -11,9 +11,11 @@ import { prisma } from '../index.js';
 
 // User agents for rotation to avoid blocking
 const USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
 ];
 
 // Site-specific content selectors for major Arabic news sources
@@ -48,7 +50,26 @@ const SITE_CONFIGS: Record<string, SiteConfig> = {
         contentSelector: '.t-content__body, .article__text',
         removeSelectors: ['.m-interstitial', 'script', 'style'],
     },
+    'koraplus.com': {
+        contentSelector: '.article-body, .article-content, .news-content, .post-content',
+        removeSelectors: ['.related-articles', '.social-share', '.ads', 'script', 'style'],
+    },
 };
+
+// Universal selectors for unknown sites (fallback)
+const UNIVERSAL_CONTENT_SELECTORS = [
+    'article',
+    '.article-body',
+    '.article-content',
+    '.post-content',
+    '.entry-content',
+    '.news-content',
+    '.story-body',
+    '.content-body',
+    '[itemprop="articleBody"]',
+    'main article',
+    '.main-content article',
+];
 
 /**
  * Get random user agent
@@ -84,10 +105,20 @@ async function fetchPageHTML(url: string, retries = 3): Promise<string | null> {
                 timeout: 15000,
                 headers: {
                     'User-Agent': getRandomUserAgent(),
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'ar,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
                     'Connection': 'keep-alive',
+                    'Cache-Control': 'max-age=0',
+                    'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+                    'Sec-Ch-Ua-Mobile': '?0',
+                    'Sec-Ch-Ua-Platform': '"Windows"',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Referer': 'https://www.google.com/',
                 },
                 maxRedirects: 5,
             });
@@ -253,7 +284,33 @@ export async function scrapeArticle(articleId: string): Promise<{
             content = extractWithSelectors(html, siteConfig);
         }
 
-        // Fallback to Readability
+        // Fallback: Try universal selectors
+        if (!content) {
+            console.log(`[Scraper] Trying universal selectors for ${article.sourceUrl}`);
+            const $ = cheerio.load(html);
+
+            // Remove common noise elements first
+            $('script, style, nav, header, footer, aside, .sidebar, .ads, .comments, .social-share, .related-articles').remove();
+
+            for (const selector of UNIVERSAL_CONTENT_SELECTORS) {
+                const el = $(selector);
+                if (el.length > 0) {
+                    const paragraphs: string[] = [];
+                    el.find('p').each((_: number, p: Element) => {
+                        const text = $(p).text().trim();
+                        if (text.length > 30) paragraphs.push(text);
+                    });
+
+                    if (paragraphs.length >= 2) {
+                        content = paragraphs.join('\n\n');
+                        console.log(`[Scraper] Found content with selector: ${selector}`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Final fallback: Readability
         if (!content) {
             console.log(`[Scraper] Using Readability for ${article.sourceUrl}`);
             content = extractWithReadability(html, article.sourceUrl);

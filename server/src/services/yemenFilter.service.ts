@@ -325,7 +325,17 @@ export function processYemenFilter(item: RSSItemInput): FilterResult {
     // Check primary Yemen keywords
     const primaryCount = countKeywords(fullText, YEMEN_PRIMARY_KEYWORDS);
 
-    if (primaryCount === 0) {
+    // Check secondary entities FIRST (before rejecting for no primary)
+    const geoCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.geographic);
+    const politicalCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.political);
+    const sportsCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.sports);
+    const secondaryCount = geoCount + politicalCount + sportsCount;
+
+    // NEW LOGIC: Accept if strong secondary presence even without primary keyword
+    // Examples: "وفد عسكري من التحالف يصل إلى عدن" - contains عدن and التحالف
+    const hasStrongSecondary = secondaryCount >= 2 || (politicalCount >= 1 && geoCount >= 1);
+
+    if (primaryCount === 0 && !hasStrongSecondary) {
         return {
             status: 'REJECTED',
             relevanceScore: 0,
@@ -335,11 +345,7 @@ export function processYemenFilter(item: RSSItemInput): FilterResult {
         };
     }
 
-    // Check secondary entities
-    const geoCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.geographic);
-    const politicalCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.political);
-    const sportsCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.sports);
-    const secondaryCount = geoCount + politicalCount + sportsCount;
+    // Secondary entities already computed above
 
     // Tier 1 sources get relaxed secondary requirement
     const secondaryRequired = tierInfo.tier === 1 ? 0 : 1;
