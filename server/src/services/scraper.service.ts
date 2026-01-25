@@ -108,6 +108,52 @@ async function fetchPageHTML(url: string, retries = 3): Promise<string | null> {
 }
 
 /**
+ * Extract high-resolution image from Open Graph meta tags
+ */
+function extractOgImage(html: string, url: string): string | null {
+    try {
+        const $ = cheerio.load(html);
+
+        // Priority order: og:image, twitter:image, article:image
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        if (ogImage) {
+            return ensureAbsoluteUrl(ogImage, url);
+        }
+
+        const twitterImage = $('meta[name="twitter:image"]').attr('content');
+        if (twitterImage) {
+            return ensureAbsoluteUrl(twitterImage, url);
+        }
+
+        const articleImage = $('meta[property="article:image"]').attr('content');
+        if (articleImage) {
+            return ensureAbsoluteUrl(articleImage, url);
+        }
+
+        // Fallback: look for large images in the article
+        const largeImage = $('article img[src], .article-body img[src], .post-content img[src]').first().attr('src');
+        if (largeImage) {
+            return ensureAbsoluteUrl(largeImage, url);
+        }
+    } catch (error) {
+        console.warn('[Scraper] OG image extraction failed:', error);
+    }
+    return null;
+}
+
+/**
+ * Helper to ensure absolute URL
+ */
+function ensureAbsoluteUrl(imageUrl: string, baseUrl: string): string | null {
+    if (!imageUrl) return null;
+    try {
+        return new URL(imageUrl, baseUrl).toString();
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Extract article content using site-specific selectors
  */
 function extractWithSelectors(html: string, config: SiteConfig): string | null {
@@ -213,12 +259,18 @@ export async function scrapeArticle(articleId: string): Promise<{
             content = extractWithReadability(html, article.sourceUrl);
         }
 
+        // Extract high-resolution image from og:image
+        const highResImage = extractOgImage(html, article.sourceUrl);
+        if (highResImage) {
+            console.log(`[Scraper] Found high-res image: ${highResImage}`);
+        }
+
         if (content && content.length > 100) {
-            await updateArticleScrapeStatus(articleId, content, null);
+            await updateArticleScrapeStatus(articleId, content, null, highResImage);
             console.log(`[Scraper] Success: ${content.length} chars for ${article.title.substring(0, 50)}`);
             return { success: true, content, error: null };
         } else {
-            await updateArticleScrapeStatus(articleId, null, 'فشل استخراج المحتوى');
+            await updateArticleScrapeStatus(articleId, null, 'فشل استخراج المحتوى', highResImage);
             return { success: false, content: null, error: 'فشل استخراج المحتوى' };
         }
 
@@ -235,16 +287,24 @@ export async function scrapeArticle(articleId: string): Promise<{
 async function updateArticleScrapeStatus(
     articleId: string,
     content: string | null,
-    error: string | null
+    error: string | null,
+    newImageUrl: string | null = null
 ): Promise<void> {
+    const updateData: any = {
+        fullContent: content,
+        contentScraped: !!content,
+        scrapeError: error,
+        scrapedAt: new Date(),
+    };
+
+    // Only update imageUrl if we found a high-res image
+    if (newImageUrl) {
+        updateData.imageUrl = newImageUrl;
+    }
+
     await prisma.rSSArticle.update({
         where: { id: articleId },
-        data: {
-            fullContent: content,
-            contentScraped: !!content,
-            scrapeError: error,
-            scrapedAt: new Date(),
-        },
+        data: updateData,
     });
 }
 
