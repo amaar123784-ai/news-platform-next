@@ -81,12 +81,20 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         <article className="news-card bg-white rounded-lg shadow-sm border-4 border-green-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <Link href={articleLink} onClick={onClick} className="block">
                 {/* Image */}
-                <img
-                    src={displayImageUrl}
-                    alt={title}
-                    className="w-full h-64 object-cover object-center"
-                    loading="lazy"
-                />
+                {/* Image Container with Blurred Background */}
+                <div className="relative h-64 w-full overflow-hidden bg-gray-100">
+                    <div
+                        className="absolute inset-0 bg-cover bg-center blur-xl opacity-60 scale-110"
+                        style={{ backgroundImage: `url('${displayImageUrl}')` }}
+                        aria-hidden="true"
+                    />
+                    <img
+                        src={displayImageUrl}
+                        alt={title}
+                        className="relative w-full h-full object-contain object-center z-10"
+                        loading="lazy"
+                    />
+                </div>
 
                 {/* Content */}
                 <div className="p-4">
