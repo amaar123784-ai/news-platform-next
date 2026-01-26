@@ -91,21 +91,21 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
                     )}
 
                     {/* Metadata */}
-                    <div className="flex items-center gap-6 text-sm text-white font-medium">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-6 text-sm text-white font-medium">
                         {timeAgo && (
-                            <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
                                 <Icon name="ri-time-line" size="sm" className="text-secondary" />
                                 <span>{timeAgo}</span>
                             </div>
                         )}
                         {author && (
-                            <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
                                 <Icon name="ri-user-line" size="sm" className="text-secondary" />
                                 <span>{author}</span>
                             </div>
                         )}
                         {views !== undefined && (
-                            <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
                                 <Icon name="ri-eye-line" size="sm" className="text-secondary" />
                                 <span>{views.toLocaleString('ar-YE')} مشاهدة</span>
                             </div>
