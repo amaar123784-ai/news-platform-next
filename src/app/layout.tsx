@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans_Arabic } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+import Image from "next/image";
 import { settingsService } from "@/services/settings.service";
 
 const arabicFont = Noto_Sans_Arabic({
@@ -86,18 +87,17 @@ export default function RootLayout({
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen">
         {/* Logo Watermark Background - Optimized */}
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            backgroundImage: 'url(/images/logo.webp)',
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-            opacity: 0.05,
-            zIndex: 9999,
-          }}
-          aria-hidden="true"
-        />
+        {/* Logo Watermark Background - Optimized with Next.js Image for LCP */}
+        <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.05]" aria-hidden="true">
+          <Image
+            src="/images/logo.webp"
+            alt=""
+            fill
+            priority
+            className="object-contain object-center"
+            sizes="100vw"
+          />
+        </div>
         <Providers>{children}</Providers>
       </body>
     </html>
