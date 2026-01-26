@@ -496,10 +496,13 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
 /**
  * Fetch all active RSS feeds that are due for update
+ * Uses Promise.allSettled for graceful error handling per source
  */
 export async function fetchAllActiveFeeds(): Promise<{
     sourcesChecked: number;
     totalNewArticles: number;
+    successful: number;
+    failed: number;
 }> {
     console.log('[RSS] Starting scheduled feed fetch...');
 
@@ -510,30 +513,37 @@ export async function fetchAllActiveFeeds(): Promise<{
         },
     });
 
-    let totalNewArticles = 0;
-    let sourcesChecked = 0;
+    // Filter sources that are due for fetching
+    const dueSources = sources.filter(source => {
+        if (!source.lastFetchedAt) return true;
+        const minutesSinceLastFetch = (Date.now() - source.lastFetchedAt.getTime()) / 60000;
+        return minutesSinceLastFetch >= source.fetchInterval;
+    });
 
-    for (const source of sources) {
-        // Check if enough time has passed since last fetch
-        if (source.lastFetchedAt) {
-            const minutesSinceLastFetch =
-                (Date.now() - source.lastFetchedAt.getTime()) / 60000;
-
-            if (minutesSinceLastFetch < source.fetchInterval) {
-                continue; // Not time to fetch yet
-            }
-        }
-
-        sourcesChecked++;
-        const result = await fetchRSSFeed(source.id);
-        totalNewArticles += result.newArticles;
-
-        // Small delay between sources to avoid overwhelming external servers
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    if (dueSources.length === 0) {
+        console.log('[RSS] No sources due for fetching');
+        return { sourcesChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
     }
 
-    console.log(`[RSS] Fetch complete: ${sourcesChecked} sources, ${totalNewArticles} new articles`);
-    return { sourcesChecked, totalNewArticles };
+    // Fetch all sources in parallel with error isolation
+    const results = await Promise.allSettled(
+        dueSources.map(async (source, index) => {
+            // Stagger requests to avoid thundering herd
+            await new Promise(resolve => setTimeout(resolve, index * 500));
+            return fetchRSSFeed(source.id);
+        })
+    );
+
+    // Count results
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const totalNewArticles = results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => (r as PromiseFulfilledResult<{ success: boolean; newArticles: number; errors: string[] }>).value.newArticles)
+        .reduce((sum, count) => sum + count, 0);
+
+    console.log(`[RSS] Fetch complete: ${dueSources.length} sources (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
+    return { sourcesChecked: dueSources.length, totalNewArticles, successful, failed };
 }
 
 /**

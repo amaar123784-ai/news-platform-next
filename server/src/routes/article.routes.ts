@@ -7,6 +7,7 @@ import { prisma } from '../index.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 import { createArticleSchema, updateArticleSchema, articleQuerySchema } from '../validators/schemas.js';
+import { cache, cacheKeys, cacheTTL } from '../services/cache.service.js';
 
 const router = Router();
 
@@ -77,11 +78,18 @@ router.get('/', optionalAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/articles/featured - Featured articles
+ * GET /api/articles/featured - Featured articles (cached)
  */
 router.get('/featured', async (req, res, next) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 5, 20);
+        const cacheKey = cacheKeys.featuredArticles(limit);
+
+        // Try cache first
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+            return res.json({ success: true, data: cached });
+        }
 
         const articles = await prisma.article.findMany({
             where: { status: 'PUBLISHED' },
@@ -93,6 +101,9 @@ router.get('/featured', async (req, res, next) => {
             take: limit,
         });
 
+        // Cache result
+        await cache.set(cacheKey, articles, cacheTTL.featured);
+
         res.json({ success: true, data: articles });
     } catch (error) {
         next(error);
@@ -100,11 +111,18 @@ router.get('/featured', async (req, res, next) => {
 });
 
 /**
- * GET /api/articles/breaking - Breaking news articles
+ * GET /api/articles/breaking - Breaking news articles (cached)
  */
 router.get('/breaking', async (req, res, next) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 10, 20);
+        const cacheKey = cacheKeys.breakingNews();
+
+        // Try cache first
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+            return res.json({ success: true, data: cached });
+        }
 
         const articles = await prisma.article.findMany({
             where: {
@@ -118,6 +136,9 @@ router.get('/breaking', async (req, res, next) => {
             orderBy: { publishedAt: 'desc' },
             take: limit,
         });
+
+        // Cache result (shorter TTL for breaking news)
+        await cache.set(cacheKey, articles, cacheTTL.breaking);
 
         res.json({ success: true, data: articles });
     } catch (error) {
@@ -302,8 +323,8 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             },
         });
 
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'CREATE',
                 targetType: 'article',
@@ -311,7 +332,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 targetTitle: article.title,
                 userId: req.user!.userId,
             },
-        });
+        }).catch(console.error);
 
         res.status(201).json({ success: true, data: article });
     } catch (error) {
@@ -350,8 +371,8 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             },
         });
 
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'UPDATE',
                 targetType: 'article',
@@ -359,7 +380,7 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
                 targetTitle: article.title,
                 userId: req.user!.userId,
             },
-        });
+        }).catch(console.error);
 
         res.json({ success: true, data: article });
     } catch (error) {
@@ -381,8 +402,8 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
 
         await prisma.article.delete({ where: { id } });
 
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'DELETE',
                 targetType: 'article',
@@ -390,7 +411,7 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
                 targetTitle: article.title,
                 userId: req.user!.userId,
             },
-        });
+        }).catch(console.error);
 
         res.json({ success: true, message: 'تم حذف المقال بنجاح' });
     } catch (error) {
@@ -413,8 +434,8 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             },
         });
 
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'PUBLISH',
                 targetType: 'article',
@@ -422,7 +443,7 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 targetTitle: article.title,
                 userId: req.user!.userId,
             },
-        });
+        }).catch(console.error);
 
         res.json({ success: true, data: article });
     } catch (error) {
@@ -442,8 +463,8 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             data: { status: 'ARCHIVED' },
         });
 
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'ARCHIVE',
                 targetType: 'article',
@@ -451,7 +472,7 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 targetTitle: article.title,
                 userId: req.user!.userId,
             },
-        });
+        }).catch(console.error);
 
         res.json({ success: true, data: article });
     } catch (error) {

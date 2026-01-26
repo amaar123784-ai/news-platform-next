@@ -283,4 +283,6 @@ model RSSArticle {
   @@index([titleHash])
   @@index([contentScraped])
   @@index([categoryId])
+  @@index([status, publishedAt])  // Composite for filtered+sorted queries
+  @@index([fetchedAt])            // For ordering by fetch time
 }

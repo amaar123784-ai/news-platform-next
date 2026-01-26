@@ -7,6 +7,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+import pLimit from 'p-limit';
 import { prisma } from '../index.js';
 
 // User agents for rotation to avoid blocking
@@ -225,11 +226,12 @@ function extractWithSelectors(html: string, config: SiteConfig): string | null {
 
 /**
  * Extract article content using Mozilla Readability (fallback)
+ * Uses try-finally to ensure JSDOM resources are properly released
  */
 function extractWithReadability(html: string, url: string): string | null {
+    const dom = new JSDOM(html, { url });
     try {
-        const dom = new JSDOM(html, { url });
-        const reader = new Readability(dom.window.document);
+        const reader = new Readability(dom.window.document.cloneNode(true) as Document);
         const article = reader.parse();
 
         if (article && article.textContent) {
@@ -239,10 +241,14 @@ function extractWithReadability(html: string, url: string): string | null {
                 .replace(/\n\s*\n/g, '\n\n')
                 .trim();
         }
+        return null;
     } catch (error) {
         console.warn('[Scraper] Readability extraction failed:', error);
+        return null;
+    } finally {
+        // Explicitly release JSDOM resources to prevent memory leaks
+        dom.window.close();
     }
-    return null;
 }
 
 /**
@@ -367,8 +373,9 @@ async function updateArticleScrapeStatus(
 
 /**
  * Process scrape queue - fetch unscraped articles
+ * Uses concurrent processing with rate limiting for efficiency
  */
-export async function processScrapeQueue(limit = 10): Promise<{
+export async function processScrapeQueue(batchSize = 10): Promise<{
     processed: number;
     successful: number;
 }> {
@@ -381,22 +388,30 @@ export async function processScrapeQueue(limit = 10): Promise<{
             sourceUrl: { not: '' },
         },
         orderBy: { fetchedAt: 'desc' },
-        take: limit,
+        take: batchSize,
         select: { id: true, title: true },
     });
 
-    let successful = 0;
-
-    for (const article of articles) {
-        const result = await scrapeArticle(article.id);
-        if (result.success) {
-            successful++;
-        }
-
-        // Delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    if (articles.length === 0) {
+        console.log('[Scraper] No articles to process');
+        return { processed: 0, successful: 0 };
     }
 
+    // Limit concurrent requests to 3 for rate limiting
+    const limit = pLimit(3);
+
+    const results = await Promise.all(
+        articles.map(article =>
+            limit(async () => {
+                const result = await scrapeArticle(article.id);
+                // Delay after each request to respect rate limits
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                return result;
+            })
+        )
+    );
+
+    const successful = results.filter(r => r.success).length;
     console.log(`[Scraper] Queue complete: ${successful}/${articles.length} successful`);
     return { processed: articles.length, successful };
 }

@@ -7,7 +7,12 @@ import { env } from './config/env.js';
 import { PrismaClient } from '@prisma/client';
 import { initializeScheduler } from './services/scheduler.js';
 
-const prisma = new PrismaClient();
+// Configure Prisma with logging based on environment
+const prisma = new PrismaClient({
+    log: env.NODE_ENV === 'development'
+        ? ['query', 'error', 'warn']
+        : ['error'],
+});
 
 async function main() {
     try {
