@@ -84,7 +84,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                 <img
                     src={displayImageUrl}
                     alt={title}
-                    className="w-full h-64 object-contain object-center bg-gray-50"
+                    className="w-full h-64 object-cover object-center"
                     loading="lazy"
                 />
 
