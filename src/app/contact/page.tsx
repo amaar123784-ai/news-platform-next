@@ -1,9 +1,21 @@
+import type { Metadata } from 'next';
 import { Header, Footer } from "@/components/organisms";
 import { Container, Button, Icon } from "@/components/atoms";
 
-export const metadata = {
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
     title: "اتصل بنا | صوت تهامة",
     description: "تواصل مع فريق صوت تهامة، نحن هنا لسماع صوتك.",
+    alternates: { canonical: `${siteUrl}/contact` },
+    openGraph: {
+        title: "اتصل بنا | صوت تهامة",
+        description: "تواصل مع فريق صوت تهامة، نحن هنا لسماع صوتك.",
+        url: `${siteUrl}/contact`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
 };
 
 export default function ContactPage() {

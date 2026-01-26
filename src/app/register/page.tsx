@@ -1,10 +1,22 @@
+import type { Metadata } from 'next';
 import { RegisterContent } from "./RegisterContent";
 import { Header, Footer } from "@/components/organisms";
 import { Container } from "@/components/atoms";
 
-export const metadata = {
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
     title: "إنشاء حساب | صوت تهامة",
-    description: "انضم إلينا وأنشئ حسابك الجديد",
+    description: "انضم إلينا وأنشئ حسابك الجديد في منصة صوت تهامة",
+    alternates: { canonical: `${siteUrl}/register` },
+    openGraph: {
+        title: "إنشاء حساب | صوت تهامة",
+        description: "انضم إلينا وأنشئ حسابك الجديد",
+        url: `${siteUrl}/register`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
 };
 
 export default function RegisterPage() {

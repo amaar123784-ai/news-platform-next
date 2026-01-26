@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from "react";
 import { Header, Footer } from "@/components/organisms";
 import { Container, Icon, Input, Button } from "@/components/atoms";
@@ -5,9 +6,20 @@ import { getArticles, type Article } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
 import Link from "next/link";
 
-export const metadata = {
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
     title: "البحث | صوت تهامة",
-    description: "البحث في الأخبار والمقالات",
+    description: "البحث في الأخبار والمقالات على منصة صوت تهامة",
+    alternates: { canonical: `${siteUrl}/search` },
+    openGraph: {
+        title: "البحث | صوت تهامة",
+        description: "البحث في الأخبار والمقالات",
+        url: `${siteUrl}/search`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
 };
 
 interface SearchPageProps {

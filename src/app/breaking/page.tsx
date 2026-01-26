@@ -1,11 +1,23 @@
+import type { Metadata } from 'next';
 import { Header, Footer } from "@/components/organisms";
 import { NewsCard } from "@/components/organisms/NewsCard";
 import { Container } from "@/components/atoms";
 import { getBreakingNews, getImageUrl, formatTimeAgo } from "@/lib/api";
 
-export const metadata = {
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
     title: "أخبار عاجلة | صوت تهامة",
     description: "تابع آخر الأخبار العاجلة والأحداث المهمة في اليمن والعالم لحظة بلحظة.",
+    alternates: { canonical: `${siteUrl}/breaking` },
+    openGraph: {
+        title: "أخبار عاجلة | صوت تهامة",
+        description: "تابع آخر الأخبار العاجلة والأحداث المهمة في اليمن والعالم لحظة بلحظة.",
+        url: `${siteUrl}/breaking`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
 };
 
 export default async function BreakingNewsPage() {

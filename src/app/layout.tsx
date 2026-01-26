@@ -70,10 +70,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={arabicFont.variable}>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Remixicon CSS - Google Font handled by next/font */}
         <link
           href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
           rel="stylesheet"

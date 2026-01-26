@@ -1,9 +1,21 @@
+import type { Metadata } from 'next';
 import { Header, Footer } from "@/components/organisms";
 import { Container, Icon } from "@/components/atoms";
 
-export const metadata = {
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
     title: "سياسة الخصوصية | صوت تهامة",
     description: "سياسة الخصوصية وشروط الاستخدام لمنصة صوت تهامة.",
+    alternates: { canonical: `${siteUrl}/privacy` },
+    openGraph: {
+        title: "سياسة الخصوصية | صوت تهامة",
+        description: "سياسة الخصوصية وشروط الاستخدام لمنصة صوت تهامة.",
+        url: `${siteUrl}/privacy`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
 };
 
 export default function PrivacyPage() {

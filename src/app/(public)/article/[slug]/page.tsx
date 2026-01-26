@@ -136,12 +136,16 @@ export default async function ArticlePage({ params }: Props) {
                             <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
                                 <div className="p-6 md:p-10">
-                                    {/* Main Article Image (Top) */}
+                                    {/* Main Article Image (Top) - Optimized for LCP */}
                                     <div className="mb-8">
-                                        <img
+                                        <Image
                                             src={displayImageUrl}
                                             alt={article.title}
+                                            width={1200}
+                                            height={630}
+                                            priority={true}
                                             className="w-full h-auto rounded-xl shadow-sm"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
                                         />
                                     </div>
 

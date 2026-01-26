@@ -6,6 +6,48 @@ import { BreakingNewsTicker } from "@/components/organisms/BreakingNewsTicker";
 
 export const revalidate = 60; // ISR every 60 seconds
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+// Organization JSON-LD Schema for Google Knowledge Panel
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'NewsMediaOrganization',
+  name: 'صوت تهامة',
+  alternateName: 'Voice of Tihama',
+  url: siteUrl,
+  logo: {
+    '@type': 'ImageObject',
+    url: `${siteUrl}/logo.png`,
+  },
+  sameAs: [
+    'https://facebook.com/voiceoftihama',
+    'https://twitter.com/voiceoftihama',
+    'https://telegram.me/voiceoftihama',
+  ],
+  contactPoint: {
+    '@type': 'ContactPoint',
+    email: 'info@voiceoftihama.com',
+    contactType: 'customer service',
+    availableLanguage: ['Arabic'],
+  },
+};
+
+// WebSite JSON-LD Schema for Sitelinks Search Box
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'صوت تهامة',
+  url: siteUrl,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteUrl}/search?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+};
+
 export default async function HomePage() {
   // Parallel data fetching on server
   const [featured, articlesResponse, breakingNews] = await Promise.all([
@@ -16,6 +58,17 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* Organization JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      {/* WebSite JSON-LD Schema with SearchAction */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+
       {/* Fixed Top Section: Ticker + Header */}
       <div className="sticky top-0 z-[100] w-full bg-white shadow-sm">
         {/* Breaking News Ticker */}
@@ -41,3 +94,4 @@ export default async function HomePage() {
     </>
   );
 }
+

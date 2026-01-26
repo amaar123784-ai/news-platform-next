@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getArticles } from "@/lib/api";
@@ -12,6 +13,8 @@ interface CategoryPageProps {
     params: Promise<{ slug: string }>;
 }
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
 const CATEGORY_NAMES: Record<string, string> = {
     politics: "السياسة",
     economy: "الاقتصاد",
@@ -19,15 +22,32 @@ const CATEGORY_NAMES: Record<string, string> = {
     culture: "الثقافة",
     technology: "التكنولوجيا",
     society: "المجتمع",
+    miscellaneous: "منوع",
 };
 
-export async function generateMetadata({ params }: CategoryPageProps) {
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
     const { slug } = await params;
     const categoryName = CATEGORY_NAMES[slug] || slug;
 
     return {
         title: `${categoryName} | صوت تهامة`,
-        description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+        description: `آخر أخبار ${categoryName} من منصة صوت تهامة. أحدث المقالات والتقارير في قسم ${categoryName}.`,
+        alternates: {
+            canonical: `${siteUrl}/category/${slug}`,
+        },
+        openGraph: {
+            title: `${categoryName} | صوت تهامة`,
+            description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+            url: `${siteUrl}/category/${slug}`,
+            type: 'website',
+            locale: 'ar_YE',
+            siteName: 'صوت تهامة',
+        },
+        twitter: {
+            card: 'summary',
+            title: `${categoryName} | صوت تهامة`,
+            description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+        },
     };
 }
 
@@ -42,8 +62,28 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         status: "PUBLISHED"
     });
 
+    // CollectionPage JSON-LD Schema
+    const collectionSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: categoryName,
+        description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+        url: `${siteUrl}/category/${slug}`,
+        isPartOf: {
+            '@type': 'WebSite',
+            name: 'صوت تهامة',
+            url: siteUrl,
+        },
+        numberOfItems: articles.length,
+    };
+
     return (
         <>
+            {/* CollectionPage JSON-LD Schema for SEO */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+            />
             <Header />
             <main className="min-h-screen bg-gray-50 py-8">
                 <Container>

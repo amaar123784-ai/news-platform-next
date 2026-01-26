@@ -1,0 +1,367 @@
+# Comprehensive Technical SEO Audit
+## Voice of Tihama - January 2026
+
+---
+
+## Audit Scope
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Total Pages Analyzed | 26 | ✅ |
+| Total Layouts Analyzed | 3 | ✅ |
+| Critical Issues | 4 | ❌ |
+| High Priority Issues | 8 | ⚠️ |
+| Medium Priority Issues | 5 | 📋 |
+| Best Practices Met | 7 | ✅ |
+
+---
+
+## ✅ What's Working Well
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Server Components | ✅ | Public pages use SSR correctly |
+| ISR Configuration | ✅ | `revalidate = 60` on dynamic pages |
+| robots.ts | ✅ | Admin/API routes properly blocked |
+| Root Metadata | ✅ | [generateMetadata()](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/layout.tsx#13-64) with dynamic settings |
+| Article JSON-LD | ✅ | NewsArticle schema present |
+| Article Canonical | ✅ | Canonical URLs set |
+| Article OG/Twitter | ✅ | Full social metadata |
+| Image Optimization Config | ✅ | AVIF/WebP formats enabled |
+
+---
+
+# 🔴 CRITICAL ISSUES (Fix Immediately)
+
+## 1. Aggregated News - No Metadata (Client Component)
+
+| File | [aggregated-news/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/aggregated-news/page.tsx) |
+|------|---|
+| Issue | `'use client'` directive prevents metadata export |
+| Impact | **Page invisible to search engines** |
+
+**Problem:** Line 1 has `'use client'` which blocks metadata export. Content renders client-side only.
+
+**Solution:** Split into Server Component wrapper:
+
+```tsx
+// aggregated-news/page.tsx (NEW - Server Component)
+import type { Metadata } from 'next';
+import { AggregatedNewsContent } from './AggregatedNewsContent';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
+    title: 'أخبار من مصادر موثوقة | صوت تهامة',
+    description: 'تغطية شاملة للأحداث من المصادر العالمية والمحلية الموثوقة',
+    alternates: { canonical: `${siteUrl}/aggregated-news` },
+    openGraph: {
+        title: 'أخبار من مصادر موثوقة | صوت تهامة',
+        url: `${siteUrl}/aggregated-news`,
+        type: 'website',
+    },
+    robots: { index: true, follow: true },
+};
+
+export default function AggregatedNewsPage() {
+    return <AggregatedNewsContent />;
+}
+```
+
+```tsx
+// aggregated-news/AggregatedNewsContent.tsx (NEW - Client Component)
+'use client';
+// Move ALL current page.tsx content here
+```
+
+---
+
+## 2. Article Main Image - Native `<img>` for LCP
+
+| File | [article/[slug]/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/%28public%29/article/%5Bslug%5D/page.tsx) |
+|------|---|
+| Lines | 141-145 |
+| Issue | Native `<img>` instead of Next.js `<Image>` |
+| Impact | **LCP score degradation, no optimization** |
+
+**Current Code:**
+```tsx
+<img
+    src={displayImageUrl}
+    alt={article.title}
+    className="w-full h-auto rounded-xl shadow-sm"
+/>
+```
+
+**Fixed Code:**
+```tsx
+<Image
+    src={displayImageUrl}
+    alt={article.title}
+    width={1200}
+    height={630}
+    priority={true}
+    className="w-full h-auto rounded-xl shadow-sm"
+    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+/>
+```
+
+---
+
+## 3. Category Page - Missing Canonical & Schema
+
+| File | [category/[slug]/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/category/%5Bslug%5D/page.tsx) |
+|------|---|
+| Lines | 24-32 |
+| Issue | No canonical URL, no OG metadata, no CollectionPage schema |
+
+**Current Code:**
+```tsx
+export async function generateMetadata({ params }: CategoryPageProps) {
+    const { slug } = await params;
+    const categoryName = CATEGORY_NAMES[slug] || slug;
+    return {
+        title: `${categoryName} | صوت تهامة`,
+        description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+    };
+}
+```
+
+**Fixed Code:**
+```tsx
+import type { Metadata } from 'next';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+    const { slug } = await params;
+    const categoryName = CATEGORY_NAMES[slug] || slug;
+    return {
+        title: `${categoryName} | صوت تهامة`,
+        description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+        alternates: { canonical: `${siteUrl}/category/${slug}` },
+        openGraph: {
+            title: `${categoryName} | صوت تهامة`,
+            description: `آخر أخبار ${categoryName}`,
+            url: `${siteUrl}/category/${slug}`,
+            type: 'website',
+            locale: 'ar_YE',
+        },
+    };
+}
+```
+
+**Add JSON-LD (inside component, before return):**
+```tsx
+const categorySchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: categoryName,
+    url: `${siteUrl}/category/${slug}`,
+};
+```
+
+---
+
+## 4. Sitemap - Hardcoded Categories
+
+| File | [sitemap.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/sitemap.ts) |
+|------|---|
+| Lines | 41-48 |
+| Issue | Categories hardcoded, missing منوع category |
+
+**Current:**
+```tsx
+const categories = ['politics', 'economy', 'sports', 'culture', 'technology'];
+```
+
+**Fixed:**
+```tsx
+// Dynamic category fetch
+let categoryPages: MetadataRoute.Sitemap = [];
+try {
+    const catRes = await fetch(`${API_URL}/categories`, { next: { revalidate: 3600 } });
+    if (catRes.ok) {
+        const categories = await catRes.json();
+        categoryPages = categories.map((cat: any) => ({
+            url: `${SITE_URL}/category/${cat.slug}`,
+            lastModified: new Date(),
+            changeFrequency: 'hourly' as const,
+            priority: 0.8,
+        }));
+    }
+} catch {
+    // Fallback
+    categoryPages = ['politics','economy','sports','culture','technology','miscellaneous'].map(cat => ({
+        url: `${SITE_URL}/category/${cat}`,
+        lastModified: new Date(),
+        changeFrequency: 'hourly' as const,
+        priority: 0.8,
+    }));
+}
+```
+
+---
+
+# 🟠 HIGH PRIORITY ISSUES
+
+## 5-12. Static Pages Missing Canonical & OG
+
+All pages below use basic `export const metadata = {}` without canonical URLs or Open Graph.
+
+| Page | File |
+|------|------|
+| About | [about/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/about/page.tsx) |
+| Contact | [contact/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/contact/page.tsx) |
+| Privacy | [privacy/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/privacy/page.tsx) |
+| Terms | [terms/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/terms/page.tsx) |
+| Search | [search/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/search/page.tsx) |
+| Breaking | [breaking/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/breaking/page.tsx) |
+| Login | [login/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/login/page.tsx) |
+| Register | [register/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/register/page.tsx) |
+
+**Template Fix (apply to all):**
+```tsx
+import type { Metadata } from 'next';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
+export const metadata: Metadata = {
+    title: '[Page Title] | صوت تهامة',
+    description: '[Page Description]',
+    alternates: { canonical: `${siteUrl}/[page-path]` },
+    openGraph: {
+        title: '[Page Title] | صوت تهامة',
+        description: '[Page Description]',
+        url: `${siteUrl}/[page-path]`,
+        type: 'website',
+        locale: 'ar_YE',
+        siteName: 'صوت تهامة',
+    },
+};
+```
+
+---
+
+## 13. Homepage - Missing Organization Schema
+
+| File | [page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/page.tsx) |
+|------|---|
+| Issue | No Organization or WebSite JSON-LD |
+
+**Add to homepage:**
+```tsx
+const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsMediaOrganization',
+    name: 'صوت تهامة',
+    url: 'https://voiceoftihama.com',
+    logo: {
+        '@type': 'ImageObject',
+        url: 'https://voiceoftihama.com/images/logo.png',
+    },
+    sameAs: ['https://facebook.com/voiceoftihama', 'https://twitter.com/voiceoftihama'],
+};
+
+const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'صوت تهامة',
+    url: 'https://voiceoftihama.com',
+    potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://voiceoftihama.com/search?q={search_term_string}',
+        'query-input': 'required name=search_term_string',
+    },
+};
+```
+
+---
+
+## 14. Article Page - Missing BreadcrumbList
+
+| File | [article/[slug]/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/%28public%29/article/%5Bslug%5D/page.tsx) |
+|------|---|
+| Lines | After 121 |
+
+**Add:**
+```tsx
+const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: siteUrl },
+        { '@type': 'ListItem', position: 2, name: article.category?.name, item: `${siteUrl}/category/${categorySlug}` },
+        { '@type': 'ListItem', position: 3, name: article.title, item: `${siteUrl}/article/${slug}` },
+    ],
+};
+```
+
+---
+
+# 🟡 MEDIUM PRIORITY ISSUES
+
+## 15. Root Layout - Duplicate Font Loading
+
+| File | [layout.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/layout.tsx) |
+|------|---|
+| Lines | 73-76 |
+| Issue | External Google Font link when `next/font` already used |
+
+**Fix:** Remove lines 73-76 (the `<link>` tag). `next/font` handles optimization.
+
+---
+
+## 16. Sitemap Revalidation Too Long
+
+| File | [sitemap.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/sitemap.ts) |
+|------|---|
+| Line | 54 |
+
+**Current:** `revalidate: 3600` (1 hour)  
+**Recommended for news:** `revalidate: 300` (5 minutes)
+
+---
+
+## 17-19. Admin Pages - Missing noindex
+
+Admin pages blocked via robots.txt but should also have `robots: { index: false }` in metadata for defense-in-depth. Apply to all `/admin/*` pages.
+
+---
+
+# 📊 Summary Matrix
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    SEO COMPLIANCE MATRIX                        │
+├─────────────────────┬────────┬──────────┬────────┬─────────────┤
+│ Page                │ Meta   │ Canonical│ OG     │ Schema      │
+├─────────────────────┼────────┼──────────┼────────┼─────────────┤
+│ Homepage            │ ✅     │ ❌       │ ✅     │ ❌ Org/Web  │
+│ Article [slug]      │ ✅     │ ✅       │ ✅     │ ⚠️ +Bread   │
+│ Category [slug]     │ ✅     │ ❌       │ ❌     │ ❌ Collect  │
+│ About               │ ✅     │ ❌       │ ❌     │ ❌          │
+│ Contact             │ ✅     │ ❌       │ ❌     │ ❌ LocalBiz │
+│ Privacy             │ ✅     │ ❌       │ ❌     │ ❌          │
+│ Terms               │ ✅     │ ❌       │ ❌     │ ❌          │
+│ Search              │ ✅     │ ❌       │ ❌     │ ❌          │
+│ Breaking            │ ✅     │ ❌       │ ❌     │ ❌          │
+│ Aggregated News     │ ❌     │ ❌       │ ❌     │ ❌          │
+│ Login               │ ✅     │ ❌       │ ❌     │ N/A         │
+│ Register            │ ✅     │ ❌       │ ❌     │ N/A         │
+└─────────────────────┴────────┴──────────┴────────┴─────────────┘
+
+Legend: ✅ Present | ❌ Missing | ⚠️ Partial | N/A Not Applicable
+```
+
+---
+
+## Recommended Implementation Order
+
+1. **🔴 Critical: aggregated-news client component split** (blocks indexing)
+2. **🔴 Critical: Article LCP image optimization** (Core Web Vitals)
+3. **🔴 Critical: Category page canonical + schema**
+4. **🟠 High: Homepage Organization/WebSite schema**
+5. **🟠 High: Add canonical URLs to all static pages**
+6. **🟠 High: Dynamic sitemap categories**
+7. **🟡 Medium: Remove duplicate font loading**
