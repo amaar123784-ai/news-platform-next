@@ -79,12 +79,12 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                     </p>
                 )}
 
-                <div className="flex gap-3 mt-2">
+                <div className="flex flex-wrap gap-3 mt-2">
                     <a
                         href={article.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center text-xs text-blue-500 hover:underline"
+                        className="inline-flex items-center text-xs text-blue-500 hover:underline whitespace-nowrap"
                     >
                         <Icon name="ri-external-link-line" className="ml-1" size="sm" />
                         عرض المصدر
@@ -92,7 +92,7 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                     {article.contentScraped && (
                         <button
                             onClick={onViewContent}
-                            className="inline-flex items-center text-xs text-green-600 hover:underline"
+                            className="inline-flex items-center text-xs text-green-600 hover:underline whitespace-nowrap"
                         >
                             <Icon name="ri-file-text-line" className="ml-1" size="sm" />
                             عرض المحتوى الكامل
