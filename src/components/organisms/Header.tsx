@@ -60,7 +60,7 @@ export const Header: React.FC = () => {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-gray-700 hover:text-primary"
+                    className="lg:hidden p-2 text-gray-700 hover:text-primary"
                     onClick={() => setMobileMenuOpen(true)}
                 >
                     <Icon name="ri-menu-line" size="xl" />
@@ -74,18 +74,18 @@ export const Header: React.FC = () => {
                         className="h-16 w-auto group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="flex flex-col">
-                        <span className="text-2xl font-black text-primary tracking-tight leading-none">{siteName}</span>
-                        <span className="text-xs font-medium text-secondary tracking-widest mt-1">VOICE OF TIHAMA</span>
+                        <span className="text-2xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
+                        <span className="text-xs font-medium text-secondary tracking-widest mt-1 whitespace-nowrap">VOICE OF TIHAMA</span>
                     </div>
                 </Link>
 
                 {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-2">
+                <nav className="hidden lg:flex items-center gap-2">
                     {navLinks.map((link) => (
                         <Link
                             key={link.path}
                             href={link.path}
-                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${isActive(link.path)
+                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap ${isActive(link.path)
                                 ? 'bg-primary text-white shadow-md'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
                                 }`}
@@ -103,24 +103,24 @@ export const Header: React.FC = () => {
 
                     {user ? (
                         <div className="hidden sm:flex items-center gap-3">
-                            <span className="text-sm font-bold text-gray-700">{user.name}</span>
+                            <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{user.name}</span>
                             {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
                                 <Link href="/admin">
-                                    <Button variant="secondary" size="sm" className="!px-4">
+                                    <Button variant="secondary" size="sm" className="!px-4 whitespace-nowrap">
                                         <Icon name="ri-dashboard-line" className="ml-1" />
                                         لوحة التحكم
                                     </Button>
                                 </Link>
                             )}
-                            <Button variant="primary" size="sm" onClick={logout} className="!bg-red-500 !border-red-500 hover:!bg-red-600">خروج</Button>
+                            <Button variant="primary" size="sm" onClick={logout} className="!bg-red-500 !border-red-500 hover:!bg-red-600 whitespace-nowrap">خروج</Button>
                         </div>
                     ) : (
                         <div className="hidden sm:flex items-center gap-3">
                             <Link href="/login">
-                                <Button variant="secondary" size="sm" className="!px-5">دخول</Button>
+                                <Button variant="secondary" size="sm" className="!px-5 whitespace-nowrap">دخول</Button>
                             </Link>
                             <Link href="/register">
-                                <Button variant="primary" size="sm" className="!px-5">اشتراك</Button>
+                                <Button variant="primary" size="sm" className="!px-5 whitespace-nowrap">اشتراك</Button>
                             </Link>
                         </div>
                     )}
