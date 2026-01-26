@@ -11,6 +11,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,9 +69,12 @@ export const Header: React.FC = () => {
 
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group">
-                    <img
-                        src="/images/logo.png"
+                    <Image
+                        src="/images/logo.webp"
                         alt={siteName}
+                        width={64}
+                        height={64}
+                        priority
                         className="h-16 w-auto group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="flex flex-col">

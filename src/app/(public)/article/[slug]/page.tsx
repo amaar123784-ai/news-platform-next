@@ -109,7 +109,7 @@ export default async function ArticlePage({ params }: Props) {
             name: 'صوت تهامة',
             logo: {
                 '@type': 'ImageObject',
-                url: `${siteUrl}/images/logo.png`,
+                url: `${siteUrl}/images/logo.webp`,
             },
         },
         mainEntityOfPage: {

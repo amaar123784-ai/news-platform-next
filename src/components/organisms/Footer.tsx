@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { Container, Icon } from '@/components/atoms';
 import { settingsService } from '@/services/settings.service';
@@ -67,9 +68,11 @@ export const Footer: React.FC<FooterProps> = ({
                     {/* Brand Section */}
                     <div>
                         <div className="flex items-center gap-3 mb-6 group">
-                            <img
-                                src="/images/logo.png"
+                            <Image
+                                src="/images/logo.webp"
                                 alt={siteName}
+                                width={64}
+                                height={64}
                                 className="h-16 w-auto group-hover:scale-105 transition-transform duration-300"
                             />
                             <div className="flex flex-col">

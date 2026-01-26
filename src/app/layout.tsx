@@ -39,12 +39,12 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       icons: {
         icon: [
-          { url: '/images/logo.png', type: 'image/png' },
-          { url: '/images/logo.png', type: 'image/png', sizes: '32x32' },
+          { url: '/images/logo.webp', type: 'image/webp' },
+          { url: '/images/logo.webp', type: 'image/webp', sizes: '32x32' },
         ],
-        shortcut: '/images/logo.png',
+        shortcut: '/images/logo.webp',
         apple: [
-          { url: '/images/logo.png', sizes: '180x180', type: 'image/png' },
+          { url: '/images/logo.webp', sizes: '180x180', type: 'image/webp' },
         ],
       }
     };
@@ -54,9 +54,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "صوت تهامة - صوت الحقيقة",
       metadataBase: new URL(siteUrl),
       icons: {
-        icon: '/images/logo.png',
-        shortcut: '/images/logo.png',
-        apple: '/images/logo.png',
+        icon: '/images/logo.webp',
+        shortcut: '/images/logo.webp',
+        apple: '/images/logo.webp',
       }
     };
   }
@@ -72,23 +72,28 @@ export default function RootLayout({
       <head>
         {/* Remixicon CSS - Google Font handled by next/font */}
         <link
+          rel="preconnect"
+          href="https://cdn.jsdelivr.net"
+          crossOrigin="anonymous"
+        />
+        <link
           href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
           rel="stylesheet"
         />
-        <link rel="icon" href="/images/logo.png" />
-        <link rel="shortcut icon" href="/images/logo.png" />
-        <link rel="apple-touch-icon" href="/images/logo.png" />
+        <link rel="icon" href="/images/logo.webp" />
+        <link rel="shortcut icon" href="/images/logo.webp" />
+        <link rel="apple-touch-icon" href="/images/logo.webp" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen">
-        {/* Logo Watermark Background */}
+        {/* Logo Watermark Background - Optimized */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
-            backgroundImage: 'url(/images/logo.png)',
+            backgroundImage: 'url(/images/logo.webp)',
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',
-            opacity: 0.08,
+            opacity: 0.05,
             zIndex: 9999,
           }}
           aria-hidden="true"

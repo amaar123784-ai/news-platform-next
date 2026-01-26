@@ -11,6 +11,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/atoms';
 import { categoryBadges, type CategoryType } from '@/design-system/tokens';
@@ -83,16 +84,22 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                 {/* Image */}
                 {/* Image Container with Blurred Background */}
                 <div className="relative h-64 w-full overflow-hidden bg-gray-100">
-                    <div
-                        className="absolute inset-0 bg-cover bg-center blur-xl opacity-60 scale-110"
-                        style={{ backgroundImage: `url('${displayImageUrl}')` }}
+                    {/* Blurred Background Image */}
+                    <Image
+                        src={displayImageUrl}
+                        alt=""
+                        fill
+                        className="object-cover blur-xl opacity-60 scale-110"
                         aria-hidden="true"
                     />
-                    <img
+
+                    {/* Main Image */}
+                    <Image
                         src={displayImageUrl}
                         alt={title}
-                        className="relative w-full h-full object-contain object-center z-10"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="relative object-contain object-center z-10 p-2"
                     />
                 </div>
 

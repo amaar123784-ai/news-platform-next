@@ -410,7 +410,7 @@ export default function RSSSourcesPage() {
                                 type="url"
                                 value={formData.logoUrl || ''}
                                 onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                                placeholder="https://example.com/logo.png"
+                                placeholder="https://example.com/logo.webp"
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                                 dir="ltr"
                             />
