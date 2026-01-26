@@ -29,11 +29,11 @@ export default function PermissionsPage() {
                     <table className="w-full text-sm text-right">
                         <thead className="bg-gray-50 text-gray-900 font-bold border-b">
                             <tr>
-                                <th className="px-6 py-4">الصلاحية / الدور</th>
-                                <th className="px-6 py-4 text-center text-red-600">المدير (Admin)</th>
-                                <th className="px-6 py-4 text-center text-blue-600">المحرر (Editor)</th>
-                                <th className="px-6 py-4 text-center text-green-600">الصحفي (Journalist)</th>
-                                <th className="px-6 py-4 text-center text-gray-600">القاريء (Reader)</th>
+                                <th className="px-6 py-4 whitespace-nowrap">الصلاحية / الدور</th>
+                                <th className="px-6 py-4 text-center text-red-600 whitespace-nowrap">المدير (Admin)</th>
+                                <th className="px-6 py-4 text-center text-blue-600 whitespace-nowrap">المحرر (Editor)</th>
+                                <th className="px-6 py-4 text-center text-green-600 whitespace-nowrap">الصحفي (Journalist)</th>
+                                <th className="px-6 py-4 text-center text-gray-600 whitespace-nowrap">القاريء (Reader)</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -50,7 +50,7 @@ export default function PermissionsPage() {
                                 { name: 'الوصول لسجل النشاط', roles: [true, false, false, false] },
                             ].map((perm, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 font-medium text-gray-900">{perm.name}</td>
+                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{perm.name}</td>
                                     {perm.roles.map((hasAccess, rIdx) => (
                                         <td key={rIdx} className="px-6 py-4 text-center">
                                             {hasAccess ? (
