@@ -70,7 +70,7 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
                 <img
                     src={displayImageUrl}
                     alt={title}
-                    className="w-full h-96 object-contain object-center bg-gray-50"
+                    className="w-full h-96 object-cover object-center"
                     loading="eager"
                 />
 
