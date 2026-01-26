@@ -75,19 +75,19 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
                 />
 
                 {/* Gradient Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900/90 via-blue-900/40 to-transparent p-6 pt-24">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900/90 via-blue-900/40 to-transparent p-4 pt-16 md:p-6 md:pt-24">
                     {/* Badges */}
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-2 md:mb-4">
                         <Badge variant="primary">{categoryInfo.label}</Badge>
                         {isBreaking && <Badge variant="breaking">عاجل</Badge>}
                     </div>
 
                     {/* Title */}
-                    <h2 className="text-3xl font-bold text-white mb-3">{title}</h2>
+                    <h2 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3 leading-tight">{title}</h2>
 
                     {/* Excerpt */}
                     {excerpt && (
-                        <p className="text-gray-200 mb-4 text-lg line-clamp-2">{excerpt}</p>
+                        <p className="text-gray-200 mb-3 md:mb-4 text-sm md:text-lg line-clamp-2 hidden md:block">{excerpt}</p>
                     )}
 
                     {/* Metadata */}
