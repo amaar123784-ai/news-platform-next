@@ -17,7 +17,7 @@ const organizationSchema = {
   url: siteUrl,
   logo: {
     '@type': 'ImageObject',
-    url: `${siteUrl}/logo.webp`,
+    url: `${siteUrl}/images/logo.webp`,
   },
   sameAs: [
     'https://facebook.com/voiceoftihama',
