@@ -28,8 +28,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 // Classes derived from design-system.json components.buttons
 const variantClasses = {
-    primary: 'bg-primary text-white border-2 border-secondary hover:-translate-y-0.5 active:translate-y-0 px-6 py-2.5 rounded-full font-bold tracking-wide transition-all duration-300',
-    secondary: 'bg-secondary text-white hover:-translate-y-0.5 active:translate-y-0 px-6 py-2.5 rounded-full font-bold tracking-wide transition-all duration-300',
+    primary: 'bg-primary text-white border-2 border-secondary hover:-translate-y-0.5 active:translate-y-0 rounded-full font-bold tracking-wide transition-all duration-300 whitespace-nowrap',
+    secondary: 'bg-secondary text-white hover:-translate-y-0.5 active:translate-y-0 rounded-full font-bold tracking-wide transition-all duration-300 whitespace-nowrap',
     icon: 'w-10 h-10 flex items-center justify-center cursor-pointer hover:bg-gray-100 rounded-full text-gray-600 transition-colors',
     social: 'w-10 h-10 flex items-center justify-center bg-gray-800 rounded-full hover:bg-primary hover:-translate-y-1 transition-all duration-300 text-white shadow-sm',
     categoryTab: 'px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 border',
@@ -41,9 +41,9 @@ const categoryTabStates = {
 };
 
 const sizeClasses = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-lg',
+    sm: 'text-sm px-3 py-1.5',
+    md: 'text-base px-6 py-2.5',
+    lg: 'text-lg px-8 py-3',
 };
 
 export const Button: React.FC<ButtonProps> = ({

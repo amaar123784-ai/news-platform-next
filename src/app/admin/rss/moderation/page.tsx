@@ -102,7 +102,7 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
             </div>
         </div>
 
-        <div className="flex items-center gap-2 justify-end pt-2 border-t border-gray-100">
+        <div className="flex flex-wrap items-center gap-2 justify-end pt-2 border-t border-gray-100">
             <Button
                 variant="primary"
                 size="sm"
