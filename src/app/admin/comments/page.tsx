@@ -90,7 +90,7 @@ export default function CommentsPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex bg-white rounded-lg border border-gray-200 p-1">
+                <div className="flex flex-wrap gap-1 bg-white rounded-lg border border-gray-200 p-1">
                     {(['all', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((status) => (
                         <button
                             key={status}
@@ -256,7 +256,7 @@ export default function CommentsPage() {
                             </div>
                         )}
 
-                        <div className="flex gap-3 pt-4 border-t">
+                        <div className="flex flex-wrap gap-3 pt-4 border-t">
                             {viewComment.status !== 'APPROVED' && (
                                 <Button
                                     variant="primary"

@@ -295,7 +295,7 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                <div className="mt-8 pt-6 border-t flex justify-end gap-3">
+                <div className="mt-8 pt-6 border-t flex flex-wrap justify-end gap-3">
                     <Button
                         variant="secondary"
                         onClick={() => {

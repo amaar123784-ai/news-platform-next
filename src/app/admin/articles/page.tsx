@@ -73,7 +73,7 @@ export default function ArticleListPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">إدارة المحتوى</h1>
                     <p className="text-gray-500 text-sm mt-1">تصفح وإدارة جميع المقالات ({meta?.totalItems || 0} مقال)</p>
@@ -86,7 +86,7 @@ export default function ArticleListPage() {
                 </Link>
             </div>
 
-            <div className="flex gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                 <div className="w-full md:w-96">
                     <Input
                         type="search"
