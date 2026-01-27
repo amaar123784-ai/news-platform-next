@@ -445,6 +445,11 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     },
                 });
 
+                // Trigger n8n webhook for social distribution (Fire & Forget)
+                webhookService.notifyNewArticle(newArticle.id).catch(err => {
+                    console.error(`[RSS] Failed to trigger webhook for article ${newArticle.id}:`, err);
+                });
+
                 if (filterResult.status === 'FLAGGED') {
                     console.log(`[RSS] ⚠️ Flagged for review: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
                 } else {
