@@ -14,7 +14,7 @@ import { useToast } from '@/components/organisms/Toast';
 import { rssService, type RSSArticle } from '@/services/rss';
 
 // Helper component for rendering rows (prevents code duplication)
-const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrite, onConvert, onViewContent, isProcessing }: any) => (
+const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrite, onConvert, onViewContent, isProcessing, currentStatus }: any) => (
     <div className="p-4 hover:bg-gray-50 flex flex-col gap-4 group">
         <div className="flex gap-4">
             <input
@@ -103,16 +103,20 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
         </div>
 
         <div className="flex flex-wrap items-center gap-2 justify-end pt-2 border-t border-gray-100">
-            <Button
-                variant="primary"
-                size="sm"
-                onClick={onApprove}
-                disabled={isProcessing.approve}
-                title="قبول ونشر"
-            >
-                <Icon name="ri-check-line" className="ml-1" />
-                <span>قبول</span>
-            </Button>
+            {currentStatus !== 'APPROVED' && (
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onApprove}
+                    disabled={isProcessing.approve}
+                    className={currentStatus === 'REJECTED' ? "!bg-green-600 !border-green-600" : ""}
+                    title={currentStatus === 'REJECTED' ? "استعادة" : "قبول ونشر"}
+                >
+                    <Icon name={currentStatus === 'REJECTED' ? "ri-restart-line" : "ri-check-line"} className="ml-1" />
+                    <span>{currentStatus === 'REJECTED' ? "استعادة" : "قبول"}</span>
+                </Button>
+            )}
+
             <Button
                 variant="secondary"
                 size="sm"
@@ -124,6 +128,7 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                 <Icon name="ri-magic-line" className="ml-1" />
                 <span>إعادة صياغة</span>
             </Button>
+
             <Button
                 variant="secondary"
                 size="sm"
@@ -134,17 +139,20 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
                 <Icon name="ri-edit-box-line" className="ml-1" />
                 <span>تحويل</span>
             </Button>
-            <Button
-                variant="secondary"
-                size="sm"
-                onClick={onReject}
-                disabled={isProcessing.reject}
-                className="text-red-600 hover:bg-red-50"
-                title="رفض وحذف"
-            >
-                <Icon name="ri-close-line" className="ml-1" />
-                <span>رفض</span>
-            </Button>
+
+            {currentStatus !== 'REJECTED' && (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onReject}
+                    disabled={isProcessing.reject}
+                    className="text-red-600 hover:bg-red-50"
+                    title="رفض وحذف"
+                >
+                    <Icon name="ri-close-line" className="ml-1" />
+                    <span>{currentStatus === 'APPROVED' ? "إلغاء القبول" : "رفض"}</span>
+                </Button>
+            )}
         </div>
     </div>
 );
@@ -161,11 +169,12 @@ export default function RSSModerationPage() {
     const [sourceSearch, setSourceSearch] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [viewArticle, setViewArticle] = useState<RSSArticle | null>(null);
+    const [activeStatus, setActiveStatus] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
 
-    // Reset page when source or category changes
+    // Reset page when source, category or status changes
     React.useEffect(() => {
         setPage(1);
-    }, [activeSourceId, selectedCategoryId]);
+    }, [activeSourceId, selectedCategoryId, activeStatus]);
 
     // Reset source when category changes
     React.useEffect(() => {
@@ -200,12 +209,13 @@ export default function RSSModerationPage() {
 
     // Fetch pending articles
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['rss-moderation', page, activeSourceId, selectedCategoryId],
+        queryKey: ['rss-moderation', page, activeSourceId, selectedCategoryId, activeStatus],
         queryFn: () => rssService.getModerationQueue({
             page,
             perPage: 20,
             sourceId: activeSourceId || undefined,
-            categoryId: selectedCategoryId || undefined
+            categoryId: selectedCategoryId || undefined,
+            status: activeStatus
         }),
     });
 
@@ -306,7 +316,9 @@ export default function RSSModerationPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">مراجعة المقالات</h1>
                         <p className="text-gray-500 text-sm mt-1">
-                            مقالات RSS في انتظار المراجعة ({meta?.totalItems || 0} مقال)
+                            {activeStatus === 'PENDING' ? 'مقالات RSS في انتظار المراجعة' :
+                                activeStatus === 'APPROVED' ? 'المقالات التي تمت الموافقة عليها' :
+                                    'المقالات التي تم رفضها'} ({meta?.totalItems || 0} مقال)
                         </p>
                     </div>
 
@@ -366,6 +378,52 @@ export default function RSSModerationPage() {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Status Tabs */}
+                <div className="flex border-b border-gray-200">
+                    <button
+                        onClick={() => setActiveStatus('PENDING')}
+                        className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${activeStatus === 'PENDING'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        قيد الانتظار
+                        {activeStatus === 'PENDING' && (
+                            <span className="mr-2 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+                                {meta?.totalItems || 0}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveStatus('APPROVED')}
+                        className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${activeStatus === 'APPROVED'
+                            ? 'border-green-600 text-green-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        المقبولة
+                        {activeStatus === 'APPROVED' && (
+                            <span className="mr-2 px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">
+                                {meta?.totalItems || 0}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveStatus('REJECTED')}
+                        className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${activeStatus === 'REJECTED'
+                            ? 'border-red-600 text-red-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        المرفوضة
+                        {activeStatus === 'REJECTED' && (
+                            <span className="mr-2 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">
+                                {meta?.totalItems || 0}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 {/* Filters Section */}
@@ -501,6 +559,7 @@ export default function RSSModerationPage() {
                                         onRewrite={() => rewriteMutation.mutate(article.id)}
                                         onConvert={() => handleConvertToArticle(article)}
                                         onViewContent={() => setViewArticle(article)}
+                                        currentStatus={activeStatus}
                                         isProcessing={{
                                             approve: approveMutation.isPending,
                                             reject: rejectMutation.isPending,
@@ -566,6 +625,7 @@ export default function RSSModerationPage() {
                                                     onRewrite={() => rewriteMutation.mutate(article.id)}
                                                     onConvert={() => handleConvertToArticle(article)}
                                                     onViewContent={() => setViewArticle(article)}
+                                                    currentStatus={activeStatus}
                                                     isProcessing={{
                                                         approve: approveMutation.isPending,
                                                         reject: rejectMutation.isPending,

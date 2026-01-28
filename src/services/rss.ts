@@ -206,6 +206,7 @@ export const rssService = {
         perPage?: number;
         sourceId?: string;
         categoryId?: string;
+        status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     }): Promise<PaginatedResponse<RSSArticle>> {
         const response = await api.get('/rss/moderation', { params });
         return response.data;

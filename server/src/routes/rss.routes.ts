@@ -529,10 +529,11 @@ router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (r
     try {
         const page = Math.max(1, Number(req.query.page) || 1);
         const perPage = Math.min(100, Math.max(1, Number(req.query.perPage) || 50));
+        const status = (req.query.status as string) || 'PENDING';
         const sourceId = req.query.sourceId as string | undefined;
         const categoryId = req.query.categoryId as string | undefined;
 
-        const where: any = { status: 'PENDING' };
+        const where: any = { status };
 
         if (sourceId) {
             where.sourceId = sourceId;
