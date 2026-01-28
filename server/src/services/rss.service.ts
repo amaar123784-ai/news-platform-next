@@ -482,42 +482,17 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 articleCategoryId = source.categoryId;
             }
 
-            // ========== 2. YEMEN FILTER GATE (Conditional) ==========
-            // Global categories bypass the filter (News is considered global unless it's politics)
-            // Allowed Global: Economy, Sports, Technology, Culture
-            const GLOBAL_CATEGORIES = ['economy', 'sports', 'technology', 'culture'];
-            const isGlobalCategory = GLOBAL_CATEGORIES.includes(targetCategorySlug);
+            // ========== 2. FILTER GATE (DISABLED) ==========
+            // Yemen filter is globally disabled - accepting all articles
+            const filterResult: FilterResult = {
+                status: 'ACCEPTED',
+                relevanceScore: 1.0,
+                tierCategory: 1,
+                reasoning: 'Filter disabled globally',
+                action: 'PUBLISH',
+            };
 
-            let filterResult: FilterResult;
-
-            if (isGlobalCategory) {
-                // BYPASS FILTER: Accept immediately for global categories
-                filterResult = {
-                    status: 'ACCEPTED',
-                    relevanceScore: 1.0,
-                    tierCategory: 1, // Treat as high relevance
-                    reasoning: `Global category (${targetCategorySlug}) - Bypass Yemen Filter`,
-                    action: 'PUBLISH',
-                };
-                console.log(`[RSS] 🌍 Global Content (${targetCategorySlug}): ${title.substring(0, 40)}...`);
-            } else {
-                // APPLY FILTER: For Politics, Mixed (unclassified), or others
-                filterResult = processYemenFilter({
-                    guid,
-                    title,
-                    description: excerpt,
-                    sourceUrl: item.link || '',
-                    publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-                    sourceId: source.id,
-                    sourceName: source.name,
-                });
-            }
-
-            // Handle filter decisions
-            if (filterResult.status === 'REJECTED') {
-                console.log(`[RSS] ❌ Rejected: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
-                continue; // Skip non-Yemen content
-            }
+            // Note: Filter rejection is disabled - all articles pass through
 
             if (filterResult.status === 'MERGED' && filterResult.mergeWithId) {
                 console.log(`[RSS] 🔗 Merged with existing article: ${title.substring(0, 40)}...`);
