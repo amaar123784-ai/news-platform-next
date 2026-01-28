@@ -49,7 +49,7 @@ export class WebhookService {
         slug: article.slug,
         excerpt: article.excerpt,
         content: article.content, // Useful for AI summarization
-        imageUrl: article.image,
+        imageUrl: article.imageUrl,
         category: article.category?.name || 'news',
         publishedAt: article.publishedAt,
         sourceUrl: `https://voiceoftihama.com/article/${article.slug}`,
