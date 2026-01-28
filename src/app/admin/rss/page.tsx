@@ -453,6 +453,23 @@ export default function RSSSourcesPage() {
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             />
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                فلترة اليمن الذكية
+                            </label>
+                            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.applyFilter !== false}
+                                    onChange={(e) => setFormData({ ...formData, applyFilter: e.target.checked })}
+                                    className="h-5 w-5 text-primary rounded focus:ring-primary border-gray-300"
+                                />
+                                <span className="text-gray-700">تفعيل الفلترة</span>
+                            </label>
+                            <p className="text-xs text-gray-500 mt-1">
+                                عند التعطيل، سيتم استيراد جميع المقالات دون فحص.
+                            </p>
+                        </div>
                     </div>
 
                     {/* Description HIDDEN */}
