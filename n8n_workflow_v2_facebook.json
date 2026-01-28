@@ -1,0 +1,160 @@
+{
+    "name": "New Article Distribution (Telegram + Facebook)",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "new-article",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "new-article"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$node[\"Webhook\"].json[\"body\"][\"category\"]}}",
+                            "value2": "breaking"
+                        }
+                    ]
+                }
+            },
+            "name": "Is Breaking News?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "@YOUR_TELEGRAM_CHANNEL_USERNAME",
+                "text": "=🔔 *خبر عاجل: {{$node[\"Webhook\"].json[\"body\"][\"title\"]}}*\n\n{{$node[\"Webhook\"].json[\"body\"][\"excerpt\"]}}\n\n🔗 لقراءة التفاصيل: {{$node[\"Webhook\"].json[\"body\"][\"sourceUrl\"]}}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "name": "Telegram (Channel)",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                800,
+                100
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram Account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "@YOUR_TELEGRAM_CHANNEL_USERNAME",
+                "text": "=📰 *خبر جديد: {{$node[\"Webhook\"].json[\"body\"][\"title\"]}}*\n\n{{$node[\"Webhook\"].json[\"body\"][\"excerpt\"]}}\n\n🔗 لقراءة المزيد: {{$node[\"Webhook\"].json[\"body\"][\"sourceUrl\"]}}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "name": "Telegram (Normal)",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                800,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram Account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "/1004685312722627/photos",
+                "options": {},
+                "queryParametersUi": {
+                    "parameter": [
+                        {
+                            "name": "url",
+                            "value": "={{$node[\"Webhook\"].json[\"body\"][\"imageUrl\"]}}"
+                        },
+                        {
+                            "name": "caption",
+                            "value": "=📰 {{$node[\"Webhook\"].json[\"body\"][\"title\"]}}\n\n{{$node[\"Webhook\"].json[\"body\"][\"excerpt\"]}}\n\n🔗 تفاصيل الخبر: {{$node[\"Webhook\"].json[\"body\"][\"sourceUrl\"]}}\n\n#صوت_تهامة #اليمن #أخبار"
+                        },
+                        {
+                            "name": "access_token",
+                            "value": "EAAMEbLZAHtRcBQuFMZB6rdAuULiBaDaUS11m9kS1CHXi0CZCZC9VYMoK4FSKpXyiw1K5wLZC9Mff5ZCsmoFFzBZCwrWzHuDCG2FG3xr12QJaFE5iedQBD1hRgrZCHPtIEXO4Fn2jHxmVZBnYTHlCbggDawhVVasYZAa19JiofgLZCmrjZCFAhcZCq93KZAPs4C6NjhDSsjAojDwfOdEYnKKEbWHbRgDZBvemMVBKZABCopacXN9x"
+                        }
+                    ]
+                }
+            },
+            "name": "Facebook Page (Photo)",
+            "type": "n8n-nodes-base.facebookGraphApi",
+            "typeVersion": 1,
+            "position": [
+                800,
+                500
+            ],
+            "credentials": {
+                "facebookGraphApi": {
+                    "id": "YOUR_FACEBOOK_CREDENTIALS_ID",
+                    "name": "Facebook Account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Is Breaking News?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Breaking News?": {
+            "main": [
+                [
+                    {
+                        "node": "Telegram (Channel)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Facebook Page (Photo)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Telegram (Normal)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Facebook Page (Photo)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
