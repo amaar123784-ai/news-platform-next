@@ -224,6 +224,7 @@ model RSSSource {
   errorCount     Int             @default(0)
   
   isActive       Boolean         @default(true)
+  applyFilter    Boolean         @default(true) // Toggle Yemen-specific filtering
   
   categoryId     String                                   // Map to platform category
   category       Category        @relation(fields: [categoryId], references: [id])

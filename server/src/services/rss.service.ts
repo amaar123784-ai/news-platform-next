@@ -397,6 +397,11 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
         console.log(`[RSS] Fetching feed: ${source.name} (${source.feedUrl})`);
 
+        // Log filter status
+        if (!source.applyFilter) {
+            console.log(`[RSS] ℹ️ Filter DISABLED for source: ${source.name} - All articles will be imported`);
+        }
+
         // Try standard RSS parser first, fallback to custom parser if it fails
         let feedItems: any[] = [];
         let usedFallback = false;

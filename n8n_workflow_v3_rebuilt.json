@@ -1,0 +1,100 @@
+{
+    "name": "Voice of Tihama - Auto Post v3",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "new-article",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "new-article"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={ \"success\": true, \"message\": \"Article received\", \"articleId\": \"{{ $json.body.id }}\" }",
+                "options": {}
+            },
+            "id": "respond-webhook",
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://graph.facebook.com/v18.0/1004685312722627/feed",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "link",
+                            "value": "={{ $('Webhook').item.json.body.sourceUrl }}"
+                        },
+                        {
+                            "name": "message",
+                            "value": "=📰 {{ $('Webhook').item.json.body.title }}\n\n{{ $('Webhook').item.json.body.excerpt }}\n\n#صوت_تهامة #اليمن #أخبار"
+                        },
+                        {
+                            "name": "access_token",
+                            "value": "EAAMEbLZAHtRcBQozZAdmg33ubJrfZBvChLODqIt7tx0wFcbxQp7fOdSEMKxGQUxKoYEl8D3rjmhSgm9Xl76tBKVFEMc1rbNZAGAbD2ODFGUZBPVyKu9w0lw7wYJZCsE1FXyoIbANWXw6mlTBJ0JLdYU8j0kq8ENxmYHtZC0B7iJZBpI0yEjyZBimON5ivF4lV5iUB5POqyyeTlnBO2rYFcdqatzaoR7jdPquZCdIZBwHndkL8A6sUAAyHbGQ57s"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "facebook-post",
+            "name": "Post to Facebook",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                650,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Respond to Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Facebook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0
+}

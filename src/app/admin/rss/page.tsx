@@ -38,6 +38,7 @@ export default function RSSSourcesPage() {
         description: '',
         categoryId: '',
         fetchInterval: 15,
+        applyFilter: true,
     });
 
     // Fetch RSS sources

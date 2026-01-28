@@ -20,6 +20,7 @@ export interface RSSSource {
     lastError?: string | null;
     errorCount: number;
     isActive: boolean;
+    applyFilter: boolean;
     categoryId: string;
     category: {
         id: string;
@@ -86,6 +87,7 @@ export interface CreateRSSSourceData {
     description?: string | null;
     categoryId: string;
     fetchInterval?: number;
+    applyFilter?: boolean;
 }
 
 export interface UpdateRSSSourceData {
@@ -97,6 +99,7 @@ export interface UpdateRSSSourceData {
     categoryId?: string;
     fetchInterval?: number;
     isActive?: boolean;
+    applyFilter?: boolean;
     status?: 'ACTIVE' | 'PAUSED';
 }
 

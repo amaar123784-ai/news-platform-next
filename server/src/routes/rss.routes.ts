@@ -24,6 +24,7 @@ const createSourceSchema = z.object({
     description: z.string().optional().nullable(),
     categoryId: z.string().uuid('معرف التصنيف غير صالح'),
     fetchInterval: z.number().min(5).max(1440).default(15),
+    applyFilter: z.boolean().default(true),
 });
 
 const updateSourceSchema = z.object({
@@ -35,6 +36,7 @@ const updateSourceSchema = z.object({
     categoryId: z.string().uuid().optional(),
     fetchInterval: z.number().min(5).max(1440).optional(),
     isActive: z.boolean().optional(),
+    applyFilter: z.boolean().optional(),
     status: z.enum(['ACTIVE', 'PAUSED']).optional(),
 });
 
