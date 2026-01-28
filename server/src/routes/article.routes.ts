@@ -334,6 +334,14 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             },
         }).catch(console.error);
 
+        // Trigger Webhook if Published
+        if (article.status === 'PUBLISHED') {
+            const { webhookService } = await import('../services/webhook.service.js');
+            webhookService.notifyNewArticle(article.id).catch(err => {
+                console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+        }
+
         res.status(201).json({ success: true, data: article });
     } catch (error) {
         next(error);
@@ -381,6 +389,14 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
                 userId: req.user!.userId,
             },
         }).catch(console.error);
+
+        // Trigger Webhook if status changed to PUBLISHED
+        if (article.status === 'PUBLISHED' && existing.status !== 'PUBLISHED') {
+            const { webhookService } = await import('../services/webhook.service.js');
+            webhookService.notifyNewArticle(article.id).catch(err => {
+                console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+        }
 
         res.json({ success: true, data: article });
     } catch (error) {

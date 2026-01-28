@@ -445,10 +445,8 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     },
                 });
 
-                // Trigger n8n webhook for social distribution (Fire & Forget)
-                webhookService.notifyNewArticle(newArticle.id).catch(err => {
-                    console.error(`[RSS] Failed to trigger webhook for article ${newArticle.id}:`, err);
-                });
+                // Webhook trigger removed as per user request (only manual publish triggers social post)
+                // webhookService.notifyNewArticle(newArticle.id)...
 
                 if (filterResult.status === 'FLAGGED') {
                     console.log(`[RSS] ⚠️ Flagged for review: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
