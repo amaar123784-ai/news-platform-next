@@ -7,8 +7,17 @@ import Parser from 'rss-parser';
 import crypto from 'crypto';
 import path from 'path';
 import { prisma } from '../index.js';
-import { processYemenFilter, type FilterResult } from './yemenFilter.service.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
+
+// FilterResult type for article processing (filter disabled globally)
+type FilterResult = {
+    status: 'ACCEPTED' | 'REJECTED' | 'FLAGGED' | 'MERGED';
+    relevanceScore: number;
+    tierCategory: 1 | 2 | 3;
+    reasoning: string;
+    action: 'PUBLISH' | 'MERGE' | 'HOLD' | 'DROP';
+    mergeWithId?: string;
+};
 
 // ============= FALLBACK XML PARSER FOR NON-STANDARD FEEDS =============
 
@@ -396,11 +405,6 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
         }
 
         console.log(`[RSS] Fetching feed: ${source.name} (${source.feedUrl})`);
-
-        // Log filter status
-        if (!source.applyFilter) {
-            console.log(`[RSS] ℹ️ Filter DISABLED for source: ${source.name} - All articles will be imported`);
-        }
 
         // Try standard RSS parser first, fallback to custom parser if it fails
         let feedItems: any[] = [];
