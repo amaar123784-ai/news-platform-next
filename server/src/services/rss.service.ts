@@ -242,12 +242,35 @@ async function scrapeArticlePage(articleUrl: string): Promise<ScrapedPageData> {
 
         const html = response.data as string;
 
-        // Extract og:image
-        const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-            || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-        if (ogImageMatch) {
-            result.ogImage = ogImageMatch[1];
-            console.log(`[RSS] 🖼️ Found og:image: ${result.ogImage.substring(0, 60)}...`);
+        // Extract image using multiple fallback patterns
+        const imagePatterns = [
+            // og:image (most common)
+            /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+            // twitter:image
+            /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+            // Schema.org itemprop
+            /<meta[^>]+itemprop=["']image["'][^>]+content=["']([^"']+)["']/i,
+            /<link[^>]+itemprop=["']image["'][^>]+href=["']([^"']+)["']/i,
+            // JSON-LD schema (common in news sites)
+            /"image"\s*:\s*"([^"]+)"/i,
+            /"image"\s*:\s*\[\s*"([^"]+)"/i,
+            // First large image in article body as last resort
+            /<img[^>]+src=["']([^"']+(?:\.jpg|\.jpeg|\.png|\.webp)[^"']*)["']/i,
+        ];
+
+        for (const pattern of imagePatterns) {
+            const match = html.match(pattern);
+            if (match && match[1] && match[1].startsWith('http')) {
+                result.ogImage = match[1];
+                console.log(`[RSS] 🖼️ Found image via pattern: ${result.ogImage.substring(0, 60)}...`);
+                break;
+            }
+        }
+
+        if (!result.ogImage) {
+            console.log(`[RSS] ⚠️ No image found in page: ${articleUrl.substring(0, 50)}...`);
         }
 
         // Extract full content using common article selectors
