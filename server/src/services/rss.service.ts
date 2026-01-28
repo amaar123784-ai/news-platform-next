@@ -216,6 +216,83 @@ function ensureAbsoluteUrl(url: string | undefined | null, baseUrl: string): str
 }
 
 /**
+ * Scrape article page to extract og:image and full content
+ * Called when RSS feed doesn't provide sufficient data
+ */
+interface ScrapedPageData {
+    ogImage: string | null;
+    fullContent: string | null;
+}
+
+async function scrapeArticlePage(articleUrl: string): Promise<ScrapedPageData> {
+    const result: ScrapedPageData = { ogImage: null, fullContent: null };
+
+    if (!articleUrl) return result;
+
+    try {
+        const response = await axios.get(articleUrl, {
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; YemenNewsBot/1.0; +https://voiceoftihama.com)',
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'ar,en;q=0.9',
+            },
+            maxContentLength: 5 * 1024 * 1024, // 5MB limit
+        });
+
+        const html = response.data as string;
+
+        // Extract og:image
+        const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+            || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        if (ogImageMatch) {
+            result.ogImage = ogImageMatch[1];
+            console.log(`[RSS] 🖼️ Found og:image: ${result.ogImage.substring(0, 60)}...`);
+        }
+
+        // Extract full content using common article selectors
+        // Try multiple common article container patterns
+        const contentPatterns = [
+            /<article[^>]*>([\s\S]*?)<\/article>/i,
+            /<div[^>]+class=["'][^"']*article[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*post-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*entry-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*content-body[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+id=["']content["'][^>]*>([\s\S]*?)<\/div>/i,
+        ];
+
+        for (const pattern of contentPatterns) {
+            const match = html.match(pattern);
+            if (match && match[1]) {
+                // Clean HTML: remove scripts, styles, and excessive whitespace
+                let content = match[1]
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+                    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+                    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+                    .trim();
+
+                // Only use if we got meaningful content (more than 100 chars after stripping tags)
+                const textOnly = content.replace(/<[^>]+>/g, '').trim();
+                if (textOnly.length > 100) {
+                    result.fullContent = content;
+                    console.log(`[RSS] 📄 Extracted full content: ${textOnly.length} chars`);
+                    break;
+                }
+            }
+        }
+
+    } catch (error: any) {
+        console.warn(`[RSS] ⚠️ Failed to scrape page ${articleUrl}: ${error.message}`);
+    }
+
+    return result;
+}
+
+/**
  * Extract image URL from feed item
  * Checks multiple common feed image formats and resolves relative URLs
  */
@@ -420,9 +497,29 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
             }
 
             try {
-                // Download and process image locally
+                // Extract image from RSS feed first
                 const baseFeedUrl = source.websiteUrl || source.feedUrl;
-                const rawImageUrl = extractImage(item);
+                let rawImageUrl = extractImage(item);
+                let articleContent = item.content || item['content:encoded'] || (item as any).description || '';
+
+                // If no image in RSS or content is too short, scrape the article page
+                const articleLink = item.link || '';
+                if (!rawImageUrl || articleContent.replace(/<[^>]+>/g, '').length < 200) {
+                    console.log(`[RSS] 🔍 Scraping page for missing data: ${articleLink.substring(0, 50)}...`);
+                    const scraped = await scrapeArticlePage(articleLink);
+
+                    // Use scraped image if RSS didn't have one
+                    if (!rawImageUrl && scraped.ogImage) {
+                        rawImageUrl = scraped.ogImage;
+                    }
+
+                    // Use scraped content if it's richer
+                    if (scraped.fullContent && scraped.fullContent.replace(/<[^>]+>/g, '').length > articleContent.replace(/<[^>]+>/g, '').length) {
+                        articleContent = scraped.fullContent;
+                    }
+                }
+
+                // Download and process image locally
                 const localImageUrl = await downloadAndProcessImage(rawImageUrl, baseFeedUrl);
 
                 // Determine status based on filter result
@@ -433,8 +530,8 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     data: {
                         guid,
                         title,
-                        excerpt: truncateExcerpt(item.contentSnippet || item.content || (item as any).description),
-                        sourceUrl: item.link || '',
+                        excerpt: truncateExcerpt(articleContent),
+                        sourceUrl: articleLink,
                         imageUrl: localImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
