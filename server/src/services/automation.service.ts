@@ -158,7 +158,7 @@ export class AutomationService {
         const category = article.source.category;
 
         // Generate unique slug
-        const baseSlug = slugify(queueItem.aiRewrittenTitle || article.title, {
+        const baseSlug = slugify.default(queueItem.aiRewrittenTitle || article.title, {
             lower: true,
             strict: true
         });

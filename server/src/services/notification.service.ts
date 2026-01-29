@@ -34,7 +34,7 @@ export class NotificationService {
                     type,
                     title,
                     message,
-                    data: data || null
+                    data: data ?? undefined,
                 }
             });
             console.log(`[Notification] Created: ${type} - ${title}`);
