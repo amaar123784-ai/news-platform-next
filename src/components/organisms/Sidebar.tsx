@@ -25,6 +25,8 @@ export interface SidebarProps {
 const navItems = [
     { icon: 'ri-dashboard-line', label: 'الرئيسية', href: '/admin' },
     { icon: 'ri-article-line', label: 'إدارة الأخبار', href: '/admin/articles' },
+    { icon: 'ri-rss-line', label: 'مراجعة RSS', href: '/admin/rss/moderation' },
+    { icon: 'ri-robot-line', label: 'الأتمتة', href: '/admin/automation' },
     { icon: 'ri-user-line', label: 'إدارة المستخدمين', href: '/admin/users' },
     { icon: 'ri-folder-line', label: 'الأقسام', href: '/admin/categories' },
     { icon: 'ri-image-line', label: 'المكتبة الإعلامية', href: '/admin/media' },
