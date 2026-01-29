@@ -79,11 +79,10 @@ export const NewsCard: React.FC<NewsCardProps> = ({
     };
 
     return (
-        <article className="news-card bg-white rounded-lg shadow-sm border-4 border-green-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+        <article className="news-card bg-white rounded-lg shadow-sm border-2 sm:border-4 border-green-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <Link href={articleLink} onClick={onClick} className="block">
-                {/* Image */}
                 {/* Image Container with Blurred Background */}
-                <div className="relative h-64 w-full overflow-hidden bg-gray-100">
+                <div className="relative h-48 sm:h-56 md:h-64 w-full overflow-hidden bg-gray-100">
                     {/* Blurred Background Image */}
                     <Image
                         src={displayImageUrl}
@@ -98,15 +97,15 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                         src={displayImageUrl}
                         alt={title}
                         fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="relative object-contain object-center z-10 p-2"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="relative object-contain object-center z-10 p-1 sm:p-2"
                     />
                 </div>
 
                 {/* Content */}
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                     {/* Badges */}
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
                         <button onClick={handleCategoryClick}>
                             <Badge category={category}>{categoryInfo.label}</Badge>
                         </button>
@@ -114,20 +113,20 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-bold text-lg mb-2 line-clamp-2">{title}</h3>
+                    <h3 className="font-bold text-base sm:text-lg mb-2 line-clamp-2 leading-relaxed">{title}</h3>
 
                     {/* Excerpt */}
                     {excerpt && (
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{excerpt}</p>
+                        <p className="text-gray-600 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">{excerpt}</p>
                     )}
 
                     {/* Metadata */}
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                        {timeAgo && <span>{timeAgo}</span>}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                        {timeAgo && <span className="whitespace-nowrap">{timeAgo}</span>}
                         {author && (
                             <button
                                 onClick={handleAuthorClick}
-                                className="hover:text-primary transition-colors"
+                                className="hover:text-primary transition-colors truncate max-w-[120px]"
                             >
                                 {author}
                             </button>

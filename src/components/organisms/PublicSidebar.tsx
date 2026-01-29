@@ -21,24 +21,24 @@ function formatTimeAgo(date: string): string {
 
 export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) {
     return (
-        <aside className="space-y-6">
+        <aside className="space-y-4 sm:space-y-6">
             {/* Urgent News */}
-            <section className="bg-white rounded-lg shadow-sm p-6 border-t-4 border-secondary">
-                <div className="flex items-center gap-3 mb-4">
+            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-secondary">
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <Icon name="ri-notification-3-line" size="xl" className="text-primary" />
-                    <h3 className="text-lg font-bold">أخبار عاجلة</h3>
+                    <h3 className="text-base sm:text-lg font-bold">أخبار عاجلة</h3>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                     {urgentNews.slice(0, 5).map((news) => (
                         <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group">
-                            <article className="pb-4 border-b border-gray-100 last:border-b-0">
-                                <div className="flex items-center gap-2 mb-2">
+                            <article className="pb-3 sm:pb-4 border-b border-gray-100 last:border-b-0">
+                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                                     <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                                     <span className="text-xs text-red-600 font-medium">
                                         {formatTimeAgo(news.publishedAt || news.createdAt)}
                                     </span>
                                 </div>
-                                <h4 className="font-medium text-sm group-hover:text-primary transition">{news.title}</h4>
+                                <h4 className="font-medium text-xs sm:text-sm group-hover:text-primary transition line-clamp-2">{news.title}</h4>
                             </article>
                         </Link>
                     ))}
@@ -49,10 +49,10 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
             </section>
 
             {/* Most Read */}
-            <section className="bg-white rounded-lg shadow-sm p-6 border-t-4 border-primary">
-                <div className="flex items-center gap-3 mb-4">
+            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-primary">
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <Icon name="ri-fire-line" size="xl" className="text-primary" />
-                    <h3 className="text-lg font-bold">الأكثر قراءة</h3>
+                    <h3 className="text-base sm:text-lg font-bold">الأكثر قراءة</h3>
                 </div>
                 <div className="space-y-4">
                     {mostReadNews.map((news, index) => (

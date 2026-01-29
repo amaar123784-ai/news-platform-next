@@ -67,11 +67,11 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
         <>
 
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 {/* Main Content */}
                 <div className="lg:col-span-3">
                     {/* Featured Article */}
-                    <section className="mb-8">
+                    <section className="mb-6 sm:mb-8">
                         {featuredArticle ? (
                             <FeaturedNews
                                 id={featuredArticle.id}
@@ -85,20 +85,20 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
                                 isBreaking={featuredArticle.views > 1000}
                             />
                         ) : (
-                            <div className="h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">
+                            <div className="h-64 sm:h-80 lg:h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">
                                 لا توجد مقالات مميزة
                             </div>
                         )}
                     </section>
 
                     {/* News Grid */}
-                    <section className="mb-8">
-                        <div className="flex items-center gap-3 mb-6">
+                    <section className="mb-6 sm:mb-8">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
                             <Icon name="ri-newspaper-line" size="xl" className="text-primary" />
-                            <h2 className="text-xl font-bold">أحدث الأخبار</h2>
+                            <h2 className="text-lg sm:text-xl font-bold">أحدث الأخبار</h2>
                             <div className="flex-1 h-px bg-gray-200" />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                             {displayArticles.map((article: Article) => (
                                 <NewsCard
                                     key={article.id}
