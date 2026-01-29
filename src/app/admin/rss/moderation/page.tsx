@@ -312,17 +312,17 @@ export default function RSSModerationPage() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">مراجعة المقالات</h1>
-                        <p className="text-gray-500 text-sm mt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">مراجعة المقالات</h1>
+                        <p className="text-gray-500 text-sm mt-1 truncate">
                             {activeStatus === 'PENDING' ? 'مقالات RSS في انتظار المراجعة' :
                                 activeStatus === 'APPROVED' ? 'المقالات التي تمت الموافقة عليها' :
                                     'المقالات التي تم رفضها'} ({meta?.totalItems || 0} مقال)
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
                         {/* View Mode Toggle */}
                         <div className="flex bg-gray-100 p-1 rounded-lg">
                             <button

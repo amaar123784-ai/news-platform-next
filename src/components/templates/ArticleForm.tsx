@@ -109,31 +109,32 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                 <div className="flex items-center gap-4">
                     <Button variant="secondary" onClick={() => router.push('/admin/articles')} type="button">
                         <Icon name="ri-arrow-right-line" />
                     </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                             {isEditMode ? 'تعديل مقال' : 'مقال جديد'}
                         </h1>
-                        <p className="text-gray-500 text-sm mt-1">
+                        <p className="text-gray-500 text-sm mt-1 truncate">
                             {isEditMode ? 'تحديث المحتوى والبيانات' : 'إنشاء محتوى جديد ونشره'}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button variant="secondary" type="button" onClick={() => setIsPreviewOpen(true)}>
-                        <Icon name="ri-eye-line" className="ml-2" />
-                        معاينة
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <Button variant="secondary" type="button" onClick={() => setIsPreviewOpen(true)} className="text-sm sm:text-base">
+                        <Icon name="ri-eye-line" className="ml-1 sm:ml-2" />
+                        <span className="hidden xs:inline">معاينة</span>
                     </Button>
                     <Button
                         variant="primary"
                         type="submit"
                         form="article-form"
                         disabled={createMutation.isPending || updateMutation.isPending}
+                        className="text-sm sm:text-base whitespace-nowrap"
                     >
                         {createMutation.isPending || updateMutation.isPending ? (
                             <Icon name="ri-loader-4-line" className="animate-spin" />
