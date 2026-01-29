@@ -1,0 +1,328 @@
+{
+    "name": "Voice of Tihama - Scheduled Facebook Post",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 5
+                        }
+                    ]
+                }
+            },
+            "id": "schedule-trigger",
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "https://voiceoftihama.com/api/automation/pending-social",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "n8n-secret-key"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch-pending",
+            "name": "Fetch Pending Posts",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                400,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.count > 0 }}",
+                            "operation": "equal",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "has-posts",
+            "name": "Has Posts?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                600,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "data",
+                "options": {}
+            },
+            "id": "split-items",
+            "name": "Split Posts",
+            "type": "n8n-nodes-base.splitOut",
+            "typeVersion": 1,
+            "position": [
+                800,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://graph.facebook.com/v18.0/1004685312722627/feed",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "message",
+                            "value": "=📰 {{ $json.title }}\n\n{{ $json.excerpt }}\n\n🔗 اقرأ المزيد: {{ $json.articleUrl }}\n\n#صوت_تهامة #اليمن #{{ $json.categorySlug }}"
+                        },
+                        {
+                            "name": "link",
+                            "value": "={{ $json.articleUrl }}"
+                        },
+                        {
+                            "name": "access_token",
+                            "value": "EAAMEbLZAHtRcBQlzQHSw2ZBscFlcFQZBCrLSfcZCukapOkNkbBd78JZBqBOJrtZAHOemeQ6C1twGeJPVKoXRCGUDwYHvHTh3B48OEUFKI2UKjKZC4ZBRoLnwCDVCGEsb10ULwlMkPAkFG66QiLRxiltBWWbmxGbtch5H4EZBfLflRwSbJvc6iHQEWPpG6lkZBXokBqVtX1U7yWieOkz5xpDBqt31TKB9TzVQrJYWTxRZCwimdzARBqTZAHSkGycZD"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "post-facebook",
+            "name": "Post to Facebook",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1000,
+                200
+            ],
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.id !== undefined }}",
+                            "operation": "equal",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "check-success",
+            "name": "Success?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1200,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://voiceoftihama.com/api/automation/social-callback",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "n8n-secret-key"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "queueId",
+                            "value": "={{ $('Split Posts').item.json.queueId }}"
+                        },
+                        {
+                            "name": "success",
+                            "value": "=true"
+                        },
+                        {
+                            "name": "postId",
+                            "value": "={{ $json.id }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "mark-success",
+            "name": "Mark as Posted",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1400,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://voiceoftihama.com/api/automation/social-callback",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "n8n-secret-key"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "queueId",
+                            "value": "={{ $('Split Posts').item.json.queueId }}"
+                        },
+                        {
+                            "name": "success",
+                            "value": "=false"
+                        },
+                        {
+                            "name": "error",
+                            "value": "={{ $json.error?.message || 'Unknown Facebook API error' }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "mark-failed",
+            "name": "Mark as Failed",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1400,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "no-posts",
+            "name": "No Posts",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                800,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Pending Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Pending Posts": {
+            "main": [
+                [
+                    {
+                        "node": "Has Posts?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Posts?": {
+            "main": [
+                [
+                    {
+                        "node": "Split Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Posts": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Facebook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post to Facebook": {
+            "main": [
+                [
+                    {
+                        "node": "Success?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Success?": {
+            "main": [
+                [
+                    {
+                        "node": "Mark as Posted",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Mark as Failed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0
+}

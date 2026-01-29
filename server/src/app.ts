@@ -25,6 +25,8 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import mediaRoutes from './routes/media.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import rssRoutes from './routes/rss.routes.js';
+import automationRoutes from './routes/automation.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 export function createApp(): Express {
     const app = express();
@@ -81,6 +83,8 @@ export function createApp(): Express {
     app.use('/api/media', mediaRoutes);
     app.use('/api/settings', settingsRoutes);
     app.use('/api/rss', rssRoutes);
+    app.use('/api/automation', automationRoutes);
+    app.use('/api/notifications', notificationRoutes);
 
     // Error handler (must be last)
     app.use(errorHandler);

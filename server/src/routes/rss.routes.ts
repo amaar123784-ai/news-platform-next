@@ -10,6 +10,7 @@ import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { fetchRSSFeed, fetchAllActiveFeeds, cleanupOldArticles, getRSSStats } from '../services/rss.service.js';
 import { rewriteArticle, isAIEnabled } from '../services/ai.service.js';
+import { automationService } from '../services/automation.service.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -628,6 +629,13 @@ router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
             },
         });
 
+        // Trigger automation pipeline for approved articles
+        if (status === 'APPROVED') {
+            automationService.startAutomation(req.params.id).catch(err => {
+                console.error('[RSS] Failed to start automation:', err.message);
+            });
+        }
+
         res.json({ success: true, data: article });
     } catch (error) {
         next(error);
@@ -655,6 +663,15 @@ router.post('/articles/bulk', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
             message: `تم تحديث ${result.count} مقال`,
             data: { updatedCount: result.count },
         });
+
+        // Trigger automation pipeline for all approved articles
+        if (status === 'APPROVED') {
+            ids.forEach(id => {
+                automationService.startAutomation(id).catch(err => {
+                    console.error(`[RSS] Failed to start automation for ${id}:`, err.message);
+                });
+            });
+        }
     } catch (error) {
         next(error);
     }
