@@ -40,10 +40,10 @@ export interface StatCardProps {
 }
 
 // Classes from design-system.json components.cards.statCard
-const containerClass = 'stat-card bg-white p-6 rounded-xl shadow-sm border border-gray-100';
-const iconContainerClass = 'w-12 h-12 rounded-xl flex items-center justify-center';
-const valueClass = 'text-2xl font-bold text-gray-900 mb-1';
-const labelClass = 'text-gray-600 text-sm';
+const containerClass = 'stat-card bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100';
+const iconContainerClass = 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center';
+const valueClass = 'text-xl sm:text-2xl font-bold text-gray-900 mb-1';
+const labelClass = 'text-gray-600 text-xs sm:text-sm';
 
 export const StatCard: React.FC<StatCardProps> = ({
     icon,

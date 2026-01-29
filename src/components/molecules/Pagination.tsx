@@ -62,14 +62,14 @@ export const Pagination: React.FC<PaginationProps> = ({
 
     return (
         <nav
-            className={`flex items-center justify-center gap-1 ${className}`}
+            className={`flex flex-wrap items-center justify-center gap-1 ${className}`}
             aria-label="التنقل بين الصفحات"
         >
             {/* Previous Button */}
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="الصفحة السابقة"
             >
                 <Icon name="ri-arrow-right-s-line" />
@@ -79,7 +79,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             {visiblePages[0] > 1 && (
                 <button
                     onClick={() => onPageChange(1)}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm sm:text-base"
                 >
                     1
                 </button>
@@ -87,7 +87,7 @@ export const Pagination: React.FC<PaginationProps> = ({
 
             {/* First Ellipsis */}
             {showFirstEllipsis && (
-                <span className="w-10 h-10 flex items-center justify-center text-gray-400">...</span>
+                <span className="w-6 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-400">...</span>
             )}
 
             {/* Page Numbers */}
@@ -96,7 +96,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                     key={page}
                     onClick={() => onPageChange(page)}
                     className={`
-            w-10 h-10 flex items-center justify-center rounded-lg transition-colors
+            w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg transition-colors text-sm sm:text-base
             ${page === currentPage
                             ? 'bg-primary text-white'
                             : 'border border-gray-300 hover:bg-gray-50'
@@ -110,14 +110,14 @@ export const Pagination: React.FC<PaginationProps> = ({
 
             {/* Last Ellipsis */}
             {showLastEllipsis && (
-                <span className="w-10 h-10 flex items-center justify-center text-gray-400">...</span>
+                <span className="w-6 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-gray-400">...</span>
             )}
 
             {/* Last Page */}
             {visiblePages[visiblePages.length - 1] < totalPages && (
                 <button
                     onClick={() => onPageChange(totalPages)}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm sm:text-base"
                 >
                     {totalPages.toLocaleString('ar-YE')}
                 </button>
@@ -127,7 +127,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 aria-label="الصفحة التالية"
             >
                 <Icon name="ri-arrow-left-s-line" />
