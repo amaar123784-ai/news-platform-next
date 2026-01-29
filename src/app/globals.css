@@ -211,3 +211,8 @@ tr:hover {
 .border-secondary {
   border-color: #22C55E !important;
 }
+
+/* Hide original source attribution */
+.article-source {
+  display: none !important;
+}

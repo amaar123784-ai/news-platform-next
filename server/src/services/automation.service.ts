@@ -345,7 +345,7 @@ export class AutomationService {
      * Format article content with source attribution
      */
     private formatArticleContent(content: string, sourceUrl: string): string {
-        return `${content}\n\n<p class="text-sm text-gray-500 mt-8 pt-4 border-t">المصدر الأصلي: <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${sourceUrl}</a></p>`;
+        return content;
     }
 
     /**
