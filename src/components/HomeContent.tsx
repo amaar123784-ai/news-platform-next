@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Icon } from "@/components/atoms";
 import { NewsCardSmall } from "@/components/molecules";
-import { FeaturedNews, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
+import { FeaturedNews, FeaturedNewsCarousel, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
 import type { Article } from "@/lib/api";
 
 interface HomeContentProps {
@@ -70,19 +70,23 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 {/* Main Content */}
                 <div className="lg:col-span-3">
-                    {/* Featured Article */}
+                    {/* Featured Article Carousel */}
                     <section className="mb-6 sm:mb-8">
-                        {featuredArticle ? (
-                            <FeaturedNews
-                                id={featuredArticle.id}
-                                title={featuredArticle.title}
-                                excerpt={featuredArticle.excerpt}
-                                category={(featuredArticle.category?.slug || "politics") as any}
-                                imageUrl={getImageUrl(featuredArticle.imageUrl)}
-                                author={featuredArticle.author?.name || "المحرر"}
-                                timeAgo={formatTimeAgo(featuredArticle.publishedAt || featuredArticle.createdAt)}
-                                views={featuredArticle.views}
-                                isBreaking={featuredArticle.views > 1000}
+                        {featuredArticles && featuredArticles.length > 0 ? (
+                            <FeaturedNewsCarousel
+                                interval={6000}
+                                pauseOnHover={true}
+                                articles={featuredArticles.map(article => ({
+                                    id: article.id,
+                                    title: article.title,
+                                    excerpt: article.excerpt,
+                                    category: (article.category?.slug || "politics") as any,
+                                    imageUrl: getImageUrl(article.imageUrl),
+                                    author: article.author?.name || "المحرر",
+                                    timeAgo: formatTimeAgo(article.publishedAt || article.createdAt),
+                                    views: article.views,
+                                    isBreaking: article.views > 1000,
+                                }))}
                             />
                         ) : (
                             <div className="h-64 sm:h-80 lg:h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">

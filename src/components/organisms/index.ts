@@ -2,6 +2,7 @@ export { Header } from './Header';
 export { Footer } from './Footer';
 export { NewsCard } from './NewsCard';
 export { FeaturedNews } from './FeaturedNews';
+export { FeaturedNewsCarousel } from './FeaturedNewsCarousel';
 export { Sidebar } from './Sidebar';
 export { PublicSidebar } from './PublicSidebar';
 export { BreakingNewsTicker } from './BreakingNewsTicker';
