@@ -38,6 +38,19 @@ router.get('/', authenticate, requireRole('ADMIN'), async (req, res, next) => {
     }
 });
 /**
+ * GET /api/settings/public - Get public settings (no auth)
+ */
+router.get('/public', async (req, res, next) => {
+    try {
+        const settings = await readSettings();
+        // Return only what's necessary or the whole object if it's all public info
+        res.json({ success: true, data: settings });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+/**
  * PATCH /api/settings - Update settings
  */
 router.patch('/', authenticate, requireRole('ADMIN'), async (req, res, next) => {

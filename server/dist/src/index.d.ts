@@ -2,6 +2,8 @@
  * Server Entry Point
  */
 import { PrismaClient } from '@prisma/client';
-declare const prisma: PrismaClient<import(".prisma/client").Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
+declare const prisma: PrismaClient<{
+    log: ("query" | "warn" | "error")[];
+}, never, import("@prisma/client/runtime/library").DefaultArgs>;
 export { prisma };
 //# sourceMappingURL=index.d.ts.map

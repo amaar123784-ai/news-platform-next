@@ -10,6 +10,7 @@ import { createError } from '../middleware/errorHandler.js';
 import { authenticate } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../validators/schemas.js';
+import { verifyGoogleToken, verifyFacebookToken, findOrCreateSocialUser } from '../services/oauth.service.js';
 const router = Router();
 // Helper to generate tokens
 function generateTokens(user) {
@@ -59,6 +60,78 @@ router.post('/register', authLimiter, async (req, res, next) => {
     }
 });
 /**
+ * POST /api/auth/google
+ */
+router.post('/google', authLimiter, async (req, res, next) => {
+    try {
+        const { token } = req.body;
+        if (!token)
+            throw createError(400, 'رمز جوجل مطلوب', 'GOOGLE_TOKEN_REQUIRED');
+        const profile = await verifyGoogleToken(token);
+        if (!profile)
+            throw createError(401, 'فشل التحقق من حساب جوجل', 'GOOGLE_AUTH_FAILED');
+        const user = await findOrCreateSocialUser(profile);
+        if (!user.isActive)
+            throw createError(403, 'تم تعطيل هذا الحساب', 'ACCOUNT_DISABLED');
+        const tokens = generateTokens(user);
+        // Store refresh token
+        await prisma.refreshToken.create({
+            data: {
+                token: tokens.refreshToken,
+                userId: user.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            },
+        });
+        res.json({
+            success: true,
+            data: {
+                user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+                token: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+            },
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+/**
+ * POST /api/auth/facebook
+ */
+router.post('/facebook', authLimiter, async (req, res, next) => {
+    try {
+        const { token } = req.body;
+        if (!token)
+            throw createError(400, 'رمز فيسبوك مطلوب', 'FACEBOOK_TOKEN_REQUIRED');
+        const profile = await verifyFacebookToken(token);
+        if (!profile)
+            throw createError(401, 'فشل التحقق من حساب فيسبوك', 'FACEBOOK_AUTH_FAILED');
+        const user = await findOrCreateSocialUser(profile);
+        if (!user.isActive)
+            throw createError(403, 'تم تعطيل هذا الحساب', 'ACCOUNT_DISABLED');
+        const tokens = generateTokens(user);
+        // Store refresh token
+        await prisma.refreshToken.create({
+            data: {
+                token: tokens.refreshToken,
+                userId: user.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            },
+        });
+        res.json({
+            success: true,
+            data: {
+                user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+                token: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+            },
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+/**
  * POST /api/auth/login
  */
 router.post('/login', authLimiter, async (req, res, next) => {
@@ -74,6 +147,9 @@ router.post('/login', authLimiter, async (req, res, next) => {
             throw createError(403, 'تم تعطيل هذا الحساب', 'ACCOUNT_DISABLED');
         }
         // Verify password
+        if (!user.password) {
+            throw createError(401, 'هذا الحساب يستخدم الدخول الاجتماعي. يرجى تسجيل الدخول عبر جوجل أو فيسبوك', 'SOCIAL_AUTH_ONLY');
+        }
         const validPassword = await bcrypt.compare(data.password, user.password);
         if (!validPassword) {
             throw createError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة', 'INVALID_CREDENTIALS');
@@ -233,6 +309,9 @@ router.post('/change-password', authenticate, async (req, res, next) => {
         const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
         if (!user) {
             throw createError(404, 'المستخدم غير موجود', 'USER_NOT_FOUND');
+        }
+        if (!user.password) {
+            throw createError(400, 'هذا الحساب لا يمتلك كلمة مرور (دخول اجتماعي)', 'SOCIAL_AUTH_ONLY');
         }
         const validPassword = await bcrypt.compare(data.currentPassword, user.password);
         if (!validPassword) {

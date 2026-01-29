@@ -13,7 +13,10 @@ async function main() {
     const adminPassword = await bcrypt.hash('admin123', 12);
     const admin = await prisma.user.upsert({
         where: { email: 'admin@yemennews.com' },
-        update: {},
+        update: {
+            role: 'ADMIN',
+            password: adminPassword,
+        },
         create: {
             email: 'admin@yemennews.com',
             password: adminPassword,
@@ -113,6 +116,18 @@ async function main() {
                 sortOrder: 5,
             },
         }),
+        prisma.category.upsert({
+            where: { slug: 'mixed' },
+            update: {},
+            create: {
+                name: 'منوع',
+                slug: 'mixed',
+                color: '#6B7280',
+                icon: 'ri-apps-line',
+                description: 'أخبار متنوعة من مصادر متعددة الفئات - يتم تصنيفها تلقائياً',
+                sortOrder: 10,
+            },
+        }),
     ]);
     console.log('✅ Categories created:', categories.length);
     // Create Sample Articles
@@ -199,14 +214,60 @@ async function main() {
         skipDuplicates: true,
     });
     console.log('✅ Activity logs created');
+    // Create RSS Sources for aggregated news
+    const rssSources = await Promise.all([
+        prisma.rSSSource.upsert({
+            where: { feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml' },
+            update: {},
+            create: {
+                name: 'BBC عربي',
+                feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml',
+                websiteUrl: 'https://www.bbc.com/arabic',
+                logoUrl: 'https://www.bbc.com/favicon.ico',
+                description: 'آخر الأخبار من بي بي سي عربي',
+                categoryId: categories[0].id, // Politics
+                fetchInterval: 15,
+                status: 'ACTIVE',
+            },
+        }),
+        prisma.rSSSource.upsert({
+            where: { feedUrl: 'https://www.aljazeera.net/rss' },
+            update: {},
+            create: {
+                name: 'الجزيرة نت',
+                feedUrl: 'https://www.aljazeera.net/rss',
+                websiteUrl: 'https://www.aljazeera.net',
+                logoUrl: 'https://www.aljazeera.net/favicon.ico',
+                description: 'آخر الأخبار من قناة الجزيرة',
+                categoryId: categories[0].id, // Politics
+                fetchInterval: 15,
+                status: 'ACTIVE',
+            },
+        }),
+        prisma.rSSSource.upsert({
+            where: { feedUrl: 'https://www.skynewsarabia.com/rss' },
+            update: {},
+            create: {
+                name: 'سكاي نيوز عربية',
+                feedUrl: 'https://www.skynewsarabia.com/rss',
+                websiteUrl: 'https://www.skynewsarabia.com',
+                logoUrl: 'https://www.skynewsarabia.com/favicon.ico',
+                description: 'آخر الأخبار من سكاي نيوز عربية',
+                categoryId: categories[1].id, // Economy
+                fetchInterval: 20,
+                status: 'ACTIVE',
+            },
+        }),
+    ]);
+    console.log('✅ RSS Sources created:', rssSources.length);
     console.log('🎉 Database seeding completed!');
 }
 main()
     .catch((e) => {
-        console.error('❌ Seed error:', e);
-        process.exit(1);
-    })
+    console.error('❌ Seed error:', e);
+    process.exit(1);
+})
     .finally(async () => {
-        await prisma.$disconnect();
-    });
+    await prisma.$disconnect();
+});
 //# sourceMappingURL=seed.js.map

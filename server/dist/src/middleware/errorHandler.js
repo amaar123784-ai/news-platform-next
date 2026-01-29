@@ -6,7 +6,9 @@ import { env } from '../config/env.js';
 export function errorHandler(err, req, res, next) {
     // Log error in development
     if (env.NODE_ENV === 'development') {
-        console.error('Error:', err);
+        console.error('Error:', err.message);
+        if (err.stack)
+            console.error('Stack:', err.stack);
     }
     // Zod validation error
     if (err instanceof ZodError) {

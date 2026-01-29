@@ -8,24 +8,24 @@ export declare const registerSchema: z.ZodEffects<z.ZodObject<{
     password: z.ZodString;
     passwordConfirmation: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     passwordConfirmation: string;
 }, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     passwordConfirmation: string;
 }>, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     passwordConfirmation: string;
 }, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     passwordConfirmation: string;
 }>;
 export declare const loginSchema: z.ZodObject<{
@@ -53,16 +53,20 @@ export declare const createArticleSchema: z.ZodObject<{
     excerpt: z.ZodString;
     content: z.ZodString;
     categoryId: z.ZodString;
-    status: z.ZodOptional<z.ZodEnum<["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]>>;
-    imageUrl: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    status: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEnum<["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]>>>;
+    imageUrl: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>;
     tags: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     seoTitle: z.ZodOptional<z.ZodString>;
     seoDesc: z.ZodOptional<z.ZodString>;
+    isBreaking: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    isFeatured: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
+    categoryId: string;
     excerpt: string;
     content: string;
-    categoryId: string;
+    isBreaking: boolean;
+    isFeatured: boolean;
     status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
     imageUrl?: string | null | undefined;
     tags?: string[] | undefined;
@@ -70,45 +74,53 @@ export declare const createArticleSchema: z.ZodObject<{
     seoDesc?: string | undefined;
 }, {
     title: string;
+    categoryId: string;
     excerpt: string;
     content: string;
-    categoryId: string;
-    status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
+    status?: string | undefined;
     imageUrl?: string | null | undefined;
     tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
+    isBreaking?: boolean | undefined;
+    isFeatured?: boolean | undefined;
 }>;
 export declare const updateArticleSchema: z.ZodObject<{
     title: z.ZodOptional<z.ZodString>;
     excerpt: z.ZodOptional<z.ZodString>;
     content: z.ZodOptional<z.ZodString>;
     categoryId: z.ZodOptional<z.ZodString>;
-    status: z.ZodOptional<z.ZodOptional<z.ZodEnum<["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]>>>;
-    imageUrl: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    status: z.ZodOptional<z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEnum<["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]>>>>;
+    imageUrl: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string | null, string>>>>;
     tags: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString, "many">>>;
     seoTitle: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     seoDesc: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    isBreaking: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
+    isFeatured: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
 }, "strip", z.ZodTypeAny, {
     status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
     title?: string | undefined;
+    imageUrl?: string | null | undefined;
+    categoryId?: string | undefined;
     excerpt?: string | undefined;
     content?: string | undefined;
-    categoryId?: string | undefined;
-    imageUrl?: string | null | undefined;
     tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
+    isBreaking?: boolean | undefined;
+    isFeatured?: boolean | undefined;
 }, {
-    status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
+    status?: string | undefined;
     title?: string | undefined;
+    imageUrl?: string | null | undefined;
+    categoryId?: string | undefined;
     excerpt?: string | undefined;
     content?: string | undefined;
-    categoryId?: string | undefined;
-    imageUrl?: string | null | undefined;
     tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
+    isBreaking?: boolean | undefined;
+    isFeatured?: boolean | undefined;
 }>;
 export declare const articleQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
@@ -120,23 +132,23 @@ export declare const articleQuerySchema: z.ZodObject<{
     sortBy: z.ZodDefault<z.ZodEnum<["createdAt", "views", "title", "publishedAt"]>>;
     sortOrder: z.ZodDefault<z.ZodEnum<["asc", "desc"]>>;
 }, "strip", z.ZodTypeAny, {
+    sortOrder: "asc" | "desc";
     page: number;
     perPage: number;
-    sortBy: "createdAt" | "title" | "views" | "publishedAt";
-    sortOrder: "asc" | "desc";
+    sortBy: "title" | "createdAt" | "publishedAt" | "views";
     status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
     category?: string | undefined;
-    authorId?: string | undefined;
     search?: string | undefined;
+    authorId?: string | undefined;
 }, {
     status?: string | undefined;
+    category?: string | undefined;
+    search?: string | undefined;
+    sortOrder?: "asc" | "desc" | undefined;
     page?: number | undefined;
     perPage?: number | undefined;
-    category?: string | undefined;
     authorId?: string | undefined;
-    search?: string | undefined;
-    sortBy?: "createdAt" | "title" | "views" | "publishedAt" | undefined;
-    sortOrder?: "asc" | "desc" | undefined;
+    sortBy?: "title" | "createdAt" | "publishedAt" | "views" | undefined;
 }>;
 export declare const createUserSchema: z.ZodObject<{
     name: z.ZodString;
@@ -146,16 +158,16 @@ export declare const createUserSchema: z.ZodObject<{
     avatar: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     bio: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     role: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER";
     avatar?: string | null | undefined;
     bio?: string | undefined;
 }, {
+    name: string;
     email: string;
     password: string;
-    name: string;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
@@ -168,14 +180,14 @@ export declare const updateUserSchema: z.ZodObject<Omit<{
     avatar: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
     bio: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, "password">, "strip", z.ZodTypeAny, {
-    email?: string | undefined;
     name?: string | undefined;
+    email?: string | undefined;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
 }, {
-    email?: string | undefined;
     name?: string | undefined;
+    email?: string | undefined;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
@@ -192,15 +204,15 @@ export declare const createCategorySchema: z.ZodObject<{
     isActive: boolean;
     slug: string;
     color: string;
-    icon?: string | undefined;
     description?: string | undefined;
+    icon?: string | undefined;
 }, {
     name: string;
     slug: string;
+    description?: string | undefined;
     isActive?: boolean | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
 }>;
 export declare const updateCategorySchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -211,38 +223,38 @@ export declare const updateCategorySchema: z.ZodObject<{
     isActive: z.ZodOptional<z.ZodDefault<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
+    description?: string | undefined;
     isActive?: boolean | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
 }, {
     name?: string | undefined;
+    description?: string | undefined;
     isActive?: boolean | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
 }>;
 export declare const createCommentSchema: z.ZodObject<{
     content: z.ZodString;
     articleId: z.ZodString;
-    parentId: z.ZodOptional<z.ZodString>;
+    parentId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     content: string;
     articleId: string;
-    parentId?: string | undefined;
+    parentId?: string | null | undefined;
 }, {
     content: string;
     articleId: string;
-    parentId?: string | undefined;
+    parentId?: string | null | undefined;
 }>;
 export declare const moderateCommentSchema: z.ZodObject<{
     status: z.ZodEnum<["APPROVED", "REJECTED"]>;
 }, "strip", z.ZodTypeAny, {
-    status: "APPROVED" | "REJECTED";
+    status: "REJECTED" | "APPROVED";
 }, {
-    status: "APPROVED" | "REJECTED";
+    status: "REJECTED" | "APPROVED";
 }>;
 export declare const paginationSchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;

@@ -336,6 +336,12 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
 
         // Trigger Webhook if Published
         if (article.status === 'PUBLISHED') {
+            // Invalidate caches
+            await Promise.all([
+                cache.invalidatePattern('articles:featured:*'),
+                cache.invalidatePattern('articles:breaking'),
+            ]);
+
             const { webhookService } = await import('../services/webhook.service.js');
             webhookService.notifyNewArticle(article.id).catch(err => {
                 console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
@@ -398,6 +404,14 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             });
         }
 
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(existing.slug)),
+            cache.del(cacheKeys.article(article.slug)), // In case slug changed
+        ]);
+
         res.json({ success: true, data: article });
     } catch (error) {
         next(error);
@@ -428,6 +442,13 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
                 userId: req.user!.userId,
             },
         }).catch(console.error);
+
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
 
         res.json({ success: true, message: 'تم حذف المقال بنجاح' });
     } catch (error) {
@@ -461,6 +482,13 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             },
         }).catch(console.error);
 
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
+
         res.json({ success: true, data: article });
     } catch (error) {
         next(error);
@@ -489,6 +517,13 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 userId: req.user!.userId,
             },
         }).catch(console.error);
+
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
 
         res.json({ success: true, data: article });
     } catch (error) {

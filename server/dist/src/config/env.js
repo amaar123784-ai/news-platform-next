@@ -13,6 +13,11 @@ const envSchema = z.object({
     PORT: z.string().default('3001'),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     FRONTEND_URL: z.string().default('http://localhost:5173'),
+    OLLAMA_MODEL: z.string().default('gemma2'),
+    OLLAMA_HOST: z.string().default('http://127.0.0.1:11434'),
+    GEMINI_API_KEY: z.string().optional(),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {

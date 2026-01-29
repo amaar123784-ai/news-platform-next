@@ -10,5 +10,10 @@ export declare const env: {
     PORT: string;
     NODE_ENV: "development" | "production" | "test";
     FRONTEND_URL: string;
+    OLLAMA_MODEL: string;
+    OLLAMA_HOST: string;
+    GEMINI_API_KEY?: string | undefined;
+    GOOGLE_CLIENT_ID?: string | undefined;
+    GOOGLE_CLIENT_SECRET?: string | undefined;
 };
 //# sourceMappingURL=env.d.ts.map

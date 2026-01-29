@@ -157,13 +157,16 @@ router.get('/activity', async (req, res, next) => {
             prisma.activityLog.count({ where }),
         ]);
         res.json({
-            data: logs,
-            meta: {
-                currentPage: page,
-                totalPages: Math.ceil(total / perPage),
-                totalItems: total,
-                perPage,
-            },
+            success: true,
+            data: {
+                data: logs,
+                meta: {
+                    currentPage: page,
+                    totalPages: Math.ceil(total / perPage),
+                    totalItems: total,
+                    perPage,
+                },
+            }
         });
     }
     catch (error) {
@@ -190,6 +193,37 @@ router.get('/top-articles', async (req, res, next) => {
             take: limit,
         });
         res.json({ success: true, data: articles });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+/**
+ * DELETE /api/analytics/activity - Clear old logs
+ */
+router.delete('/activity', async (req, res, next) => {
+    try {
+        const { olderThanDays } = req.body;
+        if (!olderThanDays || typeof olderThanDays !== 'number') {
+            return res.status(400).json({
+                success: false,
+                message: 'olderThanDays is required and must be a number'
+            });
+        }
+        const date = new Date();
+        date.setDate(date.getDate() - olderThanDays);
+        const result = await prisma.activityLog.deleteMany({
+            where: {
+                createdAt: {
+                    lt: date
+                }
+            }
+        });
+        res.json({
+            success: true,
+            message: `Deleted ${result.count} activity logs`,
+            count: result.count
+        });
     }
     catch (error) {
         next(error);

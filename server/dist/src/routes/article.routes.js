@@ -6,6 +6,7 @@ import { prisma } from '../index.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 import { createArticleSchema, updateArticleSchema, articleQuerySchema } from '../validators/schemas.js';
+import { cache, cacheKeys, cacheTTL } from '../services/cache.service.js';
 const router = Router();
 // Helper to generate slug
 function generateSlug(title) {
@@ -71,11 +72,17 @@ router.get('/', optionalAuth, async (req, res, next) => {
     }
 });
 /**
- * GET /api/articles/featured - Featured articles
+ * GET /api/articles/featured - Featured articles (cached)
  */
 router.get('/featured', async (req, res, next) => {
     try {
         const limit = Math.min(Number(req.query.limit) || 5, 20);
+        const cacheKey = cacheKeys.featuredArticles(limit);
+        // Try cache first
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+            return res.json({ success: true, data: cached });
+        }
         const articles = await prisma.article.findMany({
             where: { status: 'PUBLISHED' },
             include: {
@@ -85,6 +92,40 @@ router.get('/featured', async (req, res, next) => {
             orderBy: { views: 'desc' },
             take: limit,
         });
+        // Cache result
+        await cache.set(cacheKey, articles, cacheTTL.featured);
+        res.json({ success: true, data: articles });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+/**
+ * GET /api/articles/breaking - Breaking news articles (cached)
+ */
+router.get('/breaking', async (req, res, next) => {
+    try {
+        const limit = Math.min(Number(req.query.limit) || 10, 20);
+        const cacheKey = cacheKeys.breakingNews();
+        // Try cache first
+        const cached = await cache.get(cacheKey);
+        if (cached) {
+            return res.json({ success: true, data: cached });
+        }
+        const articles = await prisma.article.findMany({
+            where: {
+                status: 'PUBLISHED',
+                isBreaking: true
+            },
+            include: {
+                author: { select: { id: true, name: true, avatar: true } },
+                category: { select: { id: true, name: true, slug: true, color: true } },
+            },
+            orderBy: { publishedAt: 'desc' },
+            take: limit,
+        });
+        // Cache result (shorter TTL for breaking news)
+        await cache.set(cacheKey, articles, cacheTTL.breaking);
         res.json({ success: true, data: articles });
     }
     catch (error) {
@@ -197,6 +238,40 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
         // Calculate read time (roughly 200 words per minute)
         const wordCount = data.content.split(/\s+/).length;
         const readTime = Math.max(1, Math.ceil(wordCount / 200));
+        // Handle external image - download to local media library
+        let finalImageUrl = data.imageUrl;
+        if (data.imageUrl && (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://')) && !data.imageUrl.includes('/uploads/')) {
+            try {
+                const { imageProcessor } = await import('../services/imageProcessor.js');
+                const axios = (await import('axios')).default;
+                const response = await axios.get(data.imageUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 15000,
+                    headers: { 'User-Agent': 'YemenNewsBot/1.0' },
+                    maxContentLength: 10 * 1024 * 1024
+                });
+                const buffer = Buffer.from(response.data);
+                const originalName = 'rss-image-' + Date.now() + '.jpg';
+                const processed = await imageProcessor.process(buffer, originalName);
+                finalImageUrl = processed.url;
+                // Save to Media library
+                await prisma.media.create({
+                    data: {
+                        filename: processed.filename,
+                        url: processed.url,
+                        type: processed.mimeType,
+                        size: processed.size,
+                        uploaderId: req.user.userId, // Associate with current user
+                        alt: data.title // Use article title as alt text default
+                    }
+                });
+                console.log(`[Article] Downloaded external image: ${data.imageUrl} -> ${finalImageUrl} (Saved to Media Library)`);
+            }
+            catch (imgError) {
+                console.warn(`[Article] Failed to download image: ${imgError.message}. Using original URL.`);
+                // Keep original URL as fallback
+            }
+        }
         const article = await prisma.article.create({
             data: {
                 title: data.title,
@@ -206,9 +281,10 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 categoryId: data.categoryId,
                 authorId: req.user.userId,
                 status: data.status || 'DRAFT',
-                imageUrl: data.imageUrl,
+                imageUrl: finalImageUrl,
                 seoTitle: data.seoTitle,
                 seoDesc: data.seoDesc,
+                isBreaking: data.isBreaking,
                 readTime,
             },
             include: {
@@ -216,8 +292,8 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 category: { select: { id: true, name: true, slug: true } },
             },
         });
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'CREATE',
                 targetType: 'article',
@@ -225,7 +301,19 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 targetTitle: article.title,
                 userId: req.user.userId,
             },
-        });
+        }).catch(console.error);
+        // Trigger Webhook if Published
+        if (article.status === 'PUBLISHED') {
+            // Invalidate caches
+            await Promise.all([
+                cache.invalidatePattern('articles:featured:*'),
+                cache.invalidatePattern('articles:breaking'),
+            ]);
+            const { webhookService } = await import('../services/webhook.service.js');
+            webhookService.notifyNewArticle(article.id).catch(err => {
+                console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+        }
         res.status(201).json({ success: true, data: article });
     }
     catch (error) {
@@ -259,8 +347,8 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
                 category: { select: { id: true, name: true, slug: true } },
             },
         });
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'UPDATE',
                 targetType: 'article',
@@ -268,7 +356,21 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
                 targetTitle: article.title,
                 userId: req.user.userId,
             },
-        });
+        }).catch(console.error);
+        // Trigger Webhook if status changed to PUBLISHED
+        if (article.status === 'PUBLISHED' && existing.status !== 'PUBLISHED') {
+            const { webhookService } = await import('../services/webhook.service.js');
+            webhookService.notifyNewArticle(article.id).catch(err => {
+                console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+        }
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(existing.slug)),
+            cache.del(cacheKeys.article(article.slug)), // In case slug changed
+        ]);
         res.json({ success: true, data: article });
     }
     catch (error) {
@@ -286,8 +388,8 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
             throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
         await prisma.article.delete({ where: { id } });
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'DELETE',
                 targetType: 'article',
@@ -295,7 +397,13 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
                 targetTitle: article.title,
                 userId: req.user.userId,
             },
-        });
+        }).catch(console.error);
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
         res.json({ success: true, message: 'تم حذف المقال بنجاح' });
     }
     catch (error) {
@@ -315,8 +423,8 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 publishedAt: new Date(),
             },
         });
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'PUBLISH',
                 targetType: 'article',
@@ -324,7 +432,13 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 targetTitle: article.title,
                 userId: req.user.userId,
             },
-        });
+        }).catch(console.error);
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
         res.json({ success: true, data: article });
     }
     catch (error) {
@@ -341,8 +455,8 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             where: { id },
             data: { status: 'ARCHIVED' },
         });
-        // Log activity
-        await prisma.activityLog.create({
+        // Log activity (fire-and-forget for performance)
+        prisma.activityLog.create({
             data: {
                 action: 'ARCHIVE',
                 targetType: 'article',
@@ -350,7 +464,13 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
                 targetTitle: article.title,
                 userId: req.user.userId,
             },
-        });
+        }).catch(console.error);
+        // Invalidate caches
+        await Promise.all([
+            cache.invalidatePattern('articles:featured:*'),
+            cache.invalidatePattern('articles:breaking'),
+            cache.del(cacheKeys.article(article.slug)),
+        ]);
         res.json({ success: true, data: article });
     }
     catch (error) {
