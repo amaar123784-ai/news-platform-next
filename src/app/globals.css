@@ -14,20 +14,8 @@ body {
 
 
 /* Ensure proper wrapping for links and long words */
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-span,
-a,
-li,
-blockquote {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
+/* Removed aggressive global word-break that was breaking layout */
+
 
 /* Custom scrollbar - hidden by default */
 ::-webkit-scrollbar {
