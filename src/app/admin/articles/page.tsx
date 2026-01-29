@@ -16,17 +16,19 @@ export default function ArticleListPage() {
     const { success, error } = useToast();
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
     const [page, setPage] = useState(1);
 
     // Fetch articles from API
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['articles', 'admin-list', { page, search: searchTerm }],
+        queryKey: ['articles', 'admin-list', { page, search: searchTerm, status: statusFilter }],
         queryFn: () => articleService.getArticles({
             page,
             perPage: 20,
             search: searchTerm || undefined,
+            status: (statusFilter as any) || undefined,
             sortBy: 'createdAt',
             sortOrder: 'desc',
         }),
@@ -97,15 +99,28 @@ export default function ArticleListPage() {
                     />
                 </div>
                 <div className="flex-1"></div>
-                <Button variant="secondary">
-                    <Icon name="ri-filter-3-line" className="ml-2" />
-                    تصفية
-                </Button>
+                <select
+                    className="h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                >
+                    <option value="">جميع الحالات</option>
+                    <option value="PUBLISHED">منشور</option>
+                    <option value="DRAFT">مسودة</option>
+                    <option value="REVIEW">مراجعة</option>
+                    <option value="ARCHIVED">مؤرشف</option>
+                </select>
             </div>
 
             <DataTable
                 data={articles}
                 isLoading={isLoading}
+                pagination={{
+                    currentPage: page,
+                    totalPages: meta?.totalPages || 1,
+                    onPageChange: setPage,
+                    totalItems: meta?.totalItems
+                }}
                 columns={[
                     {
                         key: 'title',
@@ -164,31 +179,6 @@ export default function ArticleListPage() {
                     </>
                 )}
             />
-
-            {/* Pagination */}
-            {meta && meta.totalPages > 1 && (
-                <div className="flex justify-center gap-2">
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                    >
-                        السابق
-                    </Button>
-                    <span className="px-4 py-2 text-sm text-gray-600">
-                        صفحة {page} من {meta.totalPages}
-                    </span>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                        disabled={page === meta.totalPages}
-                    >
-                        التالي
-                    </Button>
-                </div>
-            )}
 
             <ConfirmModal
                 isOpen={deleteModalOpen}

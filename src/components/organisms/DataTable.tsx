@@ -14,19 +14,25 @@ export interface Column<T> {
     render?: (item: T) => React.ReactNode;
     width?: string;
 }
-
 interface DataTableProps<T> {
     columns: Column<T>[];
     data: T[];
     actions?: (item: T) => React.ReactNode;
     isLoading?: boolean;
+    pagination?: {
+        currentPage: number;
+        totalPages: number;
+        onPageChange: (page: number) => void;
+        totalItems?: number;
+    };
 }
 
 export const DataTable = <T extends { id: string | number }>({
     columns,
     data,
     actions,
-    isLoading = false
+    isLoading = false,
+    pagination
 }: DataTableProps<T>) => {
 
     if (isLoading) {
@@ -86,15 +92,52 @@ export const DataTable = <T extends { id: string | number }>({
             </div>
 
             {/* Pagination Footer */}
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
-                <span>عرض {data.length} عنصر</span>
-                <div className="flex gap-1">
-                    <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50" disabled>السابق</button>
-                    <button className="px-2 py-1 rounded bg-primary text-white">1</button>
-                    <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">2</button>
-                    <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">التالي</button>
+            {pagination && pagination.totalPages > 1 && (
+                <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+                    <span>عرض {data.length} عنصر {pagination.totalItems ? `من إجمالي ${pagination.totalItems}` : ''}</span>
+                    <div className="flex gap-1">
+                        <button
+                            className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={pagination.currentPage === 1}
+                            onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                        >
+                            السابق
+                        </button>
+
+                        {/* Page Indicators */}
+                        <div className="hidden sm:flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                                // Logic to show window of pages around current page could go here
+                                // For now, simple logic or just showing current page
+                                let p = i + 1;
+                                if (pagination.totalPages > 5) {
+                                    if (pagination.currentPage > 3) p = pagination.currentPage - 2 + i;
+                                    if (p > pagination.totalPages) p = pagination.totalPages - (4 - i);
+                                }
+
+                                return (
+                                    <button
+                                        key={p}
+                                        className={`px-2 py-1 rounded ${pagination.currentPage === p ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                        onClick={() => pagination.onPageChange(p)}
+                                    >
+                                        {p}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <span className="sm:hidden font-bold mx-2">{pagination.currentPage} / {pagination.totalPages}</span>
+
+                        <button
+                            className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={pagination.currentPage === pagination.totalPages}
+                            onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                        >
+                            التالي
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
