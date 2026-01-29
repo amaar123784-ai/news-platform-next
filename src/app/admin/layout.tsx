@@ -48,6 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { path: '/admin/categories', icon: 'ri-folder-line', label: 'الأقسام', roles: ['admin', 'editor'] },
         { path: '/admin/rss', icon: 'ri-rss-line', label: 'مصادر RSS', exact: true, roles: ['admin', 'editor'] },
         { path: '/admin/rss/moderation', icon: 'ri-checkbox-circle-line', label: 'مراجعة RSS', roles: ['admin', 'editor'] },
+        { path: '/admin/automation', icon: 'ri-robot-line', label: 'الأتمتة', roles: ['admin', 'editor'] },
         { path: '/admin/media', icon: 'ri-image-line', label: 'المكتبة الإعلامية', roles: ['admin', 'editor', 'journalist'] },
         { path: '/admin/users', icon: 'ri-team-line', label: 'المستخدمين والصلاحيات', roles: ['admin'] },
         { path: '/admin/comments', icon: 'ri-chat-1-line', label: 'التعليقات', roles: ['admin', 'editor'] },
