@@ -86,7 +86,7 @@ export const DataTable = <T extends { id: string | number }>({
             </div>
 
             {/* Pagination Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
                 <span>عرض {data.length} عنصر</span>
                 <div className="flex gap-1">
                     <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50" disabled>السابق</button>

@@ -85,17 +85,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
             />
             <Header />
-            <main className="min-h-screen bg-gray-50 py-8">
+            <main className="min-h-screen bg-gray-50 py-6 sm:py-8">
                 <Container>
                     {/* Category Header */}
-                    <div className="bg-white rounded-lg shadow-sm p-6 mb-8 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                    <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary shrink-0">
                                 <Icon name="ri-price-tag-3-line" size="xl" />
                             </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900">{categoryName}</h1>
-                                <p className="text-gray-500 text-sm mt-1">
+                            <div className="min-w-0">
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{categoryName}</h1>
+                                <p className="text-gray-500 text-xs sm:text-sm mt-1 truncate">
                                     تصفح جميع الأخبار والمقالات المتعلقة بـ {categoryName}
                                 </p>
                             </div>
@@ -104,7 +104,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
                     {/* Articles Grid */}
                     {articles.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             {articles.map((article: any) => (
                                 <NewsCard
                                     key={article.id}
