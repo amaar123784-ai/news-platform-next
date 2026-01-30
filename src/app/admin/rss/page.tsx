@@ -172,6 +172,32 @@ export default function RSSSourcesPage() {
                 </div>
             </div>
 
+            {/* Quick Stats - At top */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="text-2xl font-bold text-gray-900">{sources.length}</div>
+                    <div className="text-sm text-gray-500">إجمالي المصادر</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="text-2xl font-bold text-green-600">
+                        {sources.filter((s: RSSSource) => s.status === 'ACTIVE').length}
+                    </div>
+                    <div className="text-sm text-gray-500">مصادر نشطة</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="text-2xl font-bold text-red-600">
+                        {sources.filter((s: RSSSource) => s.status === 'ERROR').length}
+                    </div>
+                    <div className="text-sm text-gray-500">بها أخطاء</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="text-2xl font-bold text-blue-600">
+                        {sources.reduce((sum: number, s: RSSSource) => sum + (s._count?.articles || 0), 0)}
+                    </div>
+                    <div className="text-sm text-gray-500">إجمالي المقالات</div>
+                </div>
+            </div>
+
             {/* Sources Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 {isLoading ? (
@@ -200,22 +226,24 @@ export default function RSSSourcesPage() {
                                 header: 'المصدر',
                                 render: (source: RSSSource) => (
                                     <div className="flex items-center gap-3">
-                                        {source.logoUrl ? (
-                                            <img
-                                                src={source.logoUrl}
-                                                alt=""
-                                                className="w-8 h-8 rounded object-contain bg-gray-50"
-                                                onError={(e) => {
-                                                    e.currentTarget.style.display = 'none';
-                                                    e.currentTarget.parentElement?.classList.add('fallback-icon');
-                                                }}
-                                            />
-                                        ) : null}
-                                        {(!source.logoUrl || (typeof document !== 'undefined' && document.querySelector('.fallback-icon'))) && (
-                                            <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center absolute opacity-0" style={{ position: 'static', opacity: 1 }}>
+                                        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                            {source.logoUrl ? (
+                                                <img
+                                                    src={source.logoUrl}
+                                                    alt=""
+                                                    className="w-full h-full object-contain"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = 'none';
+                                                        const parent = e.currentTarget.parentElement;
+                                                        if (parent) {
+                                                            parent.innerHTML = '<i class="ri-rss-line text-gray-400"></i>';
+                                                        }
+                                                    }}
+                                                />
+                                            ) : (
                                                 <Icon name="ri-rss-line" className="text-gray-400" />
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                         <div>
                                             <div className="font-medium text-gray-900">{source.name}</div>
                                             <div className="text-xs text-gray-500 truncate max-w-[200px]">
@@ -326,31 +354,6 @@ export default function RSSSourcesPage() {
                 )}
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-gray-900">{sources.length}</div>
-                    <div className="text-sm text-gray-500">إجمالي المصادر</div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-green-600">
-                        {sources.filter((s: RSSSource) => s.status === 'ACTIVE').length}
-                    </div>
-                    <div className="text-sm text-gray-500">مصادر نشطة</div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-red-600">
-                        {sources.filter((s: RSSSource) => s.status === 'ERROR').length}
-                    </div>
-                    <div className="text-sm text-gray-500">بها أخطاء</div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-blue-600">
-                        {sources.reduce((sum: number, s: RSSSource) => sum + (s._count?.articles || 0), 0)}
-                    </div>
-                    <div className="text-sm text-gray-500">إجمالي المقالات</div>
-                </div>
-            </div>
 
             {/* Add/Edit Modal */}
             <Modal
