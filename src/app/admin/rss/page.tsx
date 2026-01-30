@@ -106,6 +106,18 @@ export default function RSSSourcesPage() {
         },
     });
 
+    // Fetch all sources mutation
+    const fetchAllMutation = useMutation({
+        mutationFn: () => rssService.fetchAllFeeds(),
+        onSuccess: (data) => {
+            success(`تم جلب ${data.data?.totalNewArticles || 0} مقال جديد من ${data.data?.sourcesChecked || 0} مصدر`);
+            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.message || err.message || 'فشل تحديث المصادر');
+        },
+    });
+
     const sources = sourcesData?.data || [];
     const categories = categoriesData || [];
 
@@ -157,13 +169,11 @@ export default function RSSSourcesPage() {
                 <div className="flex gap-2">
                     <Button
                         variant="secondary"
-                        onClick={() => rssService.fetchAllFeeds().then(() => {
-                            success('تم بدء تحديث جميع المصادر');
-                            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
-                        })}
+                        onClick={() => fetchAllMutation.mutate()}
+                        disabled={fetchAllMutation.isPending}
                     >
-                        <Icon name="ri-refresh-line" className="ml-2" />
-                        تحديث الكل
+                        <Icon name={fetchAllMutation.isPending ? "ri-loader-4-line" : "ri-refresh-line"} className={`ml-2 ${fetchAllMutation.isPending ? 'animate-spin' : ''}`} />
+                        {fetchAllMutation.isPending ? 'جاري التحديث...' : 'تحديث الكل'}
                     </Button>
                     <Button variant="primary" onClick={() => setAddModalOpen(true)}>
                         <Icon name="ri-add-line" className="ml-2" />
