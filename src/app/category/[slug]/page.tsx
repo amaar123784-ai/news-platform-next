@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getArticles } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
-import { Header, Footer } from "@/components/organisms";
+
 import { Container, Button, Icon } from "@/components/atoms";
 import Link from "next/link";
 
@@ -84,7 +84,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
             />
-            <Header />
+
             <main className="min-h-screen bg-gray-50 py-6 sm:py-8">
                 <Container>
                     {/* Category Header */}
@@ -132,7 +132,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                     )}
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }

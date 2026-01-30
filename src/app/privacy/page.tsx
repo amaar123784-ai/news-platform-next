@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Header, Footer } from "@/components/organisms";
+
 import { Container, Icon } from "@/components/atoms";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
 
     return (
         <>
-            <Header />
+
             <main className="min-h-screen bg-white">
                 {/* Page Title */}
                 <div className="bg-gray-50 border-b border-gray-100 py-12">
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
                     </div>
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }

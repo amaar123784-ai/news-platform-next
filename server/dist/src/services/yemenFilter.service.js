@@ -24,7 +24,7 @@ const YEMEN_PRIMARY_KEYWORDS = [
 const YEMEN_SECONDARY_ENTITIES = {
     geographic: [
         // Major cities
-        'صنعاء', 'عدن', 'تعز', 'مأرب', 'الحديدة', 'إب', 'ذمار', 'حضرموت', 'المكلا',
+        'صنعاء', 'الحديدة', 'تعز', 'مأرب', 'الحديدة', 'إب', 'ذمار', 'حضرموت', 'المكلا',
         'سيئون', 'عمران', 'صعدة', 'الجوف', 'البيضاء', 'لحج', 'أبين', 'شبوة', 'المهرة',
         'سقطرى', 'الضالع', 'ريمة', 'حجة', 'تهامة',
         // English transliterations
@@ -252,7 +252,7 @@ export function processYemenFilter(item) {
     const sportsCount = countKeywords(fullText, YEMEN_SECONDARY_ENTITIES.sports);
     const secondaryCount = geoCount + politicalCount + sportsCount;
     // NEW LOGIC: Accept if strong secondary presence even without primary keyword
-    // Examples: "وفد عسكري من التحالف يصل إلى عدن" - contains عدن and التحالف
+    // Examples: "وفد عسكري من التحالف يصل إلى الحديدة" - contains الحديدة and التحالف
     const hasStrongSecondary = secondaryCount >= 2 || (politicalCount >= 1 && geoCount >= 1);
     if (primaryCount === 0 && !hasStrongSecondary) {
         return {

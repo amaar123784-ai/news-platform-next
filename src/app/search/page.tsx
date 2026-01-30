@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from "react";
-import { Header, Footer } from "@/components/organisms";
+
 import { Container, Icon, Input, Button } from "@/components/atoms";
 import { getArticles, type Article } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
@@ -41,7 +41,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
     return (
         <>
-            <Header />
+
             <main className="min-h-screen bg-gray-50 py-8">
                 <Container>
                     {/* Search Header */}
@@ -107,7 +107,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                     )}
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Header, Footer } from "@/components/organisms";
+
 import { NewsCard } from "@/components/organisms/NewsCard";
 import { Container } from "@/components/atoms";
 import { getBreakingNews, getImageUrl, formatTimeAgo } from "@/lib/api";
@@ -25,7 +25,7 @@ export default async function BreakingNewsPage() {
 
     return (
         <>
-            <Header />
+
             <main className="min-h-screen bg-white">
                 <div className="bg-red-50 border-b border-red-100 py-12">
                     <Container>
@@ -63,7 +63,7 @@ export default async function BreakingNewsPage() {
                     )}
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }

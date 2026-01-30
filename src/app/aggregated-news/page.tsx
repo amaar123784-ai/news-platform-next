@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Header, Footer } from '@/components/organisms';
+
 import AggregatedNewsContent from './AggregatedNewsContent';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
@@ -32,9 +32,9 @@ export const metadata: Metadata = {
 export default function AggregatedNewsPage() {
     return (
         <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            <Header />
+
             <AggregatedNewsContent />
-            <Footer />
+
         </main>
     );
 }

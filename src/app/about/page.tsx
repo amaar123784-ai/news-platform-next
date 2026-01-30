@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Header, Footer } from "@/components/organisms";
+
 import { Container, Icon } from "@/components/atoms";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
     return (
         <>
-            <Header />
+
             <main className="min-h-screen bg-white">
                 {/* Page Title */}
                 <div className="bg-gray-50 border-b border-gray-100 py-12">
@@ -112,7 +112,7 @@ export default function AboutPage() {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-600 text-sm">المقر الرئيسي</span>
-                                        <span className="font-bold text-gray-900">عدن</span>
+                                        <span className="font-bold text-gray-900">الحديدة</span>
                                     </div>
                                 </div>
                             </div>
@@ -132,7 +132,7 @@ export default function AboutPage() {
                     </div>
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }

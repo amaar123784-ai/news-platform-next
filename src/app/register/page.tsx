@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { RegisterContent } from "./RegisterContent";
-import { Header, Footer } from "@/components/organisms";
+
 import { Container } from "@/components/atoms";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
     return (
         <>
-            <Header />
+     
             <main className="min-h-screen bg-gray-50 py-12">
                 <Container>
                     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm">
@@ -34,7 +34,7 @@ export default function RegisterPage() {
                     </div>
                 </Container>
             </main>
-            <Footer />
+  
         </>
     );
 }

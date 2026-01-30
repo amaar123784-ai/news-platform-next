@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { LoginContent } from "./LoginContent";
-import { Header, Footer } from "@/components/organisms";
+
 import { Container } from "@/components/atoms";
 import Link from "next/link";
 
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
 export default function LoginPage() {
     return (
         <>
-            <Header />
+
             <main className="min-h-screen bg-gray-50 py-12 flex items-center">
                 <Container>
                     <LoginContent />
                 </Container>
             </main>
-            <Footer />
+
         </>
     );
 }
