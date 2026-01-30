@@ -18,6 +18,7 @@
  */
 
 import React from 'react';
+import Image from 'next/image';
 import { Icon, Badge } from '@/components/atoms';
 import { categoryBadges, type CategoryType } from '@/design-system/tokens';
 
@@ -66,13 +67,18 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
     return (
         <article className="bg-white rounded-lg shadow-sm overflow-hidden">
             <a href={link} className="block relative">
-                {/* Large Image */}
-                <img
-                    src={displayImageUrl}
-                    alt={title}
-                    className="w-full h-96 object-cover object-center"
-                    loading="eager"
-                />
+                {/* Large Image - Optimized with Next.js Image for LCP */}
+                <div className="relative w-full h-96">
+                    <Image
+                        src={displayImageUrl}
+                        alt={title}
+                        fill
+                        priority
+                        fetchPriority="high"
+                        className="object-cover object-center"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                    />
+                </div>
 
                 {/* Gradient Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900/90 via-blue-900/40 to-transparent p-4 pt-16 md:p-6 md:pt-24">
