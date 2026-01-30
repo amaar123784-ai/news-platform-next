@@ -97,12 +97,15 @@ router.get('/featured', async (req, res, next) => {
         }
 
         const articles = await prisma.article.findMany({
-            where: { status: 'PUBLISHED' },
+            where: {
+                status: 'PUBLISHED',
+                isFeatured: true
+            },
             include: {
                 author: { select: { id: true, name: true, avatar: true } },
                 category: { select: { id: true, name: true, slug: true, color: true } },
             },
-            orderBy: { views: 'desc' },
+            orderBy: { createdAt: 'desc' },
             take: limit,
         });
 
