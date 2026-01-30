@@ -92,18 +92,6 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/images/logo.webp" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
-        {/* Logo Watermark Background - Using CSS background (not counted as LCP) */}
-        <div
-          className="fixed inset-0 pointer-events-none z-[0]"
-          aria-hidden="true"
-          style={{
-            backgroundImage: 'url(/images/logo.webp)',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center center',
-            backgroundSize: 'contain',
-            opacity: 0.03,
-          }}
-        />
 
         <Providers>
           {children}
