@@ -71,11 +71,18 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={arabicFont.variable}>
       <head>
-        {/* Remixicon CSS - Google Font handled by next/font */}
+        {/* DNS Prefetch and Preconnect for external resources */}
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
         <link
           rel="preconnect"
           href="https://cdn.jsdelivr.net"
           crossOrigin="anonymous"
+        />
+        {/* Preload remixicon CSS for faster loading */}
+        <link
+          rel="preload"
+          as="style"
+          href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
         />
         <link
           href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
@@ -86,15 +93,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/images/logo.webp" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
-        {/* Logo Watermark Background - Optimized */}
+        {/* Logo Watermark Background - Optimized (not priority to avoid LCP impact) */}
         <div className="fixed inset-0 pointer-events-none z-[0] opacity-[0.05]" aria-hidden="true">
           <Image
             src="/images/logo.webp"
             alt=""
             fill
-            priority
+            loading="lazy"
             className="object-contain object-center"
-            sizes="100vw"
+            sizes="50vw"
           />
         </div>
 

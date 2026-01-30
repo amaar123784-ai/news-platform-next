@@ -63,6 +63,7 @@ export const Header: React.FC = () => {
                 <button
                     className="lg:hidden p-2 text-gray-700 hover:text-primary"
                     onClick={() => setMobileMenuOpen(true)}
+                    aria-label="فتح القائمة"
                 >
                     <Icon name="ri-menu-line" size="xl" />
                 </button>
@@ -79,7 +80,7 @@ export const Header: React.FC = () => {
                     />
                     <div className="flex flex-col">
                         <span className="text-2xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
-                        <span className="text-xs font-medium text-secondary tracking-widest mt-1 whitespace-nowrap">VOICE OF TIHAMA</span>
+                        <span className="text-xs font-bold text-gray-600 tracking-widest mt-1 whitespace-nowrap">VOICE OF TIHAMA</span>
                     </div>
                 </Link>
 
@@ -101,7 +102,7 @@ export const Header: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-3">
-                    <Button variant="icon" onClick={() => router.push('/search')} className="hover:bg-primary/10 hover:text-primary">
+                    <Button variant="icon" onClick={() => router.push('/search')} className="hover:bg-primary/10 hover:text-primary" aria-label="بحث">
                         <Icon name="ri-search-line" size="lg" />
                     </Button>
 
@@ -144,7 +145,7 @@ export const Header: React.FC = () => {
                     <div className="absolute top-0 right-0 bottom-0 w-64 bg-white shadow-xl transform transition-transform duration-300">
                         <div className="p-4 border-b flex items-center justify-between">
                             <span className="font-bold text-lg">القائمة</span>
-                            <button onClick={() => setMobileMenuOpen(false)}>
+                            <button onClick={() => setMobileMenuOpen(false)} aria-label="إغلاق القائمة">
                                 <Icon name="ri-close-line" size="xl" />
                             </button>
                         </div>

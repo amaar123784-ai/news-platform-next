@@ -94,17 +94,19 @@ export const FeaturedNewsCarousel: React.FC<FeaturedNewsCarouselProps> = ({
                 </button>
 
                 {/* Slide Indicators */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 z-20">
                     {articles.map((_, index) => (
                         <button
                             key={index}
                             onClick={() => goToSlide(index)}
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentIndex
-                                    ? 'bg-white w-6'
-                                    : 'bg-white/50 hover:bg-white/75'
-                                }`}
+                            className="w-8 h-8 flex items-center justify-center"
                             aria-label={`انتقل إلى الخبر ${index + 1}`}
-                        />
+                        >
+                            <span className={`block rounded-full transition-all duration-300 ${index === currentIndex
+                                ? 'bg-white w-6 h-2'
+                                : 'bg-white/50 hover:bg-white/75 w-2 h-2'
+                                }`} />
+                        </button>
                     ))}
                 </div>
 
