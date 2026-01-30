@@ -53,6 +53,8 @@ export const articleQuerySchema = z.object({
     search: z.string().optional(),
     sortBy: z.enum(['createdAt', 'views', 'title', 'publishedAt']).default('createdAt'),
     sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    isBreaking: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
+    isFeatured: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
 });
 
 // ============= User Schemas =============

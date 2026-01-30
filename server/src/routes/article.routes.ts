@@ -27,7 +27,7 @@ function generateSlug(title: string): string {
 router.get('/', optionalAuth, async (req, res, next) => {
     try {
         const query = articleQuerySchema.parse(req.query);
-        const { page, perPage, category, status, authorId, search, sortBy, sortOrder } = query;
+        const { page, perPage, category, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
 
         // Build where clause
         const where: any = {};
@@ -41,6 +41,11 @@ router.get('/', optionalAuth, async (req, res, next) => {
 
         if (category) where.category = { slug: category };
         if (authorId) where.authorId = authorId;
+
+        // Filter by isBreaking or isFeatured
+        if (isBreaking !== undefined) where.isBreaking = isBreaking;
+        if (isFeatured !== undefined) where.isFeatured = isFeatured;
+
         if (search) {
             where.OR = [
                 { title: { contains: search } },
