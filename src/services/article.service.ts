@@ -22,6 +22,8 @@ export interface ArticleFilters {
     search?: string;
     sortBy?: 'createdAt' | 'views' | 'title';
     sortOrder?: 'asc' | 'desc';
+    isBreaking?: boolean;
+    isFeatured?: boolean;
 }
 
 export const articleService = {

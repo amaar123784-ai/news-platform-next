@@ -52,7 +52,7 @@ export default function ArticleListPage() {
             perPage: 20,
             search: searchTerm || undefined,
             status: (statusFilter as any) || undefined,
-            categoryId: categoryFilter || undefined,
+            category: categoryFilter || undefined,
             isBreaking: breakingFilter === 'breaking' ? true : undefined,
             isFeatured: breakingFilter === 'featured' ? true : undefined,
             sortBy: 'createdAt',
@@ -98,7 +98,7 @@ export default function ArticleListPage() {
     const bulkStatusMutation = useMutation({
         mutationFn: async ({ ids, status }: { ids: string[], status: string }) => {
             for (const id of ids) {
-                await articleService.updateArticle(id, { status } as any);
+                await articleService.updateArticle({ id, status } as any);
             }
             return { updatedCount: ids.length };
         },
@@ -182,8 +182,8 @@ export default function ArticleListPage() {
                 <button
                     onClick={() => setBreakingFilter('all')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${breakingFilter === 'all'
-                            ? 'bg-gray-800 text-white'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
                 >
                     <Icon name="ri-article-line" className="ml-2" />
@@ -192,8 +192,8 @@ export default function ArticleListPage() {
                 <button
                     onClick={() => setBreakingFilter('breaking')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${breakingFilter === 'breaking'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600'
                         }`}
                 >
                     <Icon name="ri-flashlight-line" className="ml-2" />
@@ -202,8 +202,8 @@ export default function ArticleListPage() {
                 <button
                     onClick={() => setBreakingFilter('featured')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${breakingFilter === 'featured'
-                            ? 'bg-yellow-500 text-white'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:text-yellow-600'
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:text-yellow-600'
                         }`}
                 >
                     <Icon name="ri-star-line" className="ml-2" />
@@ -337,13 +337,13 @@ export default function ArticleListPage() {
                                         {/* Badges */}
                                         {article.isBreaking && (
                                             <span className="inline-flex items-center text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">
-                                                <Icon name="ri-flashlight-line" size="xs" className="ml-1" />
+                                                <Icon name="ri-flashlight-line" size="sm" className="ml-1" />
                                                 عاجل
                                             </span>
                                         )}
                                         {article.isFeatured && (
                                             <span className="inline-flex items-center text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-medium">
-                                                <Icon name="ri-star-line" size="xs" className="ml-1" />
+                                                <Icon name="ri-star-line" size="sm" className="ml-1" />
                                                 مهم
                                             </span>
                                         )}
@@ -359,15 +359,15 @@ export default function ArticleListPage() {
 
                                     <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-gray-500">
                                         <span className="flex items-center gap-1">
-                                            <Icon name="ri-user-line" size="xs" />
+                                            <Icon name="ri-user-line" size="sm" />
                                             {article.author?.name || 'المحرر'}
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <Icon name="ri-calendar-line" size="xs" />
+                                            <Icon name="ri-calendar-line" size="sm" />
                                             {new Date(article.createdAt).toLocaleDateString('ar-YE')}
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <Icon name="ri-eye-line" size="xs" />
+                                            <Icon name="ri-eye-line" size="sm" />
                                             {(article.views || 0).toLocaleString()} مشاهدة
                                         </span>
                                     </div>
