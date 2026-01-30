@@ -63,16 +63,11 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-import { getBreakingNews } from "@/lib/api";
-import { Header, Footer, BreakingNewsTicker } from "@/components/organisms";
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const breakingNews = await getBreakingNews();
-
   return (
     <html lang="ar" dir="rtl" className={arabicFont.variable}>
       <head>
@@ -104,23 +99,7 @@ export default async function RootLayout({
         </div>
 
         <Providers>
-          {/* Fixed Top Section: Ticker + Header */}
-          <div className="sticky top-0 z-[100] w-full bg-white shadow-sm">
-            {/* Breaking News Ticker */}
-            {breakingNews && breakingNews.length > 0 && (
-              <BreakingNewsTicker items={breakingNews} />
-            )}
-            {/* Header */}
-            <Header />
-          </div>
-
-          {/* Main Page Content */}
-          <div className="relative z-10 flex-grow">
-            {children}
-          </div>
-
-          {/* Footer */}
-          <Footer />
+          {children}
         </Providers>
       </body>
     </html>
