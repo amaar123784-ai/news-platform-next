@@ -63,11 +63,16 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default function RootLayout({
+import { getBreakingNews } from "@/lib/api";
+import { Header, Footer, BreakingNewsTicker } from "@/components/organisms";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const breakingNews = await getBreakingNews();
+
   return (
     <html lang="ar" dir="rtl" className={arabicFont.variable}>
       <head>
@@ -85,10 +90,9 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/logo.webp" />
         <link rel="apple-touch-icon" href="/images/logo.webp" />
       </head>
-      <body className="font-arabic antialiased bg-gray-50 min-h-screen">
+      <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
         {/* Logo Watermark Background - Optimized */}
-        {/* Logo Watermark Background - Optimized with Next.js Image for LCP */}
-        <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.05]" aria-hidden="true">
+        <div className="fixed inset-0 pointer-events-none z-[0] opacity-[0.05]" aria-hidden="true">
           <Image
             src="/images/logo.webp"
             alt=""
@@ -98,7 +102,26 @@ export default function RootLayout({
             sizes="100vw"
           />
         </div>
-        <Providers>{children}</Providers>
+
+        <Providers>
+          {/* Fixed Top Section: Ticker + Header */}
+          <div className="sticky top-0 z-[100] w-full bg-white shadow-sm">
+            {/* Breaking News Ticker */}
+            {breakingNews && breakingNews.length > 0 && (
+              <BreakingNewsTicker items={breakingNews} />
+            )}
+            {/* Header */}
+            <Header />
+          </div>
+
+          {/* Main Page Content */}
+          <div className="relative z-10 flex-grow">
+            {children}
+          </div>
+
+          {/* Footer */}
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

@@ -59,8 +59,11 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
     const getImageUrl = (imageUrl?: string) => {
         if (!imageUrl) return fallbackImg;
         if (imageUrl.startsWith("http")) return imageUrl;
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
-        return `${apiBaseUrl}${imageUrl}`;
+        // Use NEXT_PUBLIC_API_URL directly without stripping /api
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+        // Remove trailing /api if present, then add it back to ensure consistency
+        const baseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+        return `${baseUrl}${imageUrl}`;
     };
 
     return (
