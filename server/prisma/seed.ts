@@ -302,28 +302,23 @@ async function main() {
             status: 'ACTIVE',
         },
     });
-    name: 'سكاي نيوز عربية',
-        websiteUrl: 'https://www.skynewsarabia.com',
-            logoUrl: 'https://www.skynewsarabia.com/favicon.ico',
-                description: 'آخر الأخبار من سكاي نيوز عربية',
+
+
+    await prisma.rSSFeed.upsert({
+        where: { feedUrl: 'https://www.skynewsarabia.com/rss' },
+        update: {},
+        create: {
+            feedUrl: 'https://www.skynewsarabia.com/rss',
+            sourceId: skySource.id,
+            categoryId: categories[1].id, // Economy
+            fetchInterval: 20,
+            status: 'ACTIVE',
         },
     });
 
-await prisma.rSSFeed.upsert({
-    where: { feedUrl: 'https://www.skynewsarabia.com/rss' },
-    update: {},
-    create: {
-        feedUrl: 'https://www.skynewsarabia.com/rss',
-        sourceId: skySource.id,
-        categoryId: categories[1].id, // Economy
-        fetchInterval: 20,
-        status: 'ACTIVE',
-    },
-});
+    console.log('✅ RSS Sources and Feeds created');
 
-console.log('✅ RSS Sources and Feeds created');
-
-console.log('🎉 Database seeding completed!');
+    console.log('🎉 Database seeding completed!');
 }
 
 main()
