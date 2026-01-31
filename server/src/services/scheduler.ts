@@ -25,7 +25,7 @@ export function initializeScheduler(): void {
         console.log('[Scheduler] Starting RSS feed fetch...');
         try {
             const result = await fetchAllActiveFeeds();
-            console.log(`[Scheduler] RSS fetch complete: ${result.sourcesChecked} sources, ${result.totalNewArticles} new articles`);
+            console.log(`[Scheduler] RSS fetch complete: ${result.feedsChecked} feeds, ${result.totalNewArticles} new articles`);
         } catch (error) {
             console.error('[Scheduler] RSS fetch error:', error);
         }

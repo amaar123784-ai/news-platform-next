@@ -225,52 +225,79 @@ async function main() {
     });
     console.log('✅ Activity logs created');
 
-    // Create RSS Sources for aggregated news
-    const rssSources = await Promise.all([
-        prisma.rSSSource.upsert({
-            where: { feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml' },
-            update: {},
-            create: {
-                name: 'BBC عربي',
-                feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml',
-                websiteUrl: 'https://www.bbc.com/arabic',
-                logoUrl: 'https://www.bbc.com/favicon.ico',
-                description: 'آخر الأخبار من بي بي سي عربي',
-                categoryId: categories[0].id, // Politics
-                fetchInterval: 15,
-                status: 'ACTIVE',
-            },
-        }),
-        prisma.rSSSource.upsert({
-            where: { feedUrl: 'https://www.aljazeera.net/rss' },
-            update: {},
-            create: {
-                name: 'الجزيرة نت',
-                feedUrl: 'https://www.aljazeera.net/rss',
-                websiteUrl: 'https://www.aljazeera.net',
-                logoUrl: 'https://www.aljazeera.net/favicon.ico',
-                description: 'آخر الأخبار من قناة الجزيرة',
-                categoryId: categories[0].id, // Politics
-                fetchInterval: 15,
-                status: 'ACTIVE',
-            },
-        }),
-        prisma.rSSSource.upsert({
-            where: { feedUrl: 'https://www.skynewsarabia.com/rss' },
-            update: {},
-            create: {
-                name: 'سكاي نيوز عربية',
-                feedUrl: 'https://www.skynewsarabia.com/rss',
-                websiteUrl: 'https://www.skynewsarabia.com',
-                logoUrl: 'https://www.skynewsarabia.com/favicon.ico',
-                description: 'آخر الأخبار من سكاي نيوز عربية',
-                categoryId: categories[1].id, // Economy
-                fetchInterval: 20,
-                status: 'ACTIVE',
-            },
-        }),
-    ]);
-    console.log('✅ RSS Sources created:', rssSources.length);
+    // Create RSS Sources for aggregated news (using new multi-feed schema)
+    // First create source without feeds to get ID, then create feed
+    const bbcSource = await prisma.rSSSource.upsert({
+        where: { name: 'BBC عربي' },
+        update: {},
+        create: {
+            name: 'BBC عربي',
+            websiteUrl: 'https://www.bbc.com/arabic',
+            logoUrl: 'https://www.bbc.com/favicon.ico',
+            description: 'آخر الأخبار من بي بي سي عربي',
+        },
+    });
+
+    // Create feed for BBC
+    await prisma.rSSFeed.upsert({
+        where: { feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml' },
+        update: {},
+        create: {
+            feedUrl: 'https://feeds.bbci.co.uk/arabic/rss.xml',
+            sourceId: bbcSource.id,
+            categoryId: categories[0].id, // Politics
+            fetchInterval: 15,
+            status: 'ACTIVE',
+        },
+    });
+
+    const aljazeeraSource = await prisma.rSSSource.upsert({
+        where: { name: 'الجزيرة نت' },
+        update: {},
+        create: {
+            name: 'الجزيرة نت',
+            websiteUrl: 'https://www.aljazeera.net',
+            logoUrl: 'https://www.aljazeera.net/favicon.ico',
+            description: 'آخر الأخبار من قناة الجزيرة',
+        },
+    });
+
+    await prisma.rSSFeed.upsert({
+        where: { feedUrl: 'https://www.aljazeera.net/rss' },
+        update: {},
+        create: {
+            feedUrl: 'https://www.aljazeera.net/rss',
+            sourceId: aljazeeraSource.id,
+            categoryId: categories[0].id, // Politics
+            fetchInterval: 15,
+            status: 'ACTIVE',
+        },
+    });
+
+    const skySource = await prisma.rSSSource.upsert({
+        where: { name: 'سكاي نيوز عربية' },
+        update: {},
+        create: {
+            name: 'سكاي نيوز عربية',
+            websiteUrl: 'https://www.skynewsarabia.com',
+            logoUrl: 'https://www.skynewsarabia.com/favicon.ico',
+            description: 'آخر الأخبار من سكاي نيوز عربية',
+        },
+    });
+
+    await prisma.rSSFeed.upsert({
+        where: { feedUrl: 'https://www.skynewsarabia.com/rss' },
+        update: {},
+        create: {
+            feedUrl: 'https://www.skynewsarabia.com/rss',
+            sourceId: skySource.id,
+            categoryId: categories[1].id, // Economy
+            fetchInterval: 20,
+            status: 'ACTIVE',
+        },
+    });
+
+    console.log('✅ RSS Sources and Feeds created');
 
     console.log('🎉 Database seeding completed!');
 }

@@ -706,23 +706,26 @@ export async function expireOldArticles(daysOld = 60): Promise<number> {
  */
 export async function getRSSStats(): Promise<{
     totalSources: number;
-    activeSources: number;
-    errorSources: number;
+    totalFeeds: number;
+    activeFeeds: number;
+    errorFeeds: number;
     totalArticles: number;
     pendingArticles: number;
     approvedArticles: number;
 }> {
     const [
         totalSources,
-        activeSources,
-        errorSources,
+        totalFeeds,
+        activeFeeds,
+        errorFeeds,
         totalArticles,
         pendingArticles,
         approvedArticles,
     ] = await Promise.all([
         prisma.rSSSource.count(),
-        prisma.rSSSource.count({ where: { status: 'ACTIVE' } }),
-        prisma.rSSSource.count({ where: { status: 'ERROR' } }),
+        prisma.rSSFeed.count(),
+        prisma.rSSFeed.count({ where: { status: 'ACTIVE' } }),
+        prisma.rSSFeed.count({ where: { status: 'ERROR' } }),
         prisma.rSSArticle.count(),
         prisma.rSSArticle.count({ where: { status: 'PENDING' } }),
         prisma.rSSArticle.count({ where: { status: 'APPROVED' } }),
@@ -730,8 +733,9 @@ export async function getRSSStats(): Promise<{
 
     return {
         totalSources,
-        activeSources,
-        errorSources,
+        totalFeeds,
+        activeFeeds,
+        errorFeeds,
         totalArticles,
         pendingArticles,
         approvedArticles,

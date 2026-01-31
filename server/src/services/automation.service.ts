@@ -105,10 +105,10 @@ export class AutomationService {
         const queueItem = await prisma.automationQueue.update({
             where: { id: queueId },
             data: { status: AutomationStatus.AI_PROCESSING },
-            include: { rssArticle: { include: { source: { include: { category: true } } } } }
+            include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
 
-        const article = queueItem.rssArticle;
+        const article = queueItem.rssArticle!;
 
         // Use existing rewritten content or original
         let title = article.rewrittenTitle || article.title;
@@ -151,11 +151,11 @@ export class AutomationService {
         const queueItem = await prisma.automationQueue.update({
             where: { id: queueId },
             data: { status: AutomationStatus.PUBLISHING },
-            include: { rssArticle: { include: { source: { include: { category: true } } } } }
+            include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
 
-        const article = queueItem.rssArticle;
-        const category = article.source.category;
+        const article = queueItem.rssArticle!;
+        const category = article.feed.category;
 
         // Generate unique slug
         const baseSlug = (slugify as any)(queueItem.aiRewrittenTitle || article.title, {
@@ -245,7 +245,7 @@ export class AutomationService {
             include: {
                 rssArticle: {
                     include: {
-                        source: { include: { category: true } }
+                        feed: { include: { source: true, category: true } }
                     }
                 }
             },
@@ -362,7 +362,7 @@ export class AutomationService {
                 include: {
                     rssArticle: {
                         include: {
-                            source: { include: { category: true } }
+                            feed: { include: { source: true, category: true } }
                         }
                     }
                 },
