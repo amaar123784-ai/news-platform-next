@@ -309,7 +309,7 @@ export const rssService = {
     /**
      * Fetch all active feeds (admin)
      */
-    async fetchAllFeeds(): Promise<SingleResponse<{ sourcesChecked: number; totalNewArticles: number }>> {
+    async fetchAllFeeds(): Promise<SingleResponse<{ feedsChecked: number; totalNewArticles: number }>> {
         const response = await api.post('/rss/fetch-all');
         return response.data;
     },
