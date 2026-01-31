@@ -98,15 +98,15 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
                 <div className="p-5">
                     {/* Category & Date */}
                     <div className="flex items-center justify-between mb-3">
-                        {article.source.category && (
+                        {article.feed?.category && (
                             <span
                                 className="text-xs font-medium px-2 py-1 rounded-full"
                                 style={{
-                                    backgroundColor: `${article.source.category.color || '#2563EB'}15`,
-                                    color: article.source.category.color || '#2563EB'
+                                    backgroundColor: `${article.feed.category.color || '#2563EB'}15`,
+                                    color: article.feed.category.color || '#2563EB'
                                 }}
                             >
-                                {article.source.category.name}
+                                {article.feed.category.name}
                             </span>
                         )}
                         <span className="text-xs text-gray-500">{formattedDate}</span>
