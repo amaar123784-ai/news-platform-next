@@ -688,26 +688,27 @@ router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'
             throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
 
-        const rewrittenTitle = await rewriteArticle(article.title, 'title');
-        const rewrittenContent = await rewriteArticle(article.content || article.excerpt || '', 'content');
+        const result = await rewriteArticle(article.title, article.excerpt || '');
 
-        if (rewrittenTitle || rewrittenContent) {
+        if (result) {
             await prisma.rSSArticle.update({
                 where: { id: req.params.id },
                 data: {
-                    rewrittenTitle: rewrittenTitle || undefined,
-                    rewrittenContent: rewrittenContent || undefined,
+                    rewrittenTitle: result.rewrittenTitle,
+                    rewrittenExcerpt: result.rewrittenExcerpt,
                     isRewritten: true,
                     rewrittenAt: new Date(),
                 },
             });
-        }
 
-        res.json({
-            success: true,
-            message: 'تم إعادة صياغة المقال',
-            data: { rewrittenTitle, rewrittenContent },
-        });
+            res.json({
+                success: true,
+                message: 'تم إعادة صياغة المقال',
+                data: result,
+            });
+        } else {
+            throw createError(500, 'فشل إعادة الصياغة', 'REWRITE_FAILED');
+        }
     } catch (error) {
         next(error);
     }
@@ -729,15 +730,14 @@ router.post('/articles/bulk-rewrite', authenticate, requireRole('ADMIN'), async 
 
         for (const article of articles) {
             try {
-                const rewrittenTitle = await rewriteArticle(article.title, 'title');
-                const rewrittenContent = await rewriteArticle(article.content || article.excerpt || '', 'content');
+                const result = await rewriteArticle(article.title, article.excerpt || '');
 
-                if (rewrittenTitle || rewrittenContent) {
+                if (result) {
                     await prisma.rSSArticle.update({
                         where: { id: article.id },
                         data: {
-                            rewrittenTitle: rewrittenTitle || undefined,
-                            rewrittenContent: rewrittenContent || undefined,
+                            rewrittenTitle: result.rewrittenTitle,
+                            rewrittenExcerpt: result.rewrittenExcerpt,
                             isRewritten: true,
                             rewrittenAt: new Date(),
                         },
