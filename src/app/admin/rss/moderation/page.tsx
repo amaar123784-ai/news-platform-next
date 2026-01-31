@@ -573,18 +573,20 @@ export default function RSSModerationPage() {
                                 {/* Group by Source */}
                                 {Object.entries(
                                     articles.reduce((groups: Record<string, { source: any, articles: RSSArticle[] }>, article: RSSArticle) => {
-                                        const sourceId = article.source.id || 'unknown';
-                                        if (!groups[sourceId]) {
-                                            groups[sourceId] = {
-                                                source: article.source,
+                                        // Update to use feed.source based on new schema
+                                        const sourceName = article.feed?.source?.name || 'unknown';
+
+                                        if (!groups[sourceName]) {
+                                            groups[sourceName] = {
+                                                source: article.feed?.source || { name: sourceName },
                                                 articles: []
                                             };
                                         }
-                                        groups[sourceId].articles.push(article);
+                                        groups[sourceName].articles.push(article);
                                         return groups;
                                     }, {})
-                                ).map(([sourceId, group]: [string, any]) => (
-                                    <div key={sourceId} className="bg-white">
+                                ).map(([sourceName, group]: [string, any]) => (
+                                    <div key={sourceName} className="bg-white">
                                         <div className="px-4 py-3 bg-gray-50 border-y border-gray-100 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 {group.source.logoUrl ? (
