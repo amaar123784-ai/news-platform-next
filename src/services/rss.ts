@@ -7,19 +7,15 @@ import api from './api';
 
 // ============= TYPES =============
 
-export interface RSSSource {
+// Individual RSS Feed (belongs to a source)
+export interface RSSFeed {
     id: string;
-    name: string;
     feedUrl: string;
-    websiteUrl?: string | null;
-    logoUrl?: string | null;
-    description?: string | null;
     status: 'ACTIVE' | 'PAUSED' | 'ERROR';
     fetchInterval: number;
     lastFetchedAt?: string | null;
     lastError?: string | null;
     errorCount: number;
-    isActive: boolean;
     applyFilter: boolean;
     categoryId: string;
     category: {
@@ -29,6 +25,23 @@ export interface RSSSource {
         color?: string;
     };
     _count?: {
+        articles: number;
+    };
+    createdAt: string;
+    updatedAt: string;
+}
+
+// RSS Source (parent of feeds)
+export interface RSSSource {
+    id: string;
+    name: string;
+    websiteUrl?: string | null;
+    logoUrl?: string | null;
+    description?: string | null;
+    isActive: boolean;
+    feeds: RSSFeed[];
+    _count?: {
+        feeds: number;
         articles: number;
     };
     createdAt: string;
@@ -56,12 +69,16 @@ export interface RSSArticle {
     contentScraped?: boolean;
     scrapeError?: string | null;
     scrapedAt?: string | null;
-    source: {
-        id?: string;
-        name: string;
-        logoUrl?: string | null;
-        websiteUrl?: string | null;
-        category?: {
+    // Feed reference with source info
+    feed: {
+        id: string;
+        categoryId: string;
+        source: {
+            name: string;
+            logoUrl?: string | null;
+            websiteUrl?: string | null;
+        };
+        category: {
             id?: string;
             name: string;
             slug?: string;
@@ -79,26 +96,37 @@ export interface RSSStats {
     approvedArticles: number;
 }
 
-export interface CreateRSSSourceData {
-    name: string;
+// Feed data within create source request
+export interface CreateFeedData {
     feedUrl: string;
-    websiteUrl?: string | null;
-    logoUrl?: string | null;
-    description?: string | null;
     categoryId: string;
     fetchInterval?: number;
     applyFilter?: boolean;
 }
 
-export interface UpdateRSSSourceData {
-    name?: string;
-    feedUrl?: string;
+// Create source with multiple feeds
+export interface CreateRSSSourceData {
+    name: string;
     websiteUrl?: string | null;
     logoUrl?: string | null;
     description?: string | null;
+    feeds: CreateFeedData[];
+}
+
+// Update source metadata only
+export interface UpdateRSSSourceData {
+    name?: string;
+    websiteUrl?: string | null;
+    logoUrl?: string | null;
+    description?: string | null;
+    isActive?: boolean;
+}
+
+// Update individual feed
+export interface UpdateRSSFeedData {
+    feedUrl?: string;
     categoryId?: string;
     fetchInterval?: number;
-    isActive?: boolean;
     applyFilter?: boolean;
     status?: 'ACTIVE' | 'PAUSED';
 }
@@ -181,10 +209,44 @@ export const rssService = {
     },
 
     /**
-     * Manually trigger feed fetch (admin)
+     * Manually trigger all feeds fetch for a source (admin)
      */
-    async fetchSource(id: string): Promise<SingleResponse<{ newArticles: number; errors: string[] }>> {
+    async fetchSource(id: string): Promise<SingleResponse<{ feedsCount: number; successful: number; totalNewArticles: number }>> {
         const response = await api.post(`/rss/sources/${id}/fetch`);
+        return response.data;
+    },
+
+    // ============= ADMIN: FEEDS =============
+
+    /**
+     * Add a new feed to a source (admin)
+     */
+    async addFeed(sourceId: string, data: CreateFeedData): Promise<SingleResponse<RSSFeed>> {
+        const response = await api.post(`/rss/sources/${sourceId}/feeds`, data);
+        return response.data;
+    },
+
+    /**
+     * Update feed (admin)
+     */
+    async updateFeed(feedId: string, data: UpdateRSSFeedData): Promise<SingleResponse<RSSFeed>> {
+        const response = await api.patch(`/rss/feeds/${feedId}`, data);
+        return response.data;
+    },
+
+    /**
+     * Delete feed (admin)
+     */
+    async deleteFeed(feedId: string): Promise<SingleResponse<null>> {
+        const response = await api.delete(`/rss/feeds/${feedId}`);
+        return response.data;
+    },
+
+    /**
+     * Fetch a single feed (admin)
+     */
+    async fetchFeed(feedId: string): Promise<SingleResponse<{ newArticles: number; errors: string[] }>> {
+        const response = await api.post(`/rss/feeds/${feedId}/fetch`);
         return response.data;
     },
 

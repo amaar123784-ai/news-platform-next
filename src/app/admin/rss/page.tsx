@@ -2,7 +2,7 @@
 
 /**
  * Admin RSS Sources Management Page
- * Manage external RSS feed sources for content aggregation
+ * Manage external RSS feed sources with multi-feed support
  */
 
 import React, { useState } from 'react';
@@ -11,7 +11,15 @@ import { Button, Icon, Modal } from '@/components/atoms';
 import { DataTable } from '@/components/organisms';
 import { TableSkeleton, ConfirmModal } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
-import { rssService, type RSSSource, type CreateRSSSourceData } from '@/services/rss';
+import {
+    rssService,
+    type RSSSource,
+    type RSSFeed,
+    type CreateRSSSourceData,
+    type CreateFeedData,
+    type UpdateRSSSourceData,
+    type UpdateRSSFeedData
+} from '@/services/rss';
 import { categoryService } from '@/services';
 
 // Status labels
@@ -21,25 +29,39 @@ const statusLabels: Record<string, { label: string; color: string }> = {
     ERROR: { label: 'خطأ', color: 'bg-red-100 text-red-700' },
 };
 
+// Initial feed state
+const emptyFeed: CreateFeedData = {
+    feedUrl: '',
+    categoryId: '',
+    fetchInterval: 15,
+    applyFilter: true,
+};
+
 export default function RSSSourcesPage() {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
 
+    // Modal states
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [editingSource, setEditingSource] = useState<RSSSource | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<RSSSource | null>(null);
+    const [feedsModalSource, setFeedsModalSource] = useState<RSSSource | null>(null);
+    const [editingFeed, setEditingFeed] = useState<RSSFeed | null>(null);
+    const [deleteFeedTarget, setDeleteFeedTarget] = useState<RSSFeed | null>(null);
 
-    // Form state
-    const [formData, setFormData] = useState<CreateRSSSourceData>({
+    // Form state for creating source
+    const [sourceFormData, setSourceFormData] = useState({
         name: '',
-        feedUrl: '',
         websiteUrl: '',
         logoUrl: '',
         description: '',
-        categoryId: '',
-        fetchInterval: 15,
-        applyFilter: true,
     });
+
+    // Feeds list for new source
+    const [newFeeds, setNewFeeds] = useState<CreateFeedData[]>([{ ...emptyFeed }]);
+
+    // Feed form for adding/editing individual feed
+    const [feedFormData, setFeedFormData] = useState<CreateFeedData>({ ...emptyFeed });
 
     // Fetch RSS sources
     const { data: sourcesData, isLoading, isError } = useQuery({
@@ -60,24 +82,23 @@ export default function RSSSourcesPage() {
             success('تم إضافة المصدر بنجاح');
             queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
             setAddModalOpen(false);
-            resetForm();
+            resetSourceForm();
         },
         onError: (err: any) => {
-            showError(err.message || 'فشل إضافة المصدر');
+            showError(err.response?.data?.message || err.message || 'فشل إضافة المصدر');
         },
     });
 
     // Update source mutation
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => rssService.updateSource(id, data),
+        mutationFn: ({ id, data }: { id: string; data: UpdateRSSSourceData }) => rssService.updateSource(id, data),
         onSuccess: () => {
             success('تم تحديث المصدر بنجاح');
             queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
             setEditingSource(null);
-            resetForm();
         },
         onError: (err: any) => {
-            showError(err.message || 'فشل تحديث المصدر');
+            showError(err.response?.data?.message || err.message || 'فشل تحديث المصدر');
         },
     });
 
@@ -90,19 +111,19 @@ export default function RSSSourcesPage() {
             setDeleteTarget(null);
         },
         onError: (err: any) => {
-            showError(err.message || 'فشل حذف المصدر');
+            showError(err.response?.data?.message || err.message || 'فشل حذف المصدر');
         },
     });
 
-    // Fetch source mutation
+    // Fetch source (all feeds) mutation
     const fetchMutation = useMutation({
         mutationFn: (id: string) => rssService.fetchSource(id),
         onSuccess: (data) => {
-            success(`تم جلب ${data.data?.newArticles || 0} مقال جديد`);
+            success(`تم جلب ${data.data?.totalNewArticles || 0} مقال جديد من ${data.data?.feedsCount || 0} رابط`);
             queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
         },
         onError: (err: any) => {
-            showError(err.message || 'فشل جلب المقالات');
+            showError(err.response?.data?.message || err.message || 'فشل جلب المقالات');
         },
     });
 
@@ -110,7 +131,7 @@ export default function RSSSourcesPage() {
     const fetchAllMutation = useMutation({
         mutationFn: () => rssService.fetchAllFeeds(),
         onSuccess: (data) => {
-            success(`تم جلب ${data.data?.totalNewArticles || 0} مقال جديد من ${data.data?.sourcesChecked || 0} مصدر`);
+            success(`تم جلب ${data.data?.totalNewArticles || 0} مقال جديد من ${data.data?.feedsChecked || 0} رابط`);
             queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
         },
         onError: (err: any) => {
@@ -118,42 +139,178 @@ export default function RSSSourcesPage() {
         },
     });
 
+    // Add feed to source mutation
+    const addFeedMutation = useMutation({
+        mutationFn: ({ sourceId, data }: { sourceId: string; data: CreateFeedData }) =>
+            rssService.addFeed(sourceId, data),
+        onSuccess: () => {
+            success('تم إضافة الرابط بنجاح');
+            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
+            setFeedFormData({ ...emptyFeed });
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.message || err.message || 'فشل إضافة الرابط');
+        },
+    });
+
+    // Update feed mutation
+    const updateFeedMutation = useMutation({
+        mutationFn: ({ feedId, data }: { feedId: string; data: UpdateRSSFeedData }) =>
+            rssService.updateFeed(feedId, data),
+        onSuccess: () => {
+            success('تم تحديث الرابط بنجاح');
+            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
+            setEditingFeed(null);
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.message || err.message || 'فشل تحديث الرابط');
+        },
+    });
+
+    // Delete feed mutation
+    const deleteFeedMutation = useMutation({
+        mutationFn: (feedId: string) => rssService.deleteFeed(feedId),
+        onSuccess: () => {
+            success('تم حذف الرابط بنجاح');
+            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
+            setDeleteFeedTarget(null);
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.message || err.message || 'فشل حذف الرابط');
+        },
+    });
+
+    // Fetch single feed mutation
+    const fetchFeedMutation = useMutation({
+        mutationFn: (feedId: string) => rssService.fetchFeed(feedId),
+        onSuccess: (data) => {
+            success(`تم جلب ${data.data?.newArticles || 0} مقال جديد`);
+            queryClient.invalidateQueries({ queryKey: ['rss-sources'] });
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.message || err.message || 'فشل جلب المقالات');
+        },
+    });
+
     const sources = sourcesData?.data || [];
     const categories = categoriesData || [];
 
-    const resetForm = () => {
-        setFormData({
+    // Calculate stats
+    const totalFeeds = sources.reduce((sum: number, s: RSSSource) => sum + (s._count?.feeds || 0), 0);
+    const totalArticles = sources.reduce((sum: number, s: RSSSource) => sum + (s._count?.articles || 0), 0);
+    const activeFeeds = sources.reduce((sum: number, s: RSSSource) =>
+        sum + (s.feeds?.filter(f => f.status === 'ACTIVE').length || 0), 0);
+    const errorFeeds = sources.reduce((sum: number, s: RSSSource) =>
+        sum + (s.feeds?.filter(f => f.status === 'ERROR').length || 0), 0);
+
+    const resetSourceForm = () => {
+        setSourceFormData({
             name: '',
-            feedUrl: '',
             websiteUrl: '',
             logoUrl: '',
             description: '',
-            categoryId: '',
-            fetchInterval: 15,
+        });
+        setNewFeeds([{ ...emptyFeed }]);
+    };
+
+    const handleCreateSource = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Validate feeds
+        const validFeeds = newFeeds.filter(f => f.feedUrl && f.categoryId);
+        if (validFeeds.length === 0) {
+            showError('يجب إضافة رابط RSS واحد على الأقل');
+            return;
+        }
+
+        createMutation.mutate({
+            name: sourceFormData.name,
+            websiteUrl: sourceFormData.websiteUrl || null,
+            logoUrl: sourceFormData.logoUrl || null,
+            description: sourceFormData.description || null,
+            feeds: validFeeds,
         });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleUpdateSource = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!editingSource) return;
 
-        if (editingSource) {
-            updateMutation.mutate({ id: editingSource.id, data: formData });
-        } else {
-            createMutation.mutate(formData);
-        }
+        updateMutation.mutate({
+            id: editingSource.id,
+            data: {
+                name: sourceFormData.name,
+                websiteUrl: sourceFormData.websiteUrl || null,
+                logoUrl: sourceFormData.logoUrl || null,
+                description: sourceFormData.description || null,
+            },
+        });
     };
 
-    const openEditModal = (source: RSSSource) => {
-        setFormData({
+    const openEditSourceModal = (source: RSSSource) => {
+        setSourceFormData({
             name: source.name,
-            feedUrl: source.feedUrl,
             websiteUrl: source.websiteUrl || '',
             logoUrl: source.logoUrl || '',
             description: source.description || '',
-            categoryId: source.categoryId,
-            fetchInterval: source.fetchInterval,
         });
         setEditingSource(source);
+    };
+
+    const openFeedsModal = (source: RSSSource) => {
+        setFeedsModalSource(source);
+        setFeedFormData({ ...emptyFeed });
+    };
+
+    const addNewFeedRow = () => {
+        setNewFeeds([...newFeeds, { ...emptyFeed }]);
+    };
+
+    const updateFeedRow = (index: number, field: keyof CreateFeedData, value: any) => {
+        const updated = [...newFeeds];
+        updated[index] = { ...updated[index], [field]: value };
+        setNewFeeds(updated);
+    };
+
+    const removeFeedRow = (index: number) => {
+        if (newFeeds.length > 1) {
+            setNewFeeds(newFeeds.filter((_, i) => i !== index));
+        }
+    };
+
+    const handleAddFeedToSource = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!feedsModalSource || !feedFormData.feedUrl || !feedFormData.categoryId) return;
+
+        addFeedMutation.mutate({
+            sourceId: feedsModalSource.id,
+            data: feedFormData,
+        });
+    };
+
+    const handleUpdateFeed = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingFeed) return;
+
+        updateFeedMutation.mutate({
+            feedId: editingFeed.id,
+            data: {
+                feedUrl: feedFormData.feedUrl,
+                categoryId: feedFormData.categoryId,
+                fetchInterval: feedFormData.fetchInterval,
+                applyFilter: feedFormData.applyFilter,
+            },
+        });
+    };
+
+    const openEditFeedModal = (feed: RSSFeed) => {
+        setFeedFormData({
+            feedUrl: feed.feedUrl,
+            categoryId: feed.categoryId,
+            fetchInterval: feed.fetchInterval,
+            applyFilter: feed.applyFilter,
+        });
+        setEditingFeed(feed);
     };
 
     return (
@@ -163,7 +320,7 @@ export default function RSSSourcesPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">مصادر RSS</h1>
                     <p className="text-gray-500 text-sm mt-1">
-                        إدارة مصادر الأخبار المجمعة ({sources.length} مصدر)
+                        إدارة مصادر الأخبار ({sources.length} مصدر، {totalFeeds} رابط)
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -182,28 +339,22 @@ export default function RSSSourcesPage() {
                 </div>
             </div>
 
-            {/* Quick Stats - At top */}
+            {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                     <div className="text-2xl font-bold text-gray-900">{sources.length}</div>
                     <div className="text-sm text-gray-500">إجمالي المصادر</div>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-green-600">
-                        {sources.filter((s: RSSSource) => s.status === 'ACTIVE').length}
-                    </div>
-                    <div className="text-sm text-gray-500">مصادر نشطة</div>
+                    <div className="text-2xl font-bold text-green-600">{activeFeeds}</div>
+                    <div className="text-sm text-gray-500">روابط نشطة</div>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-red-600">
-                        {sources.filter((s: RSSSource) => s.status === 'ERROR').length}
-                    </div>
+                    <div className="text-2xl font-bold text-red-600">{errorFeeds}</div>
                     <div className="text-sm text-gray-500">بها أخطاء</div>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="text-2xl font-bold text-blue-600">
-                        {sources.reduce((sum: number, s: RSSSource) => sum + (s._count?.articles || 0), 0)}
-                    </div>
+                    <div className="text-2xl font-bold text-blue-600">{totalArticles}</div>
                     <div className="text-sm text-gray-500">إجمالي المقالات</div>
                 </div>
             </div>
@@ -244,10 +395,6 @@ export default function RSSSourcesPage() {
                                                     className="w-full h-full object-contain"
                                                     onError={(e) => {
                                                         e.currentTarget.style.display = 'none';
-                                                        const parent = e.currentTarget.parentElement;
-                                                        if (parent) {
-                                                            parent.innerHTML = '<i class="ri-rss-line text-gray-400"></i>';
-                                                        }
                                                     }}
                                                 />
                                             ) : (
@@ -256,51 +403,41 @@ export default function RSSSourcesPage() {
                                         </div>
                                         <div>
                                             <div className="font-medium text-gray-900">{source.name}</div>
-                                            <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                                                {source.feedUrl}
+                                            <div className="text-xs text-gray-500">
+                                                {source._count?.feeds || 0} رابط
                                             </div>
                                         </div>
                                     </div>
                                 )
                             },
                             {
-                                key: 'category',
-                                header: 'التصنيف',
+                                key: 'feeds',
+                                header: 'الروابط والتصنيفات',
                                 render: (source: RSSSource) => (
-                                    <span
-                                        className="px-2 py-1 rounded-full text-xs font-medium"
-                                        style={{
-                                            backgroundColor: `${source.category?.color || '#2563EB'}20`,
-                                            color: source.category?.color || '#2563EB'
-                                        }}
-                                    >
-                                        {source.category?.name}
-                                    </span>
-                                )
-                            },
-                            {
-                                key: 'status',
-                                header: 'الحالة',
-                                render: (source: RSSSource) => {
-                                    const statusConfig = statusLabels[source.status];
-
-                                    if (!statusConfig) {
-                                        return (
-                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                                {source.status || 'غير معروف'}
+                                    <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                        {source.feeds?.slice(0, 3).map((feed) => (
+                                            <span
+                                                key={feed.id}
+                                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${feed.status === 'ERROR' ? 'bg-red-100 text-red-700' :
+                                                        feed.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' :
+                                                            ''
+                                                    }`}
+                                                style={feed.status === 'ACTIVE' ? {
+                                                    backgroundColor: `${feed.category?.color || '#2563EB'}20`,
+                                                    color: feed.category?.color || '#2563EB'
+                                                } : {}}
+                                                title={feed.feedUrl}
+                                            >
+                                                {feed.category?.name}
                                             </span>
-                                        );
-                                    }
-
-                                    return (
-                                        <span
-                                            className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} cursor-help`}
-                                            title={source.status === 'ERROR' ? (source.lastError || 'خطأ غير معروف') : ''}
-                                        >
-                                            {statusConfig.label}
-                                        </span>
-                                    );
-                                }
+                                        ))}
+                                        {(source.feeds?.length || 0) > 3 && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                +{(source.feeds?.length || 0) - 3}
+                                            </span>
+                                        )}
+                                    </div>
+                                )
                             },
                             {
                                 key: '_count',
@@ -309,33 +446,16 @@ export default function RSSSourcesPage() {
                                     <span className="text-gray-600">{source._count?.articles || 0}</span>
                                 )
                             },
-                            {
-                                key: 'lastFetchedAt',
-                                header: 'آخر تحديث',
-                                render: (source: RSSSource) => (
-                                    <span className="text-sm text-gray-500">
-                                        {source.lastFetchedAt
-                                            ? new Date(source.lastFetchedAt).toLocaleString('ar-YE')
-                                            : 'لم يتم بعد'}
-                                    </span>
-                                )
-                            },
                         ]}
                         actions={(source: RSSSource) => (
                             <div className="flex gap-1">
-                                {source.status === 'ERROR' && (
-                                    <button
-                                        onClick={() => updateMutation.mutate({
-                                            id: source.id,
-                                            data: { status: 'ACTIVE' }
-                                        })}
-                                        disabled={updateMutation.isPending}
-                                        className="p-2 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                                        title="إعادة تفعيل المصدر"
-                                    >
-                                        <Icon name="ri-restart-line" />
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => openFeedsModal(source)}
+                                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                    title="إدارة الروابط"
+                                >
+                                    <Icon name="ri-links-line" />
+                                </button>
                                 <button
                                     onClick={() => fetchMutation.mutate(source.id)}
                                     disabled={fetchMutation.isPending}
@@ -345,7 +465,7 @@ export default function RSSSourcesPage() {
                                     <Icon name="ri-download-line" />
                                 </button>
                                 <button
-                                    onClick={() => openEditModal(source)}
+                                    onClick={() => openEditSourceModal(source)}
                                     className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                     title="تعديل"
                                 >
@@ -365,80 +485,351 @@ export default function RSSSourcesPage() {
             </div>
 
 
-            {/* Add/Edit Modal */}
+            {/* Add Source Modal */}
             <Modal
-                isOpen={isAddModalOpen || !!editingSource}
-                onClose={() => { setAddModalOpen(false); setEditingSource(null); resetForm(); }}
-                title={editingSource ? 'تعديل المصدر' : 'إضافة مصدر جديد'}
+                isOpen={isAddModalOpen}
+                onClose={() => { setAddModalOpen(false); resetSourceForm(); }}
+                title="إضافة مصدر جديد"
+                width="max-w-2xl"
+            >
+                <form onSubmit={handleCreateSource} className="space-y-4">
+                    {/* Source Info */}
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+                        <h3 className="font-medium text-gray-900">بيانات المصدر</h3>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                اسم المصدر <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={sourceFormData.name}
+                                onChange={(e) => setSourceFormData({ ...sourceFormData, name: e.target.value })}
+                                placeholder="مثال: الجزيرة"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">رابط الموقع</label>
+                                <input
+                                    type="url"
+                                    value={sourceFormData.websiteUrl}
+                                    onChange={(e) => setSourceFormData({ ...sourceFormData, websiteUrl: e.target.value })}
+                                    placeholder="https://example.com"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    dir="ltr"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">رابط الشعار</label>
+                                <input
+                                    type="url"
+                                    value={sourceFormData.logoUrl}
+                                    onChange={(e) => setSourceFormData({ ...sourceFormData, logoUrl: e.target.value })}
+                                    placeholder="https://example.com/logo.webp"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    dir="ltr"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Feeds */}
+                    <div className="p-4 bg-blue-50 rounded-lg space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-gray-900">روابط RSS</h3>
+                            <Button type="button" variant="secondary" size="sm" onClick={addNewFeedRow}>
+                                <Icon name="ri-add-line" className="ml-1" />
+                                إضافة رابط
+                            </Button>
+                        </div>
+
+                        {newFeeds.map((feed, index) => (
+                            <div key={index} className="p-3 bg-white rounded-lg border border-gray-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-gray-600">رابط {index + 1}</span>
+                                    {newFeeds.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFeedRow(index)}
+                                            className="text-red-500 hover:text-red-700"
+                                        >
+                                            <Icon name="ri-close-line" />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <input
+                                        type="url"
+                                        value={feed.feedUrl}
+                                        onChange={(e) => updateFeedRow(index, 'feedUrl', e.target.value)}
+                                        placeholder="رابط RSS"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                        dir="ltr"
+                                        required
+                                    />
+                                    <select
+                                        value={feed.categoryId}
+                                        onChange={(e) => updateFeedRow(index, 'categoryId', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                        required
+                                    >
+                                        <option value="">اختر التصنيف</option>
+                                        {categories.map((cat: any) => (
+                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={feed.applyFilter !== false}
+                                            onChange={(e) => updateFeedRow(index, 'applyFilter', e.target.checked)}
+                                            className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
+                                        />
+                                        <span className="text-gray-600">تفعيل الفلترة</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <span className="text-gray-600">التحديث كل</span>
+                                        <input
+                                            type="number"
+                                            value={feed.fetchInterval}
+                                            onChange={(e) => updateFeedRow(index, 'fetchInterval', Number(e.target.value))}
+                                            min={5}
+                                            max={1440}
+                                            className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                        />
+                                        <span className="text-gray-600">دقيقة</span>
+                                    </label>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            disabled={createMutation.isPending}
+                            className="flex-1"
+                        >
+                            {createMutation.isPending ? 'جاري الحفظ...' : 'حفظ المصدر'}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => { setAddModalOpen(false); resetSourceForm(); }}
+                        >
+                            إلغاء
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+
+            {/* Edit Source Modal (metadata only) */}
+            <Modal
+                isOpen={!!editingSource}
+                onClose={() => setEditingSource(null)}
+                title="تعديل المصدر"
                 width="max-w-xl"
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleUpdateSource} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             اسم المصدر <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="مثال: BBC عربي"
+                            value={sourceFormData.name}
+                            onChange={(e) => setSourceFormData({ ...sourceFormData, name: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             required
                         />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">رابط الموقع</label>
+                            <input
+                                type="url"
+                                value={sourceFormData.websiteUrl}
+                                onChange={(e) => setSourceFormData({ ...sourceFormData, websiteUrl: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                dir="ltr"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">رابط الشعار</label>
+                            <input
+                                type="url"
+                                value={sourceFormData.logoUrl}
+                                onChange={(e) => setSourceFormData({ ...sourceFormData, logoUrl: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                                dir="ltr"
+                            />
+                        </div>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                        لإدارة روابط RSS، استخدم زر &quot;إدارة الروابط&quot; من القائمة.
+                    </p>
+                    <div className="flex gap-3 pt-4">
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            disabled={updateMutation.isPending}
+                            className="flex-1"
+                        >
+                            {updateMutation.isPending ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => setEditingSource(null)}>
+                            إلغاء
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
+
+            {/* Feeds Management Modal */}
+            <Modal
+                isOpen={!!feedsModalSource}
+                onClose={() => { setFeedsModalSource(null); setFeedFormData({ ...emptyFeed }); }}
+                title={`إدارة روابط "${feedsModalSource?.name || ''}"`}
+                width="max-w-2xl"
+            >
+                <div className="space-y-4">
+                    {/* Existing Feeds */}
+                    <div className="space-y-2">
+                        {feedsModalSource?.feeds?.map((feed) => (
+                            <div key={feed.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusLabels[feed.status]?.color || 'bg-gray-100 text-gray-700'}`}
+                                        >
+                                            {statusLabels[feed.status]?.label || feed.status}
+                                        </span>
+                                        <span
+                                            className="px-2 py-0.5 rounded-full text-xs font-medium"
+                                            style={{
+                                                backgroundColor: `${feed.category?.color || '#2563EB'}20`,
+                                                color: feed.category?.color || '#2563EB'
+                                            }}
+                                        >
+                                            {feed.category?.name}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                            ({feed._count?.articles || 0} مقال)
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate mt-1" dir="ltr">
+                                        {feed.feedUrl}
+                                    </div>
+                                </div>
+                                <div className="flex gap-1 mr-2">
+                                    <button
+                                        onClick={() => fetchFeedMutation.mutate(feed.id)}
+                                        disabled={fetchFeedMutation.isPending}
+                                        className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                                        title="جلب الأخبار"
+                                    >
+                                        <Icon name="ri-download-line" size="sm" />
+                                    </button>
+                                    <button
+                                        onClick={() => openEditFeedModal(feed)}
+                                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="تعديل"
+                                    >
+                                        <Icon name="ri-edit-line" size="sm" />
+                                    </button>
+                                    <button
+                                        onClick={() => setDeleteFeedTarget(feed)}
+                                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        title="حذف"
+                                    >
+                                        <Icon name="ri-delete-bin-line" size="sm" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {(!feedsModalSource?.feeds || feedsModalSource.feeds.length === 0) && (
+                            <div className="text-center py-4 text-gray-500">
+                                لا توجد روابط لهذا المصدر
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Add New Feed */}
+                    <div className="border-t pt-4">
+                        <h4 className="font-medium text-gray-900 mb-3">إضافة رابط جديد</h4>
+                        <form onSubmit={handleAddFeedToSource} className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input
+                                    type="url"
+                                    value={feedFormData.feedUrl}
+                                    onChange={(e) => setFeedFormData({ ...feedFormData, feedUrl: e.target.value })}
+                                    placeholder="رابط RSS"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                    dir="ltr"
+                                    required
+                                />
+                                <select
+                                    value={feedFormData.categoryId}
+                                    onChange={(e) => setFeedFormData({ ...feedFormData, categoryId: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                    required
+                                >
+                                    <option value="">اختر التصنيف</option>
+                                    {categories.map((cat: any) => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={feedFormData.applyFilter !== false}
+                                        onChange={(e) => setFeedFormData({ ...feedFormData, applyFilter: e.target.checked })}
+                                        className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
+                                    />
+                                    <span className="text-gray-600">تفعيل الفلترة</span>
+                                </label>
+                                <Button type="submit" variant="primary" size="sm" disabled={addFeedMutation.isPending}>
+                                    {addFeedMutation.isPending ? 'جاري الإضافة...' : 'إضافة'}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Modal>
+
+
+            {/* Edit Feed Modal */}
+            <Modal
+                isOpen={!!editingFeed}
+                onClose={() => setEditingFeed(null)}
+                title="تعديل الرابط"
+                width="max-w-md"
+            >
+                <form onSubmit={handleUpdateFeed} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            رابط RSS <span className="text-red-500">*</span>
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">رابط RSS</label>
                         <input
                             type="url"
-                            value={formData.feedUrl}
-                            onChange={(e) => setFormData({ ...formData, feedUrl: e.target.value })}
-                            placeholder="https://example.com/rss.xml"
+                            value={feedFormData.feedUrl}
+                            onChange={(e) => setFeedFormData({ ...feedFormData, feedUrl: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             dir="ltr"
                             required
                         />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                رابط الموقع
-                            </label>
-                            <input
-                                type="url"
-                                value={formData.websiteUrl || ''}
-                                onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
-                                placeholder="https://example.com"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                                dir="ltr"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                رابط الشعار
-                            </label>
-                            <input
-                                type="url"
-                                value={formData.logoUrl || ''}
-                                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                                placeholder="https://example.com/logo.webp"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                                dir="ltr"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Category Selection - Choose 'منوع' for mixed sources with auto-classification */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            التصنيف <span className="text-red-500">*</span>
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">التصنيف</label>
                         <select
-                            value={formData.categoryId}
-                            onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                            value={feedFormData.categoryId}
+                            onChange={(e) => setFeedFormData({ ...feedFormData, categoryId: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             required
                         >
@@ -447,86 +838,68 @@ export default function RSSSourcesPage() {
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">
-                            اختر &quot;منوع&quot; للمصادر متعددة الفئات - سيتم تصنيف المقالات تلقائياً
-                        </p>
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                فترة التحديث (دقائق)
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">فترة التحديث (دقائق)</label>
                             <input
                                 type="number"
-                                value={formData.fetchInterval}
-                                onChange={(e) => setFormData({ ...formData, fetchInterval: Number(e.target.value) })}
+                                value={feedFormData.fetchInterval}
+                                onChange={(e) => setFeedFormData({ ...feedFormData, fetchInterval: Number(e.target.value) })}
                                 min={5}
                                 max={1440}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                فلترة اليمن الذكية
-                            </label>
-                            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">الفلترة</label>
+                            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                                 <input
                                     type="checkbox"
-                                    checked={formData.applyFilter !== false}
-                                    onChange={(e) => setFormData({ ...formData, applyFilter: e.target.checked })}
+                                    checked={feedFormData.applyFilter !== false}
+                                    onChange={(e) => setFeedFormData({ ...feedFormData, applyFilter: e.target.checked })}
                                     className="h-5 w-5 text-primary rounded focus:ring-primary border-gray-300"
                                 />
-                                <span className="text-gray-700">تفعيل الفلترة</span>
+                                <span className="text-gray-700">تفعيل</span>
                             </label>
-                            <p className="text-xs text-gray-500 mt-1">
-                                عند التعطيل، سيتم استيراد جميع المقالات دون فحص.
-                            </p>
                         </div>
                     </div>
-
-                    {/* Description HIDDEN */}
-                    {/*
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            الوصف
-                        </label>
-                        <textarea
-                            value={formData.description || ''}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            rows={2}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                    </div>
-                    */}
-
                     <div className="flex gap-3 pt-4">
                         <Button
                             type="submit"
                             variant="primary"
-                            disabled={createMutation.isPending || updateMutation.isPending}
+                            disabled={updateFeedMutation.isPending}
                             className="flex-1"
                         >
-                            {(createMutation.isPending || updateMutation.isPending) ? 'جاري الحفظ...' : 'حفظ'}
+                            {updateFeedMutation.isPending ? 'جاري الحفظ...' : 'حفظ التغييرات'}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => { setAddModalOpen(false); setEditingSource(null); resetForm(); }}
-                        >
+                        <Button type="button" variant="secondary" onClick={() => setEditingFeed(null)}>
                             إلغاء
                         </Button>
                     </div>
                 </form>
             </Modal>
 
-            {/* Delete Confirmation */}
+
+            {/* Delete Source Confirmation */}
             <ConfirmModal
                 isOpen={!!deleteTarget}
                 onClose={() => setDeleteTarget(null)}
                 onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
                 title="حذف المصدر"
-                message={`هل أنت متأكد من حذف مصدر "${deleteTarget?.name}"؟ سيتم حذف جميع المقالات المرتبطة به.`}
+                message={`هل أنت متأكد من حذف مصدر "${deleteTarget?.name}"؟ سيتم حذف جميع الروابط والمقالات المرتبطة به.`}
+                confirmLabel="حذف"
+                cancelLabel="إلغاء"
+                isDestructive
+            />
+
+            {/* Delete Feed Confirmation */}
+            <ConfirmModal
+                isOpen={!!deleteFeedTarget}
+                onClose={() => setDeleteFeedTarget(null)}
+                onConfirm={() => deleteFeedTarget && deleteFeedMutation.mutate(deleteFeedTarget.id)}
+                title="حذف الرابط"
+                message={`هل أنت متأكد من حذف هذا الرابط؟ سيتم حذف جميع المقالات المرتبطة به.`}
                 confirmLabel="حذف"
                 cancelLabel="إلغاء"
                 isDestructive

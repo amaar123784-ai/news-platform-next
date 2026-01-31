@@ -116,7 +116,7 @@ model Category {
   sortOrder   Int     @default(0)
 
   articles    Article[]
-  rssSources  RSSSource[]
+  rssFeeds    RSSFeed[]      // Changed from rssSources
   rssArticles RSSArticle[]
 
   @@index([slug])
@@ -209,13 +209,26 @@ model RefreshToken {
 
 // ============= RSS FEED MODELS =============
 
+// Main source entity (e.g., "الجزيرة نت")
 model RSSSource {
   id             String          @id @default(uuid())
   name           String          @db.VarChar(100)        // e.g., "الجزيرة نت"
-  feedUrl        String          @unique @db.VarChar(500)
   websiteUrl     String?         @db.VarChar(500)        // Source homepage
   logoUrl        String?         @db.VarChar(500)        // Source logo for attribution
   description    String?         @db.Text
+  
+  isActive       Boolean         @default(true)
+  
+  feeds          RSSFeed[]                               // Multiple feeds per source
+  
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// Individual feed (e.g., "الجزيرة - سياسة", "الجزيرة - رياضة")
+model RSSFeed {
+  id             String          @id @default(uuid())
+  feedUrl        String          @unique @db.VarChar(500)
   
   status         RSSSourceStatus @default(ACTIVE)
   fetchInterval  Int             @default(15)             // Minutes between fetches
@@ -223,18 +236,23 @@ model RSSSource {
   lastError      String?         @db.Text
   errorCount     Int             @default(0)
   
-  isActive       Boolean         @default(true)
-  applyFilter    Boolean         @default(true) // Toggle Yemen-specific filtering
+  applyFilter    Boolean         @default(true)          // Toggle Yemen-specific filtering
   
-  categoryId     String                                   // Map to platform category
+  // Category for this feed
+  categoryId     String
   category       Category        @relation(fields: [categoryId], references: [id])
+  
+  // Parent source
+  sourceId       String
+  source         RSSSource       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   
   articles       RSSArticle[]
   
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-
+  
   @@index([status])
+  @@index([sourceId])
   @@index([categoryId])
   @@index([lastFetchedAt])
 }
@@ -255,8 +273,9 @@ model RSSArticle {
   approvedAt     DateTime?
   approvedById   String?
   
-  sourceId       String
-  source         RSSSource        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  // Link to feed (NEW - replaces sourceId)
+  feedId         String
+  feed           RSSFeed          @relation(fields: [feedId], references: [id], onDelete: Cascade)
   
   // Auto-classified category (for mixed sources)
   categoryId     String?
@@ -281,7 +300,7 @@ model RSSArticle {
   automationQueue   AutomationQueue?
   
   @@index([status])
-  @@index([sourceId])
+  @@index([feedId])
   @@index([publishedAt])
   @@index([guid])
   @@index([titleHash])

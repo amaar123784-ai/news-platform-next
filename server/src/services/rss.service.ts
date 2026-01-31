@@ -378,9 +378,10 @@ function truncateExcerpt(text: string | undefined, maxLength = 200): string {
 }
 
 /**
- * Fetch and parse a single RSS feed source
+ * Fetch and parse a single RSS feed
+ * Now works with RSSFeed model instead of RSSSource
  */
-export async function fetchRSSFeed(sourceId: string): Promise<{
+export async function fetchRSSFeed(feedId: string): Promise<{
     success: boolean;
     newArticles: number;
     errors: string[];
@@ -389,42 +390,43 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
     let newArticles = 0;
 
     try {
-        const source = await prisma.rSSSource.findUnique({
-            where: { id: sourceId },
+        const feed = await prisma.rSSFeed.findUnique({
+            where: { id: feedId },
             include: {
                 category: { select: { slug: true } },
+                source: { select: { id: true, name: true, websiteUrl: true } },
             },
         });
 
-        if (!source) {
-            return { success: false, newArticles: 0, errors: ['المصدر غير موجود'] };
+        if (!feed) {
+            return { success: false, newArticles: 0, errors: ['الرابط غير موجود'] };
         }
 
-        if (source.status !== 'ACTIVE') {
-            return { success: false, newArticles: 0, errors: ['المصدر متوقف أو به خطأ'] };
+        if (feed.status !== 'ACTIVE') {
+            return { success: false, newArticles: 0, errors: ['الرابط متوقف أو به خطأ'] };
         }
 
-        console.log(`[RSS] Fetching feed: ${source.name} (${source.feedUrl})`);
+        console.log(`[RSS] Fetching feed: ${feed.source.name} (${feed.feedUrl})`);
 
         // Try standard RSS parser first, fallback to custom parser if it fails
         let feedItems: any[] = [];
         let usedFallback = false;
 
         try {
-            const feed = await parser.parseURL(source.feedUrl);
-            feedItems = feed.items;
-            console.log(`[RSS] Parsed ${feedItems.length} items from ${source.name}`);
+            const parsedFeed = await parser.parseURL(feed.feedUrl);
+            feedItems = parsedFeed.items;
+            console.log(`[RSS] Parsed ${feedItems.length} items from ${feed.source.name}`);
         } catch (parseError: any) {
-            console.log(`[RSS] Standard parser failed for ${source.name}: ${parseError.message}`);
+            console.log(`[RSS] Standard parser failed for ${feed.source.name}: ${parseError.message}`);
             console.log(`[RSS] Trying fallback parser...`);
 
             try {
-                const fallbackFeed = await parseNonStandardFeed(source.feedUrl);
+                const fallbackFeed = await parseNonStandardFeed(feed.feedUrl);
                 feedItems = fallbackFeed.items;
                 usedFallback = true;
-                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${source.name}`);
+                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${feed.source.name}`);
             } catch (fallbackError: any) {
-                console.error(`[RSS] Both parsers failed for ${source.name}`);
+                console.error(`[RSS] Both parsers failed for ${feed.source.name}`);
                 errors.push(`فشل تحليل الخلاصة: ${parseError.message}`);
                 return { success: false, newArticles: 0, errors };
             }
@@ -450,11 +452,11 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 continue; // Already have this article
             }
 
-            // Check for duplicates by similar title (same source)
+            // Check for duplicates by similar title (same feed)
             const existingByTitle = await prisma.rSSArticle.findFirst({
                 where: {
                     titleHash,
-                    sourceId: source.id,
+                    feedId: feed.id,
                 },
             });
 
@@ -464,7 +466,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
             // ========== 1. CLASSIFICATION & CATEGORY DETERMINATION ==========
             let articleCategoryId: string | null = null;
-            let targetCategorySlug = source.category?.slug || '';
+            let targetCategorySlug = feed.category?.slug || '';
             const excerpt = item.contentSnippet || item.content || (item as any).description || '';
 
             // If source is Mixed, try to auto-classify first
@@ -482,8 +484,8 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     }
                 }
             } else {
-                // Non-mixed source: inherit source category ID
-                articleCategoryId = source.categoryId;
+                // Non-mixed feed: inherit feed category ID
+                articleCategoryId = feed.categoryId;
             }
 
             // ========== 2. FILTER GATE (DISABLED) ==========
@@ -505,7 +507,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
             try {
                 // Extract image from RSS feed first
-                const baseFeedUrl = source.websiteUrl || source.feedUrl;
+                const baseFeedUrl = feed.source.websiteUrl || feed.feedUrl;
                 let rawImageUrl = extractImage(item);
                 let articleContent = item.content || item['content:encoded'] || (item as any).description || '';
 
@@ -543,7 +545,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         imageUrl: remoteImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
-                        sourceId: source.id,
+                        feedId: feed.id,
                         status: articleStatus,
                         approvedAt: null,
                         categoryId: articleCategoryId,
@@ -567,9 +569,9 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
             }
         }
 
-        // Update source with successful fetch
-        await prisma.rSSSource.update({
-            where: { id: sourceId },
+        // Update feed with successful fetch
+        await prisma.rSSFeed.update({
+            where: { id: feedId },
             data: {
                 lastFetchedAt: new Date(),
                 errorCount: 0,
@@ -578,16 +580,16 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
             },
         });
 
-        console.log(`[RSS] Completed ${source.name}: ${newArticles} new articles`);
+        console.log(`[RSS] Completed ${feed.source.name}: ${newArticles} new articles`);
         return { success: true, newArticles, errors };
 
     } catch (error: any) {
-        console.error(`[RSS] Error fetching source ${sourceId}:`, error.message);
+        console.error(`[RSS] Error fetching feed ${feedId}:`, error.message);
 
-        // Update source with error information
+        // Update feed with error information
         try {
-            await prisma.rSSSource.update({
-                where: { id: sourceId },
+            await prisma.rSSFeed.update({
+                where: { id: feedId },
                 data: {
                     lastError: error.message,
                     errorCount: { increment: 1 },
@@ -595,7 +597,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                 },
             });
         } catch (updateError) {
-            console.error('[RSS] Failed to update source error status');
+            console.error('[RSS] Failed to update feed error status');
         }
 
         return { success: false, newArticles: 0, errors: [error.message] };
@@ -604,41 +606,46 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
 
 /**
  * Fetch all active RSS feeds that are due for update
- * Uses Promise.allSettled for graceful error handling per source
+ * Uses Promise.allSettled for graceful error handling per feed
  */
 export async function fetchAllActiveFeeds(): Promise<{
-    sourcesChecked: number;
+    feedsChecked: number;
     totalNewArticles: number;
     successful: number;
     failed: number;
 }> {
     console.log('[RSS] Starting scheduled feed fetch...');
 
-    const sources = await prisma.rSSSource.findMany({
+    const feeds = await prisma.rSSFeed.findMany({
         where: {
             status: 'ACTIVE',
-            isActive: true,
+            source: {
+                isActive: true,
+            },
+        },
+        include: {
+            source: { select: { name: true } },
         },
     });
 
-    // Filter sources that are due for fetching
-    const dueSources = sources.filter(source => {
-        if (!source.lastFetchedAt) return true;
-        const minutesSinceLastFetch = (Date.now() - source.lastFetchedAt.getTime()) / 60000;
-        return minutesSinceLastFetch >= source.fetchInterval;
+    // Filter feeds that are due for fetching
+    const dueFeeds = feeds.filter(feed => {
+        if (!feed.lastFetchedAt) return true;
+        const minutesSinceLastFetch = (Date.now() - feed.lastFetchedAt.getTime()) / 60000;
+        return minutesSinceLastFetch >= feed.fetchInterval;
     });
 
-    if (dueSources.length === 0) {
-        console.log('[RSS] No sources due for fetching');
-        return { sourcesChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
+    if (dueFeeds.length === 0) {
+        console.log('[RSS] No feeds due for fetching');
+        return { feedsChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
     }
 
-    // Fetch all sources in parallel with error isolation
+    // Fetch all feeds in parallel with error isolation
     const results = await Promise.allSettled(
-        dueSources.map(async (source, index) => {
+        dueFeeds.map(async (feed, index) => {
             // Stagger requests to avoid thundering herd
             await new Promise(resolve => setTimeout(resolve, index * 500));
-            return fetchRSSFeed(source.id);
+            return fetchRSSFeed(feed.id);
         })
     );
 
@@ -650,8 +657,8 @@ export async function fetchAllActiveFeeds(): Promise<{
         .map(r => (r as PromiseFulfilledResult<{ success: boolean; newArticles: number; errors: string[] }>).value.newArticles)
         .reduce((sum, count) => sum + count, 0);
 
-    console.log(`[RSS] Fetch complete: ${dueSources.length} sources (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
-    return { sourcesChecked: dueSources.length, totalNewArticles, successful, failed };
+    console.log(`[RSS] Fetch complete: ${dueFeeds.length} feeds (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
+    return { feedsChecked: dueFeeds.length, totalNewArticles, successful, failed };
 }
 
 /**
