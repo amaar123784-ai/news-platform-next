@@ -300,7 +300,7 @@ export const rssService = {
         ids: string[],
         status: 'APPROVED' | 'REJECTED'
     ): Promise<SingleResponse<{ updatedCount: number }>> {
-        const response = await api.post('/rss/articles/bulk', { ids, status });
+        const response = await api.post('/rss/articles/bulk-update', { ids, status });
         return response.data;
     },
 
