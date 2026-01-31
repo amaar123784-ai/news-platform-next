@@ -65,8 +65,8 @@ function ProgressSteps({ item }: { item: AutomationQueueItem }) {
             {steps.map((step, index) => (
                 <div key={step.key} className="flex items-center">
                     <div className={`flex items-center justify-center w-6 h-6 rounded-full ${step.done ? 'bg-green-500 text-white' :
-                            step.active ? 'bg-blue-500 text-white animate-pulse' :
-                                'bg-gray-200 text-gray-500'
+                        step.active ? 'bg-blue-500 text-white animate-pulse' :
+                            'bg-gray-200 text-gray-500'
                         }`}>
                         <step.icon className="w-3 h-3" />
                     </div>
@@ -147,7 +147,7 @@ export default function AutomationQueuePage() {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const queryClient = useQueryClient();
 
-    const { data, isLoading, error } = useQuery({
+    const { data, isLoading, error, refetch, isRefetching } = useQuery({
         queryKey: ['automationQueue', page, statusFilter],
         queryFn: () => automationService.getQueue({ page, perPage: 20, status: statusFilter || undefined }),
     });
@@ -182,11 +182,12 @@ export default function AutomationQueuePage() {
                 </div>
 
                 <button
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['automationQueue'] })}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    onClick={() => refetch()}
+                    disabled={isRefetching}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 >
-                    <FiRefreshCw className="w-4 h-4" />
-                    تحديث
+                    <FiRefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+                    {isRefetching ? 'جاري التحديث...' : 'تحديث'}
                 </button>
             </div>
 
@@ -197,8 +198,8 @@ export default function AutomationQueuePage() {
                         key={option.value}
                         onClick={() => { setStatusFilter(option.value); setPage(1); }}
                         className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${statusFilter === option.value
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                     >
                         {option.label}
