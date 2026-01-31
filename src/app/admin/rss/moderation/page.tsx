@@ -36,17 +36,17 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-xs text-blue-600 font-medium whitespace-nowrap">
-                        {article.source.name}
+                        {article.feed?.source?.name}
                     </span>
-                    {article.source.category && (
+                    {article.feed?.category && (
                         <span
                             className="text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
                             style={{
-                                backgroundColor: `${article.source.category.color || '#2563EB'}20`,
-                                color: article.source.category.color || '#2563EB'
+                                backgroundColor: `${article.feed.category.color || '#2563EB'}20`,
+                                color: article.feed.category.color || '#2563EB'
                             }}
                         >
-                            {article.source.category.name}
+                            {article.feed.category.name}
                         </span>
                     )}
                     <span className="text-xs text-gray-400 whitespace-nowrap">
