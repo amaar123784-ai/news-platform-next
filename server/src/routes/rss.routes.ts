@@ -4,7 +4,7 @@
  * Public endpoint for fetching aggregated news
  */
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../index.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -75,7 +75,7 @@ const bulkUpdateSchema = z.object({
  * GET /api/rss/articles - Public aggregated news
  * Returns approved articles from all RSS feeds
  */
-router.get('/articles', async (req, res, next) => {
+router.get('/articles', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const page = Math.max(1, Number(req.query.page) || 1);
         const perPage = Math.min(50, Math.max(1, Number(req.query.perPage) || 20));
@@ -84,7 +84,7 @@ router.get('/articles', async (req, res, next) => {
 
         const where: any = { status: 'APPROVED' };
 
-        // Filter by category ID or slug
+        // Filter by category ID or slug via feed relation
         if (categoryId) {
             where.feed = { categoryId };
         } else if (categorySlug) {
@@ -98,17 +98,9 @@ router.get('/articles', async (req, res, next) => {
                     feed: {
                         select: {
                             categoryId: true,
-                            source: {
-                                select: {
-                                    name: true,
-                                    logoUrl: true,
-                                    websiteUrl: true,
-                                }
-                            },
-                            category: {
-                                select: { id: true, name: true, slug: true }
-                            }
-                        },
+                            category: { select: { id: true, name: true, slug: true, color: true } },
+                            source: { select: { name: true, logoUrl: true, websiteUrl: true } }
+                        }
                     },
                 },
                 orderBy: { publishedAt: 'desc' },
@@ -133,45 +125,45 @@ router.get('/articles', async (req, res, next) => {
     }
 });
 
-// ============= ADMIN: SOURCES MANAGEMENT =============
+// ============= ADMIN: SOURCE MANAGEMENT =============
 
 /**
  * GET /api/rss/sources - List all RSS sources with their feeds
  */
-router.get('/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const sources = await prisma.rSSSource.findMany({
             include: {
                 feeds: {
                     include: {
                         category: { select: { id: true, name: true, slug: true, color: true } },
-                        _count: { select: { articles: true } },
+                        _count: { select: { articles: true } }
                     },
-                    orderBy: { createdAt: 'asc' },
-                },
+                    orderBy: { createdAt: 'asc' }
+                }
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { name: 'asc' },
         });
 
-        // Add total article count for each source
-        const sourcesWithCounts = sources.map(source => ({
+        // Add computed stats for each source
+        const sourcesWithStats = sources.map((source: any) => ({
             ...source,
             _count: {
-                feeds: source.feeds.length,
-                articles: source.feeds.reduce((sum, feed) => sum + (feed._count?.articles || 0), 0),
-            },
+                articles: source.feeds.reduce((sum: number, feed: any) => sum + feed._count.articles, 0),
+                feeds: source.feeds.length
+            }
         }));
 
-        res.json({ success: true, data: sourcesWithCounts });
+        res.json({ success: true, data: sourcesWithStats });
     } catch (error) {
         next(error);
     }
 });
 
 /**
- * GET /api/rss/sources/:id - Get single RSS source with feeds
+ * GET /api/rss/sources/:id - Get single source with feeds
  */
-router.get('/sources/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/sources/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const source = await prisma.rSSSource.findUnique({
             where: { id: req.params.id },
@@ -179,9 +171,9 @@ router.get('/sources/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (
                 feeds: {
                     include: {
                         category: { select: { id: true, name: true, slug: true } },
-                        _count: { select: { articles: true } },
-                    },
-                },
+                        _count: { select: { articles: true } }
+                    }
+                }
             },
         });
 
@@ -196,33 +188,23 @@ router.get('/sources/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (
 });
 
 /**
- * POST /api/rss/sources - Add new RSS source with feeds
+ * POST /api/rss/sources - Create new RSS source with feeds
  */
-router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.post('/sources', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const data = createSourceSchema.parse(req.body);
 
-        // Check if any feed URLs already exist
-        for (const feed of data.feeds) {
-            const existingFeed = await prisma.rSSFeed.findUnique({
-                where: { feedUrl: feed.feedUrl },
-            });
-            if (existingFeed) {
-                throw createError(400, `هذا الرابط موجود بالفعل: ${feed.feedUrl}`, 'RSS_FEED_EXISTS');
-            }
-        }
-
-        // Verify all category IDs exist
-        const categoryIds = [...new Set(data.feeds.map(f => f.categoryId))];
-        const categories = await prisma.category.findMany({
-            where: { id: { in: categoryIds } },
-            select: { id: true },
+        // Check for duplicate feed URLs
+        const existingFeeds = await prisma.rSSFeed.findMany({
+            where: { feedUrl: { in: data.feeds.map((f: any) => f.feedUrl) } },
+            select: { feedUrl: true }
         });
-        if (categories.length !== categoryIds.length) {
-            throw createError(400, 'بعض التصنيفات غير موجودة', 'CATEGORY_NOT_FOUND');
+
+        if (existingFeeds.length > 0) {
+            throw createError(400, `رابط RSS موجود مسبقاً: ${existingFeeds.map((f: any) => f.feedUrl).join(', ')}`, 'DUPLICATE_FEED_URL');
         }
 
-        // Create source with feeds in one transaction
+        // Create source with nested feeds
         const source = await prisma.rSSSource.create({
             data: {
                 name: data.name,
@@ -230,20 +212,21 @@ router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, nex
                 logoUrl: data.logoUrl,
                 description: data.description,
                 feeds: {
-                    create: data.feeds.map(feed => ({
+                    create: data.feeds.map((feed: any) => ({
                         feedUrl: feed.feedUrl,
                         categoryId: feed.categoryId,
                         fetchInterval: feed.fetchInterval,
                         applyFilter: feed.applyFilter,
-                    })),
-                },
+                        status: 'ACTIVE',
+                    }))
+                }
             },
             include: {
                 feeds: {
                     include: {
-                        category: { select: { id: true, name: true, slug: true } },
-                    },
-                },
+                        category: { select: { id: true, name: true, slug: true } }
+                    }
+                }
             },
         });
 
@@ -254,7 +237,7 @@ router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, nex
                 targetType: 'rss_source',
                 targetId: source.id,
                 targetTitle: source.name,
-                userId: req.user!.userId,
+                userId: (req as any).user!.userId,
             },
         });
 
@@ -265,9 +248,9 @@ router.post('/sources', authenticate, requireRole('ADMIN'), async (req, res, nex
 });
 
 /**
- * PATCH /api/rss/sources/:id - Update RSS source metadata only
+ * PATCH /api/rss/sources/:id - Update source metadata
  */
-router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const data = updateSourceSchema.parse(req.body);
 
@@ -277,9 +260,9 @@ router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res
             include: {
                 feeds: {
                     include: {
-                        category: { select: { id: true, name: true, slug: true } },
-                    },
-                },
+                        category: { select: { id: true, name: true, slug: true } }
+                    }
+                }
             },
         });
 
@@ -290,9 +273,9 @@ router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res
 });
 
 /**
- * DELETE /api/rss/sources/:id - Remove RSS source and its articles
+ * DELETE /api/rss/sources/:id - Delete source and all its feeds/articles
  */
-router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const source = await prisma.rSSSource.findUnique({
             where: { id: req.params.id },
@@ -313,7 +296,7 @@ router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req, re
                 targetType: 'rss_source',
                 targetId: source.id,
                 targetTitle: source.name,
-                userId: req.user!.userId,
+                userId: (req as any).user!.userId,
             },
         });
 
@@ -324,78 +307,77 @@ router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req, re
 });
 
 /**
- * POST /api/rss/sources/:id/fetch - Fetch all feeds of a source
+ * POST /api/rss/sources/:id/fetch - Fetch all feeds for a source
  */
-router.post('/sources/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.post('/sources/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         // Get all feeds for this source
         const feeds = await prisma.rSSFeed.findMany({
-            where: { sourceId: req.params.id, status: 'ACTIVE' },
-            select: { id: true },
+            where: { sourceId: req.params.id, status: 'ACTIVE' }
         });
 
         if (feeds.length === 0) {
-            throw createError(404, 'لا توجد روابط لهذا المصدر', 'NO_FEEDS_FOUND');
+            throw createError(404, 'لا توجد روابط نشطة لهذا المصدر', 'NO_ACTIVE_FEEDS');
         }
 
-        // Fetch all feeds
-        const results = await Promise.allSettled(feeds.map(f => fetchRSSFeed(f.id)));
+        const results = await Promise.all(
+            feeds.map((f: any) => fetchRSSFeed(f.id))
+        );
 
-        const totalNewArticles = results
-            .filter(r => r.status === 'fulfilled')
-            .map(r => (r as PromiseFulfilledResult<{ newArticles: number }>).value.newArticles)
-            .reduce((sum, n) => sum + n, 0);
-
-        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const totalNewArticles = results.reduce((sum: number, r: any) => sum + (r.newArticles || 0), 0);
+        const successCount = results.filter((r: any) => r.success).length;
+        const errors = results.flatMap((r: any) => r.errors || []);
 
         res.json({
             success: true,
             data: {
-                feedsCount: feeds.length,
-                successful,
-                totalNewArticles,
+                feedsChecked: feeds.length,
+                successCount,
+                newArticles: totalNewArticles,
+                errors,
             },
-            message: `تم جلب ${totalNewArticles} مقال جديد من ${successful} رابط`,
+            message: `تم جلب ${totalNewArticles} مقال جديد من ${successCount} رابط`,
         });
     } catch (error) {
         next(error);
     }
 });
 
-// ============= ADMIN: FEEDS MANAGEMENT =============
+// ============= ADMIN: FEED MANAGEMENT =============
 
 /**
- * POST /api/rss/sources/:id/feeds - Add a new feed to a source
+ * POST /api/rss/sources/:id/feeds - Add new feed to existing source
  */
-router.post('/sources/:sourceId/feeds', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.post('/sources/:id/feeds', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const data = addFeedSchema.parse(req.body);
-        const sourceId = req.params.sourceId;
 
         // Check source exists
         const source = await prisma.rSSSource.findUnique({
-            where: { id: sourceId },
+            where: { id: req.params.id }
         });
+
         if (!source) {
-            throw createError(404, 'المصدر غير موجود', 'SOURCE_NOT_FOUND');
+            throw createError(404, 'المصدر غير موجود', 'RSS_SOURCE_NOT_FOUND');
         }
 
-        // Check feed URL is unique
+        // Check for duplicate
         const existingFeed = await prisma.rSSFeed.findUnique({
-            where: { feedUrl: data.feedUrl },
+            where: { feedUrl: data.feedUrl }
         });
+
         if (existingFeed) {
-            throw createError(400, 'هذا الرابط موجود بالفعل', 'FEED_EXISTS');
+            throw createError(400, 'رابط RSS موجود مسبقاً', 'DUPLICATE_FEED_URL');
         }
 
-        // Create the feed
         const feed = await prisma.rSSFeed.create({
             data: {
                 feedUrl: data.feedUrl,
+                sourceId: req.params.id,
                 categoryId: data.categoryId,
                 fetchInterval: data.fetchInterval,
                 applyFilter: data.applyFilter,
-                sourceId,
+                status: 'ACTIVE',
             },
             include: {
                 category: { select: { id: true, name: true, slug: true } },
@@ -409,9 +391,9 @@ router.post('/sources/:sourceId/feeds', authenticate, requireRole('ADMIN'), asyn
 });
 
 /**
- * PATCH /api/rss/feeds/:id - Update a feed
+ * PATCH /api/rss/feeds/:id - Update feed settings
  */
-router.patch('/feeds/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.patch('/feeds/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const data = updateFeedSchema.parse(req.body);
 
@@ -432,7 +414,7 @@ router.patch('/feeds/:id', authenticate, requireRole('ADMIN'), async (req, res, 
 /**
  * DELETE /api/rss/feeds/:id - Delete a feed
  */
-router.delete('/feeds/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.delete('/feeds/:id', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const feed = await prisma.rSSFeed.findUnique({
             where: { id: req.params.id },
@@ -456,7 +438,7 @@ router.delete('/feeds/:id', authenticate, requireRole('ADMIN'), async (req, res,
 /**
  * POST /api/rss/feeds/:id/fetch - Fetch a single feed
  */
-router.post('/feeds/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.post('/feeds/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await fetchRSSFeed(req.params.id);
 
@@ -478,159 +460,42 @@ router.post('/feeds/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), as
 // ============= ADMIN: MODERATION =============
 
 /**
-        // Verify category exists
-        const category = await prisma.category.findUnique({
-            where: { id: data.categoryId },
-        });
-
-        if (!category) {
-            throw createError(400, 'التصنيف غير موجود', 'CATEGORY_NOT_FOUND');
-        }
-
-        const source = await prisma.rSSSource.create({
-            data: {
-                name: data.name,
-                feedUrl: data.feedUrl,
-                websiteUrl: data.websiteUrl,
-                logoUrl: data.logoUrl,
-                description: data.description,
-                categoryId: data.categoryId,
-                fetchInterval: data.fetchInterval,
-            },
-            include: {
-                category: { select: { id: true, name: true, slug: true } },
-            },
-        });
-
-        // Log activity
-        await prisma.activityLog.create({
-            data: {
-                action: 'CREATE',
-                targetType: 'rss_source',
-                targetId: source.id,
-                targetTitle: source.name,
-                userId: req.user!.userId,
-            },
-        });
-
-        res.status(201).json({ success: true, data: source });
-    } catch (error) {
-        next(error);
-    }
-});
-
-/**
- * PATCH /api/rss/sources/:id - Update RSS source
+ * GET /api/rss/moderation/sources - Get sources with pending articles count
  */
-router.patch('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
-    try {
-        const data = updateSourceSchema.parse(req.body);
-
-        const source = await prisma.rSSSource.update({
-            where: { id: req.params.id },
-            data,
-            include: {
-                category: { select: { id: true, name: true, slug: true } },
-            },
-        });
-
-        res.json({ success: true, data: source });
-    } catch (error) {
-        next(error);
-    }
-});
-
-/**
- * DELETE /api/rss/sources/:id - Remove RSS source and its articles
- */
-router.delete('/sources/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
-    try {
-        const source = await prisma.rSSSource.findUnique({
-            where: { id: req.params.id },
-        });
-
-        if (!source) {
-            throw createError(404, 'المصدر غير موجود', 'RSS_SOURCE_NOT_FOUND');
-        }
-
-        await prisma.rSSSource.delete({
-            where: { id: req.params.id },
-        });
-
-        // Log activity
-        await prisma.activityLog.create({
-            data: {
-                action: 'DELETE',
-                targetType: 'rss_source',
-                targetId: source.id,
-                targetTitle: source.name,
-                userId: req.user!.userId,
-            },
-        });
-
-        res.json({ success: true, message: 'تم حذف المصدر بنجاح' });
-    } catch (error) {
-        next(error);
-    }
-});
-
-/**
- * POST /api/rss/sources/:id/fetch - Manually trigger feed fetch
- */
-router.post('/sources/:id/fetch', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
-    try {
-        const result = await fetchRSSFeed(req.params.id);
-
-        res.json({
-            success: result.success,
-            data: {
-                newArticles: result.newArticles,
-                errors: result.errors,
-            },
-            message: result.success
-                ? `تم جلب ${result.newArticles} مقال جديد`
-                : 'فشل جلب الأخبار',
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// ============= ADMIN: MODERATION =============
-
-/**
- * GET /api/rss/moderation/sources - Get sources with pending articles
- */
-router.get('/moderation/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/moderation/sources', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const sources = await prisma.rSSSource.findMany({
-            where: {
-                status: 'ACTIVE'
-            },
-            select: {
-                id: true,
-                name: true,
-                logoUrl: true,
-                category: { select: { id: true, name: true, color: true } },
-                _count: {
-                    select: {
-                        articles: { where: { status: 'PENDING' } }
+            where: { isActive: true },
+            include: {
+                feeds: {
+                    include: {
+                        category: { select: { id: true, name: true, color: true } },
+                        _count: { select: { articles: { where: { status: 'PENDING' } } } }
                     }
                 }
             },
             orderBy: { name: 'asc' }
         });
 
-        res.json({ success: true, data: sources });
+        const formattedSources = sources.map((source: any) => ({
+            id: source.id,
+            name: source.name,
+            logoUrl: source.logoUrl,
+            _count: {
+                articles: source.feeds.reduce((sum: number, feed: any) => sum + feed._count.articles, 0)
+            }
+        }));
+
+        res.json({ success: true, data: formattedSources });
     } catch (error) {
         next(error);
     }
 });
 
 /**
- * GET /api/rss/moderation - Articles pending review
+ * GET /api/rss/moderation - Articles for review
  */
-router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const page = Math.max(1, Number(req.query.page) || 1);
         const perPage = Math.min(100, Math.max(1, Number(req.query.perPage) || 50));
@@ -641,26 +506,22 @@ router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (r
         const where: any = { status };
 
         if (sourceId) {
-            where.sourceId = sourceId;
+            where.feed = { sourceId };
         }
 
         if (categoryId) {
-            where.source = {
-                ...where.source,
-                categoryId
-            };
+            where.feed = { ...where.feed, categoryId };
         }
 
         const [articles, total] = await Promise.all([
             prisma.rSSArticle.findMany({
                 where,
                 include: {
-                    source: {
+                    feed: {
                         select: {
                             id: true,
-                            name: true,
-                            logoUrl: true,
-                            category: { select: { name: true, color: true } }
+                            source: { select: { id: true, name: true, logoUrl: true } },
+                            category: { select: { id: true, name: true, color: true } }
                         }
                     },
                 },
@@ -689,15 +550,15 @@ router.get('/moderation', authenticate, requireRole('ADMIN', 'EDITOR'), async (r
 /**
  * GET /api/rss/articles/:id - Get single RSS article details
  */
-router.get('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await prisma.rSSArticle.findUnique({
             where: { id: req.params.id },
             include: {
-                source: {
+                feed: {
                     select: {
-                        name: true,
-                        logoUrl: true,
+                        id: true,
+                        source: { select: { name: true, logoUrl: true } },
                         category: { select: { id: true, name: true, slug: true } }
                     }
                 }
@@ -717,7 +578,7 @@ router.get('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async 
 /**
  * PATCH /api/rss/articles/:id - Approve/reject single article
  */
-router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { status } = updateArticleStatusSchema.parse(req.body);
 
@@ -726,16 +587,16 @@ router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
             data: {
                 status,
                 approvedAt: status === 'APPROVED' ? new Date() : null,
-                approvedById: status === 'APPROVED' ? req.user!.userId : null,
+                approvedById: status === 'APPROVED' ? (req as any).user!.userId : null,
             },
             include: {
-                source: { select: { name: true } },
+                feed: { select: { source: { select: { name: true } } } },
             },
         });
 
         // Trigger automation pipeline for approved articles
         if (status === 'APPROVED') {
-            // Download image locally only when article is approved (saves storage)
+            // Download image locally when article is approved
             if (article.imageUrl && article.imageUrl.startsWith('http')) {
                 try {
                     const localImageUrl = await downloadRSSImage(article.imageUrl);
@@ -751,21 +612,36 @@ router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
                 }
             }
 
-            automationService.startAutomation(req.params.id).catch(err => {
+            automationService.startAutomation(req.params.id).catch((err: any) => {
                 console.error('[RSS] Failed to start automation:', err.message);
             });
         }
 
-        res.json({ success: true, data: article });
+        // Log activity
+        await prisma.activityLog.create({
+            data: {
+                action: status === 'APPROVED' ? 'approve' : 'reject',
+                targetType: 'rss_article',
+                targetId: article.id,
+                targetTitle: article.title,
+                userId: (req as any).user!.userId,
+            },
+        });
+
+        res.json({
+            success: true,
+            data: article,
+            message: status === 'APPROVED' ? 'تم اعتماد المقال' : 'تم رفض المقال',
+        });
     } catch (error) {
         next(error);
     }
 });
 
 /**
- * POST /api/rss/articles/bulk - Bulk approve/reject articles
+ * POST /api/rss/articles/bulk-update - Bulk approve/reject articles
  */
-router.post('/articles/bulk', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.post('/articles/bulk-update', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { ids, status } = bulkUpdateSchema.parse(req.body);
 
@@ -774,40 +650,36 @@ router.post('/articles/bulk', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
             data: {
                 status,
                 approvedAt: status === 'APPROVED' ? new Date() : null,
-                approvedById: status === 'APPROVED' ? req.user!.userId : null,
+                approvedById: status === 'APPROVED' ? (req as any).user!.userId : null,
             },
         });
 
-        res.json({
-            success: true,
-            message: `تم تحديث ${result.count} مقال`,
-            data: { updatedCount: result.count },
-        });
-
-        // Trigger automation pipeline for all approved articles
+        // Trigger automation for all approved articles
         if (status === 'APPROVED') {
-            ids.forEach(id => {
-                automationService.startAutomation(id).catch(err => {
+            for (const id of ids) {
+                automationService.startAutomation(id).catch((err: any) => {
                     console.error(`[RSS] Failed to start automation for ${id}:`, err.message);
                 });
-            });
+            }
         }
+
+        res.json({
+            success: true,
+            message: `تم ${status === 'APPROVED' ? 'اعتماد' : 'رفض'} ${result.count} مقال`,
+            data: { count: result.count },
+        });
     } catch (error) {
         next(error);
     }
 });
 
-// ============= ADMIN: AI REWRITING =============
+// ============= AI REWRITE =============
 
 /**
- * POST /api/rss/articles/:id/rewrite - Rewrite single article with AI
+ * POST /api/rss/articles/:id/rewrite - AI rewrite single article
  */
-router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
-        if (!isAIEnabled()) {
-            throw createError(400, 'خدمة الذكاء الاصطناعي غير مفعلة', 'AI_NOT_ENABLED');
-        }
-
         const article = await prisma.rSSArticle.findUnique({
             where: { id: req.params.id },
         });
@@ -816,28 +688,25 @@ router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'
             throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
 
-        // Use fullContent if available for better AI rewriting
-        const contentToRewrite = article.fullContent || article.excerpt || '';
-        const result = await rewriteArticle(article.title, contentToRewrite);
+        const rewrittenTitle = await rewriteArticle(article.title, 'title');
+        const rewrittenContent = await rewriteArticle(article.content || article.excerpt || '', 'content');
 
-        if (!result) {
-            throw createError(500, 'فشل إعادة صياغة المقال', 'REWRITE_FAILED');
+        if (rewrittenTitle || rewrittenContent) {
+            await prisma.rSSArticle.update({
+                where: { id: req.params.id },
+                data: {
+                    rewrittenTitle: rewrittenTitle || undefined,
+                    rewrittenContent: rewrittenContent || undefined,
+                    isRewritten: true,
+                    rewrittenAt: new Date(),
+                },
+            });
         }
-
-        const updated = await prisma.rSSArticle.update({
-            where: { id: req.params.id },
-            data: {
-                rewrittenTitle: result.rewrittenTitle,
-                rewrittenExcerpt: result.rewrittenExcerpt,
-                isRewritten: true,
-                rewrittenAt: new Date(),
-            },
-        });
 
         res.json({
             success: true,
-            message: 'تم إعادة صياغة المقال بنجاح',
-            data: updated,
+            message: 'تم إعادة صياغة المقال',
+            data: { rewrittenTitle, rewrittenContent },
         });
     } catch (error) {
         next(error);
@@ -845,34 +714,30 @@ router.post('/articles/:id/rewrite', authenticate, requireRole('ADMIN', 'EDITOR'
 });
 
 /**
- * POST /api/rss/articles/bulk-rewrite - Bulk rewrite articles with AI
+ * POST /api/rss/articles/bulk-rewrite - Bulk AI rewrite
  */
-router.post('/articles/bulk-rewrite', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.post('/articles/bulk-rewrite', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
-        if (!isAIEnabled()) {
-            throw createError(400, 'خدمة الذكاء الاصطناعي غير مفعلة', 'AI_NOT_ENABLED');
-        }
-
-        const { ids } = z.object({
-            ids: z.array(z.string().uuid()).min(1).max(10, 'الحد الأقصى 10 مقالات'),
-        }).parse(req.body);
+        const { ids } = z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(req.body);
 
         const articles = await prisma.rSSArticle.findMany({
             where: { id: { in: ids } },
         });
 
+        const results: { id: string; success: boolean; error?: string }[] = [];
         let successCount = 0;
-        const results: any[] = [];
 
         for (const article of articles) {
             try {
-                const result = await rewriteArticle(article.title, article.excerpt || '');
-                if (result) {
+                const rewrittenTitle = await rewriteArticle(article.title, 'title');
+                const rewrittenContent = await rewriteArticle(article.content || article.excerpt || '', 'content');
+
+                if (rewrittenTitle || rewrittenContent) {
                     await prisma.rSSArticle.update({
                         where: { id: article.id },
                         data: {
-                            rewrittenTitle: result.rewrittenTitle,
-                            rewrittenExcerpt: result.rewrittenExcerpt,
+                            rewrittenTitle: rewrittenTitle || undefined,
+                            rewrittenContent: rewrittenContent || undefined,
                             isRewritten: true,
                             rewrittenAt: new Date(),
                         },
@@ -886,7 +751,7 @@ router.post('/articles/bulk-rewrite', authenticate, requireRole('ADMIN', 'EDITOR
                 results.push({ id: article.id, success: false, error: err.message });
             }
 
-            // Small delay between API calls to avoid rate limiting
+            // Small delay between API calls
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
@@ -903,7 +768,7 @@ router.post('/articles/bulk-rewrite', authenticate, requireRole('ADMIN', 'EDITOR
 /**
  * GET /api/rss/ai-status - Check AI service status
  */
-router.get('/ai-status', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res) => {
+router.get('/ai-status', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response) => {
     res.json({
         success: true,
         data: { enabled: isAIEnabled() },
@@ -915,7 +780,7 @@ router.get('/ai-status', authenticate, requireRole('ADMIN', 'EDITOR'), async (re
 /**
  * POST /api/rss/fetch-all - Fetch all active feeds
  */
-router.post('/fetch-all', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.post('/fetch-all', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await fetchAllActiveFeeds();
 
@@ -932,7 +797,7 @@ router.post('/fetch-all', authenticate, requireRole('ADMIN'), async (req, res, n
 /**
  * POST /api/rss/cleanup - Cleanup old articles
  */
-router.post('/cleanup', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+router.post('/cleanup', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const daysOld = Math.min(365, Math.max(7, Number(req.query.days) || 30));
         const count = await cleanupOldArticles(daysOld);
@@ -950,7 +815,7 @@ router.post('/cleanup', authenticate, requireRole('ADMIN'), async (req, res, nex
 /**
  * GET /api/rss/stats - Get RSS statistics
  */
-router.get('/stats', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, res, next) => {
+router.get('/stats', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const stats = await getRSSStats();
         res.json({ success: true, data: stats });
