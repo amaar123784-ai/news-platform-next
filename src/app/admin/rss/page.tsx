@@ -34,7 +34,7 @@ const emptyFeed: CreateFeedData = {
     feedUrl: '',
     categoryId: '',
     fetchInterval: 15,
-    applyFilter: true,
+    applyFilter: false,
 };
 
 export default function RSSSourcesPage() {
@@ -419,8 +419,8 @@ export default function RSSSourcesPage() {
                                             <span
                                                 key={feed.id}
                                                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${feed.status === 'ERROR' ? 'bg-red-100 text-red-700' :
-                                                        feed.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' :
-                                                            ''
+                                                    feed.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' :
+                                                        ''
                                                     }`}
                                                 style={feed.status === 'ACTIVE' ? {
                                                     backgroundColor: `${feed.category?.color || '#2563EB'}20`,
@@ -582,15 +582,6 @@ export default function RSSSourcesPage() {
                                     </select>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={feed.applyFilter !== false}
-                                            onChange={(e) => updateFeedRow(index, 'applyFilter', e.target.checked)}
-                                            className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
-                                        />
-                                        <span className="text-gray-600">تفعيل الفلترة</span>
-                                    </label>
                                     <label className="flex items-center gap-2">
                                         <span className="text-gray-600">التحديث كل</span>
                                         <input
@@ -787,15 +778,6 @@ export default function RSSSourcesPage() {
                                 </select>
                             </div>
                             <div className="flex items-center gap-4">
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={feedFormData.applyFilter !== false}
-                                        onChange={(e) => setFeedFormData({ ...feedFormData, applyFilter: e.target.checked })}
-                                        className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
-                                    />
-                                    <span className="text-gray-600">تفعيل الفلترة</span>
-                                </label>
                                 <Button type="submit" variant="primary" size="sm" disabled={addFeedMutation.isPending}>
                                     {addFeedMutation.isPending ? 'جاري الإضافة...' : 'إضافة'}
                                 </Button>
@@ -839,41 +821,28 @@ export default function RSSSourcesPage() {
                             ))}
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">فترة التحديث (دقائق)</label>
-                            <input
-                                type="number"
-                                value={feedFormData.fetchInterval}
-                                onChange={(e) => setFeedFormData({ ...feedFormData, fetchInterval: Number(e.target.value) })}
-                                min={5}
-                                max={1440}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الفلترة</label>
-                            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                                <input
-                                    type="checkbox"
-                                    checked={feedFormData.applyFilter !== false}
-                                    onChange={(e) => setFeedFormData({ ...feedFormData, applyFilter: e.target.checked })}
-                                    className="h-5 w-5 text-primary rounded focus:ring-primary border-gray-300"
-                                />
-                                <span className="text-gray-700">تفعيل</span>
-                            </label>
-                        </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">فترة التحديث (دقائق)</label>
+                        <input
+                            type="number"
+                            value={feedFormData.fetchInterval}
+                            onChange={(e) => setFeedFormData({ ...feedFormData, fetchInterval: Number(e.target.value) })}
+                            min={5}
+                            max={1440}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
                     </div>
-                    <div className="flex gap-3 pt-4">
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={updateFeedMutation.isPending}
-                            className="flex-1"
-                        >
-                            {updateFeedMutation.isPending ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                    <div className="flex items-center gap-4 pt-2">
+                        <Button type="submit" variant="primary" size="sm" disabled={updateFeedMutation.isPending}>
+                            {updateFeedMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}
                         </Button>
-                        <Button type="button" variant="secondary" onClick={() => setEditingFeed(null)}>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setEditingFeed(null)}
+                        >
                             إلغاء
                         </Button>
                     </div>
