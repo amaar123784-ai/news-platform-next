@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
-import { fetchRSSFeed, fetchAllActiveFeeds, cleanupOldArticles, getRSSStats } from '../services/rss.service.js';
+import { fetchRSSFeed, fetchAllActiveFeeds, cleanupOldArticles, getRSSStats, downloadRSSImage } from '../services/rss.service.js';
 import { rewriteArticle, isAIEnabled } from '../services/ai.service.js';
 import { automationService } from '../services/automation.service.js';
 import { z } from 'zod';
@@ -631,6 +631,22 @@ router.patch('/articles/:id', authenticate, requireRole('ADMIN', 'EDITOR'), asyn
 
         // Trigger automation pipeline for approved articles
         if (status === 'APPROVED') {
+            // Download image locally only when article is approved (saves storage)
+            if (article.imageUrl && article.imageUrl.startsWith('http')) {
+                try {
+                    const localImageUrl = await downloadRSSImage(article.imageUrl);
+                    if (localImageUrl && localImageUrl !== article.imageUrl) {
+                        await prisma.rSSArticle.update({
+                            where: { id: req.params.id },
+                            data: { imageUrl: localImageUrl }
+                        });
+                        console.log(`[RSS] Downloaded image for approved article: ${article.id}`);
+                    }
+                } catch (err: any) {
+                    console.error(`[RSS] Failed to download image for ${article.id}:`, err.message);
+                }
+            }
+
             automationService.startAutomation(req.params.id).catch(err => {
                 console.error('[RSS] Failed to start automation:', err.message);
             });

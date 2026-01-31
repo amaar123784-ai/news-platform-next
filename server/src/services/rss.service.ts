@@ -526,8 +526,9 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                     }
                 }
 
-                // Download and process image locally
-                const localImageUrl = await downloadAndProcessImage(rawImageUrl, baseFeedUrl);
+                // OPTIMIZATION: Save remote image URL only - download will happen when article is approved
+                // This saves storage by not downloading images for articles that may never be approved
+                const remoteImageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl, baseFeedUrl) : null;
 
                 // Determine status based on filter result
                 // Note: FLAGGED articles go to PENDING but are logged for attention
@@ -539,7 +540,7 @@ export async function fetchRSSFeed(sourceId: string): Promise<{
                         title,
                         excerpt: truncateExcerpt(articleContent),
                         sourceUrl: articleLink,
-                        imageUrl: localImageUrl,
+                        imageUrl: remoteImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         sourceId: source.id,
@@ -728,4 +729,20 @@ export async function getRSSStats(): Promise<{
         pendingArticles,
         approvedArticles,
     };
+}
+
+/**
+ * Download and store image locally for an RSS article
+ * Called when article is approved to save storage space
+ */
+export async function downloadRSSImage(imageUrl: string | null): Promise<string | null> {
+    if (!imageUrl) return null;
+
+    // Already a local URL, no need to download
+    if (imageUrl.startsWith('/uploads/')) {
+        return imageUrl;
+    }
+
+    // Use the existing download function
+    return await downloadAndProcessImage(imageUrl, imageUrl);
 }
