@@ -40,11 +40,13 @@ interface ParsedFeed {
  * Fallback parser for non-standard XML feeds (sitemap-style, custom formats)
  * Handles: <urlset>, <channel><item>, <feed><entry>, and other variations
  */
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 async function parseNonStandardFeed(feedUrl: string): Promise<ParsedFeed> {
     const response = await axios.get(feedUrl, {
         timeout: 30000,
         headers: {
-            'User-Agent': 'YemenNewsBot/1.0',
+            'User-Agent': BROWSER_UA,
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
         },
         responseType: 'text',
@@ -152,7 +154,7 @@ function extractItemFromXml(xml: string, isAtom = false): ParsedFeedItem | null 
 const parser = new Parser({
     timeout: 30000,
     headers: {
-        'User-Agent': 'YemenNewsBot/1.0',
+        'User-Agent': BROWSER_UA,
         'Accept': 'application/rss+xml, application/xml, text/xml',
     },
     customFields: {
