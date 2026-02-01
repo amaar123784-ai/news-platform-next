@@ -88,7 +88,7 @@ function QueueItem({ item, onRetry }: { item: AutomationQueueItem; onRetry: (id:
                         {item.aiRewrittenTitle || item.rssArticle.title}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
-                        {item.rssArticle.source.name} • {item.rssArticle.source.category?.name || 'غير مصنف'}
+                        {item.rssArticle.feed.source.name} • {item.rssArticle.feed.category?.name || 'غير مصنف'}
                     </p>
 
                     <div className="flex items-center gap-3 mt-3">

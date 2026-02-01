@@ -25,8 +25,10 @@ export interface AutomationQueueItem {
         title: string;
         excerpt?: string;
         imageUrl?: string;
-        source: {
-            name: string;
+        feed: {
+            source: {
+                name: string;
+            };
             category?: {
                 name: string;
                 slug: string;
