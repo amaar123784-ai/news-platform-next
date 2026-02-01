@@ -29,9 +29,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const imageUrl = getImageUrl(article.imageUrl);
     const absoluteImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${siteUrl}${imageUrl}`;
 
+    // Extract keywords from tags
+    const keywords = article.tags?.map((t: any) => t.tag?.name || t).filter(Boolean) || [];
+
     return {
         title: article.seoTitle || article.title,
         description: article.seoDesc || article.excerpt,
+        keywords: keywords.length > 0 ? keywords : undefined,
         alternates: {
             canonical: `${siteUrl}/article/${slug}`,
         },

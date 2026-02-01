@@ -11,7 +11,7 @@ const arabicFont = Noto_Sans_Arabic({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://voiceoftihama.com";
 
   try {
     const settings = await settingsService.getPublicSettings();
