@@ -33,6 +33,7 @@ class WhatsAppService {
         this.client.on('qr', (qr: string) => {
             console.log('[WhatsApp] Action Required: Scan QR Code to connect!');
             // Render visual QR code in terminal using dynamic import (ESM)
+            // @ts-ignore
             import('qrcode-terminal').then((qrModule: any) => {
                 const qrcode = qrModule.default || qrModule;
                 qrcode.generate(qr, { small: true });
