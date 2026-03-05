@@ -59,34 +59,21 @@ export const Header: React.FC = () => {
         <header className="bg-white border-b-2 border-primary shadow-sm">
             <div className="max-w-7xl mx-auto px-4 h-16 lg:h-20 flex items-center justify-between">
 
-                {/* Mobile Menu Button (Right side in RTL) */}
-                <div className="flex-1 lg:hidden flex justify-start">
-                    <button
-                        className="w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                        onClick={() => setMobileMenuOpen(true)}
-                        aria-label="فتح القائمة"
-                    >
-                        <Icon name="ri-menu-line" size="xl" />
-                    </button>
-                </div>
-
-                {/* Logo */}
-                <div className="flex justify-center lg:justify-start lg:flex-none">
-                    <Link href="/" className="flex items-center gap-2 group">
-                        <Image
-                            src="/images/logo.webp"
-                            alt={siteName}
-                            width={64}
-                            height={64}
-                            priority
-                            className="h-10 lg:h-14 w-auto group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="flex flex-col justify-center pt-1">
-                            <span className="text-[22px] lg:text-3xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
-                            <span className="text-[10px] lg:text-xs font-bold text-gray-400 tracking-[0.15em] uppercase mt-0.5 whitespace-nowrap text-center lg:text-right">VOICE OF TIHAMA</span>
-                        </div>
-                    </Link>
-                </div>
+                {/* Logo (First item -> Start/Right in RTL) */}
+                <Link href="/" className="flex items-center gap-2 group shrink-0">
+                    <Image
+                        src="/images/logo.webp"
+                        alt={siteName}
+                        width={64}
+                        height={64}
+                        priority
+                        className="h-10 lg:h-14 w-auto group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="flex flex-col justify-center pt-1">
+                        <span className="text-[22px] lg:text-3xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
+                        <span className="text-[10px] lg:text-xs font-bold text-gray-400 tracking-[0.15em] uppercase mt-0.5 whitespace-nowrap text-right">VOICE OF TIHAMA</span>
+                    </div>
+                </Link>
 
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center justify-center gap-1 flex-1 px-4">
@@ -104,18 +91,10 @@ export const Header: React.FC = () => {
                     ))}
                 </nav>
 
-                {/* Actions */}
-                <div className="flex-1 lg:flex-none flex items-center justify-end gap-2 lg:gap-3">
-                    {/* Mobile Search */}
-                    <button
-                        onClick={() => router.push('/search')}
-                        className="w-10 h-10 flex lg:hidden items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                        aria-label="بحث"
-                    >
-                        <Icon name="ri-search-line" size="xl" />
-                    </button>
+                {/* Actions & Mobile Menu (Last item -> End/Left in RTL) */}
+                <div className="flex items-center justify-end gap-2 lg:gap-3">
 
-                    {/* Desktop Search */}
+                    {/* Desktop Search (Hidden on Mobile) */}
                     <Button variant="icon" onClick={() => router.push('/search')} className="hidden lg:flex hover:bg-primary/10 hover:text-primary" aria-label="بحث">
                         <Icon name="ri-search-line" size="lg" />
                     </Button>
@@ -145,6 +124,15 @@ export const Header: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Mobile Menu Button (Visible on Mobile) */}
+                    <button
+                        className="lg:hidden w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                        onClick={() => setMobileMenuOpen(true)}
+                        aria-label="فتح القائمة"
+                    >
+                        <Icon name="ri-menu-line" size="xl" />
+                    </button>
                 </div>
             </div>
 
@@ -170,7 +158,17 @@ export const Header: React.FC = () => {
                             </button>
                         </div>
 
-                        <nav className="p-4 flex flex-col gap-2">
+                        <div className="p-4 border-b">
+                            <button
+                                onClick={() => { setMobileMenuOpen(false); router.push('/search'); }}
+                                className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200"
+                            >
+                                <span className="font-bold">بحث...</span>
+                                <Icon name="ri-search-line" size="lg" />
+                            </button>
+                        </div>
+
+                        <nav className="p-4 flex flex-col gap-2 overflow-y-auto">
                             {navLinks.map((link) => (
                                 <Link
                                     key={link.path}
