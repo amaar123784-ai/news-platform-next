@@ -68,48 +68,47 @@ export const NewsCard: React.FC<NewsCardProps> = ({
     const displayImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
 
     return (
-        <article className="news-card bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300 relative">
-            {/* Image Container with Blurred Background — entire area is clickable via stretched link */}
-            <div className="relative h-48 sm:h-56 md:h-64 w-full overflow-hidden bg-gray-100">
-                {/* Blurred Background Image */}
-                <Image
-                    src={displayImageUrl}
-                    alt=""
-                    fill
-                    className="object-cover blur-xl opacity-60 scale-110"
-                    aria-hidden="true"
-                />
-
-                {/* Main Image */}
+        <article className="group flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative h-full">
+            {/* Image Container — 16:9 Aspect Ratio */}
+            <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100 shrink-0">
+                {/* Main Image with Hover Scale */}
                 <Image
                     src={displayImageUrl}
                     alt={title}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="relative object-contain object-center z-10 p-1 sm:p-2"
+                    className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
                 />
-            </div>
 
-            {/* Content */}
-            <div className="p-3 sm:p-4">
-                {/* Badges — separate from the main link */}
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 relative z-10">
+                {/* Badges — Floating Top Right */}
+                <div className="absolute top-3 right-3 flex flex-wrap gap-1.5 z-20">
                     <Link
                         href={`/category/${category}`}
-                        className="hover:opacity-80 transition-opacity"
+                        className="hover:scale-105 transition-transform shadow-sm"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <Badge category={category}>{categoryInfo.label}</Badge>
                     </Link>
-                    {isBreaking && <Badge variant="breaking">عاجل</Badge>}
+                    {isBreaking && <Badge variant="breaking" className="shadow-sm">عاجل</Badge>}
                 </div>
 
-                {/* Title — main card link with stretched pseudo-element */}
-                <h3 className="font-bold text-base sm:text-lg mb-2 line-clamp-2 leading-relaxed">
+                {/* Title Link Overlay (to make image clickable safely) */}
+                <Link
+                    href={articleLink}
+                    onClick={onClick}
+                    className="absolute inset-0 z-10"
+                    aria-label={`اقرأ المزيد عن: ${title}`}
+                />
+            </div>
+
+            {/* Content Container */}
+            <div className="flex flex-col flex-1 p-4 sm:p-5">
+                {/* Title */}
+                <h3 className="font-bold text-lg sm:text-xl mb-3 line-clamp-2 leading-snug">
                     <Link
                         href={articleLink}
                         onClick={onClick}
-                        className="hover:text-primary transition-colors after:absolute after:inset-0 after:z-0"
+                        className="text-gray-900 group-hover:text-primary transition-colors after:absolute after:inset-0 after:z-0"
                     >
                         {title}
                     </Link>
@@ -117,25 +116,30 @@ export const NewsCard: React.FC<NewsCardProps> = ({
 
                 {/* Excerpt */}
                 {excerpt && (
-                    <p className="text-gray-600 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">{excerpt}</p>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed flex-1 text-balance">
+                        {excerpt}
+                    </p>
                 )}
 
-                {/* Metadata */}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 relative z-10">
-                    {timeAgo && <span className="whitespace-nowrap">{timeAgo}</span>}
-                    {author && (
-                        authorId ? (
-                            <Link
-                                href={`/author/${authorId}`}
-                                className="hover:text-primary transition-colors truncate max-w-[120px]"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {author}
-                            </Link>
-                        ) : (
-                            <span className="truncate max-w-[120px]">{author}</span>
-                        )
-                    )}
+                {/* Metadata Footer */}
+                <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 font-medium relative z-10">
+                    <div className="flex items-center gap-2">
+                        {author && (
+                            authorId ? (
+                                <Link
+                                    href={`/author/${authorId}`}
+                                    className="hover:text-primary transition-colors truncate max-w-[120px]"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {author}
+                                </Link>
+                            ) : (
+                                <span className="truncate max-w-[120px]">{author}</span>
+                            )
+                        )}
+                        {author && timeAgo && <span className="text-gray-300">•</span>}
+                        {timeAgo && <span className="whitespace-nowrap">{timeAgo}</span>}
+                    </div>
                 </div>
             </div>
         </article>
