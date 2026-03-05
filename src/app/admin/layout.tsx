@@ -161,7 +161,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setSidebarOpen(!isSidebarOpen)}
-                            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                            className="text-gray-500 hover:text-gray-700 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            aria-label={isSidebarOpen ? 'إخفاء القائمة الجانبية' : 'إظهار القائمة الجانبية'}
                         >
                             <Icon name={isSidebarOpen ? 'ri-menu-fold-line' : 'ri-menu-unfold-line'} size="xl" />
                         </button>
@@ -182,10 +183,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <Icon name="ri-external-link-line" size="lg" />
                             </button>
                         </span>
-                        <div className="relative">
+                        <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="الإشعارات">
                             <Icon name="ri-notification-3-line" size="lg" className="text-gray-500 cursor-pointer hover:text-primary" />
-                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                        </div>
+                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" aria-hidden="true"></span>
+                        </button>
                     </div>
                 </header>
 

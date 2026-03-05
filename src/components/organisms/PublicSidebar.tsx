@@ -4,26 +4,20 @@ import Link from "next/link";
 import { Icon } from "@/components/atoms";
 import { NewsCardSmall } from "@/components/molecules";
 import type { Article } from "@/lib/api";
+import { formatTimeAgo } from "@/utils/date";
 
 interface PublicSidebarProps {
     urgentNews: Article[];
     mostReadNews: Article[];
 }
 
-// Format time ago in Arabic (Duplicate logic to avoid dependency issues if not imported)
-function formatTimeAgo(date: string): string {
-    const diff = Date.now() - new Date(date).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return "منذ دقائق";
-    if (hours < 24) return `منذ ${hours} ساعة`;
-    return `منذ ${Math.floor(hours / 24)} يوم`;
-}
+
 
 export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) {
     return (
         <aside className="space-y-4 sm:space-y-6">
             {/* Urgent News */}
-            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-secondary">
+            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-primary">
                 <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <Icon name="ri-notification-3-line" size="xl" className="text-primary" />
                     <h3 className="text-base sm:text-lg font-bold">أخبار عاجلة</h3>

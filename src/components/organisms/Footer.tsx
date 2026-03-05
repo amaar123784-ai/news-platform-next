@@ -62,7 +62,7 @@ export const Footer: React.FC<FooterProps> = ({
     ].filter(link => link.href !== '#');
 
     return (
-        <footer className="bg-gray-900 border-t-4 border-secondary text-white mt-12">
+        <footer className="bg-gray-900 border-t-4 border-primary text-white mt-12">
             <Container className="py-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                     {/* Brand Section */}

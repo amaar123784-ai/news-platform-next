@@ -1,24 +1,30 @@
 @import "tailwindcss";
 
+/* ============================================
+   THEME — Custom design tokens for Tailwind v4
+   Using @theme so utilities like bg-primary, text-secondary
+   work natively without !important overrides.
+   ============================================ */
+@theme {
+  --color-primary: #38BDF8;
+  --color-secondary: #22C55E;
+}
 
-/* Base styles from design-system.json */
+/* ============================================
+   BASE STYLES
+   ============================================ */
 body {
   font-family: 'Noto Sans Arabic', sans-serif;
   direction: rtl;
   position: relative;
 }
 
-/* Logo watermark background */
-
-
-/* Ensure proper wrapping for links and long words */
-/* Removed aggressive global word-break that was breaking layout */
-
-
-/* Custom scrollbar - hidden by default */
+/* ============================================
+   SCROLLBAR — Subtle visible scrollbar
+   ============================================ */
 ::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -26,14 +32,42 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+/* ============================================
+   FOCUS — Accessible :focus-visible indicators
+   WCAG 2.4.7 compliant
+   ============================================ */
+:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Form inputs get a ring-style focus */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+  border-color: #38BDF8;
+}
+
+/* ============================================
+   MARQUEE / TICKER ANIMATION
+   ============================================ */
 @keyframes marquee-continuous {
   0% {
     transform: translateX(0);
@@ -59,24 +93,40 @@ body {
   animation-play-state: paused;
 }
 
-/* News card hover effect */
+/* Paused state for ticker (keyboard accessible) */
+.animate-marquee-paused {
+  animation-play-state: paused !important;
+}
+
+/* ============================================
+   CARD EFFECTS
+   ============================================ */
 .news-card:hover {
   transform: translateY(-2px);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Stat card hover effect */
 .stat-card:hover {
   transform: translateY(-2px);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Breaking news gradient background */
+.card-elevated {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-elevated:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   MISC UI
+   ============================================ */
 .breaking-news-bg {
   background: linear-gradient(90deg, #38BDF8 0%, #0284c7 100%);
 }
 
-/* Custom checkbox styles */
+/* Custom checkbox */
 .custom-checkbox {
   appearance: none;
   width: 1.25rem;
@@ -86,6 +136,7 @@ body {
   background-color: white;
   position: relative;
   cursor: pointer;
+  forced-color-adjust: auto;
 }
 
 .custom-checkbox:checked {
@@ -104,11 +155,9 @@ body {
   font-weight: bold;
 }
 
-/* Focus ring for accessibility */
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #38BDF8;
-  border-color: transparent;
+.custom-checkbox:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 2px;
 }
 
 /* Category tab active state */
@@ -122,25 +171,7 @@ body {
   animation: pulse 2s infinite;
 }
 
-/* Improved card shadows */
-.card-elevated {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.card-elevated:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Better input focus states */
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
-  border-color: #38BDF8;
-}
-
-/* Smooth page transitions */
+/* Page transitions */
 .page-transition {
   animation: fadeIn 0.3s ease-out;
 }
@@ -161,41 +192,23 @@ textarea:focus {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* Improved button transitions */
+/* ============================================
+   SCOPED TRANSITIONS — replaces `transition: all`
+   Only animate visual properties, not layout ones.
+   ============================================ */
 button,
 a {
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
-/* Table row hover effect */
+/* Table row hover */
 tr:hover {
   background-color: rgba(0, 0, 0, 0.02);
 }
 
-/* RTL-specific fixes */
+/* RTL-specific */
 [dir="rtl"] .flip-rtl {
   transform: scaleX(-1);
-}
-
-/* EXPLICIT BUTTON COLOR OVERRIDES TO FIX VISIBILITY */
-.bg-primary {
-  background-color: #38BDF8 !important;
-}
-
-.text-primary {
-  color: #38BDF8 !important;
-}
-
-.bg-secondary {
-  background-color: #22C55E !important;
-}
-
-.text-secondary {
-  color: #22C55E !important;
-}
-
-.border-secondary {
-  border-color: #22C55E !important;
 }
 
 /* Hide original source attribution */

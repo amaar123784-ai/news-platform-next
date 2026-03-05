@@ -5,6 +5,7 @@
  * 
  * Form input field following design system form tokens.
  * Supports text, email, password, and search types with icons.
+ * Uses React 19 useId() for SSR-safe ID generation.
  * 
  * @see components.forms.input in design-system.json
  * 
@@ -13,7 +14,7 @@
  * <Input type="password" placeholder="كلمة المرور" />
  */
 
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
     /** Input type */
@@ -31,8 +32,8 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 }
 
 // Classes from design-system.json components.forms.input
-const baseInputClass = 'w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm transition-colors';
-const errorClass = 'border-red-500 focus:ring-red-500';
+const baseInputClass = 'w-full border border-gray-300 rounded-lg text-sm transition-colors';
+const errorClass = 'border-red-500 focus-visible:ring-red-500';
 const iconContainerClass = 'absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 flex items-center justify-center';
 const iconClass = 'text-gray-400';
 
@@ -53,13 +54,14 @@ export const Input: React.FC<InputProps> = ({
     id,
     ...props
 }) => {
+    const generatedId = useId();
     const actualErrorMessage = error || errorMessage;
     const isError = hasError || !!error;
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === 'password';
     const inputType = isPassword && showPassword ? 'text' : type;
 
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const inputId = id || generatedId;
 
     return (
         <div className="relative">

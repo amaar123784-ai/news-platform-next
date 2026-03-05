@@ -152,9 +152,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <div className="text-center mt-8">
                 <p className="text-xs text-gray-500">
                     بتسجيل الدخول، أنت توافق على{' '}
-                    <a href="#" className="text-primary hover:text-primary/80">شروط الخدمة</a>
+                    <a href="/terms" className="text-primary hover:text-primary/80">شروط الخدمة</a>
                     {' '}و{' '}
-                    <a href="#" className="text-primary hover:text-primary/80">سياسة الخصوصية</a>
+                    <a href="/privacy" className="text-primary hover:text-primary/80">سياسة الخصوصية</a>
                 </p>
             </div>
         </div>

@@ -6,6 +6,7 @@ import { Button, Icon } from "@/components/atoms";
 import { NewsCardSmall } from "@/components/molecules";
 import { FeaturedNews, FeaturedNewsCarousel, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
 import type { Article } from "@/lib/api";
+import { formatTimeAgo } from "@/utils/date";
 
 interface HomeContentProps {
     featuredArticles: Article[];
@@ -13,14 +14,7 @@ interface HomeContentProps {
     topArticles: Article[];
 }
 
-// Format time ago in Arabic
-function formatTimeAgo(date: string): string {
-    const diff = Date.now() - new Date(date).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return "منذ دقائق";
-    if (hours < 24) return `منذ ${hours} ساعة`;
-    return `منذ ${Math.floor(hours / 24)} يوم`;
-}
+
 
 // Category tabs
 const categoryTabs = [

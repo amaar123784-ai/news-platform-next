@@ -56,7 +56,7 @@ export const Header: React.FC = () => {
     };
 
     return (
-        <header className="bg-white border-b-2 border-secondary shadow-sm sticky top-0 z-50">
+        <header className="bg-white border-b-2 border-primary shadow-sm">
             <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
 
                 {/* Mobile Menu Button */}
@@ -111,21 +111,21 @@ export const Header: React.FC = () => {
                             <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{user.name}</span>
                             {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
                                 <Link href="/admin">
-                                    <Button variant="secondary" size="sm" className="!px-4 whitespace-nowrap">
+                                    <Button variant="outline" size="sm" className="whitespace-nowrap">
                                         <Icon name="ri-dashboard-line" className="ml-1" />
                                         لوحة التحكم
                                     </Button>
                                 </Link>
                             )}
-                            <Button variant="primary" size="sm" onClick={logout} className="!bg-red-500 !border-red-500 hover:!bg-red-600 whitespace-nowrap">خروج</Button>
+                            <Button variant="primary" size="sm" onClick={logout} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
                         </div>
                     ) : (
                         <div className="hidden sm:flex items-center gap-3">
                             <Link href="/login">
-                                <Button variant="secondary" size="sm" className="!px-5 whitespace-nowrap">دخول</Button>
+                                <Button variant="outline" size="sm" className="whitespace-nowrap">دخول</Button>
                             </Link>
                             <Link href="/register">
-                                <Button variant="primary" size="sm" className="!px-5 whitespace-nowrap">اشتراك</Button>
+                                <Button variant="primary" size="sm" className="whitespace-nowrap">اشتراك</Button>
                             </Link>
                         </div>
                     )}
@@ -145,7 +145,11 @@ export const Header: React.FC = () => {
                     <div className="absolute top-0 right-0 bottom-0 w-64 bg-white shadow-xl transform transition-transform duration-300">
                         <div className="p-4 border-b flex items-center justify-between">
                             <span className="font-bold text-lg">القائمة</span>
-                            <button onClick={() => setMobileMenuOpen(false)} aria-label="إغلاق القائمة">
+                            <button
+                                onClick={() => setMobileMenuOpen(false)}
+                                aria-label="إغلاق القائمة"
+                                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                            >
                                 <Icon name="ri-close-line" size="xl" />
                             </button>
                         </div>
@@ -155,7 +159,7 @@ export const Header: React.FC = () => {
                                 <Link
                                     key={link.path}
                                     href={link.path}
-                                    className={`p-3 rounded-lg flex items-center gap-3 ${isActive(link.path) ? 'bg-red-50 text-primary font-bold' : 'text-gray-700 hover:bg-gray-50'
+                                    className={`p-3 rounded-lg flex items-center gap-3 min-h-[44px] ${isActive(link.path) ? 'bg-primary/10 text-primary font-bold' : 'text-gray-700 hover:bg-gray-50'
                                         }`}
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
@@ -182,14 +186,14 @@ export const Header: React.FC = () => {
                                             </Button>
                                         </Link>
                                     )}
-                                    <Button variant="secondary" className="w-full justify-center !text-red-600 !border-red-100 hover:!bg-red-50" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                                    <Button variant="secondary" className="w-full justify-center text-red-600 hover:bg-red-50" onClick={() => { logout(); setMobileMenuOpen(false); }}>
                                         تسجيل خروج
                                     </Button>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2">
                                     <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                                        <Button variant="secondary" className="w-full justify-center">دخول</Button>
+                                        <Button variant="outline" className="w-full justify-center">دخول</Button>
                                     </Link>
                                     <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
                                         <Button variant="primary" className="w-full justify-center">اشتراك جديد</Button>
