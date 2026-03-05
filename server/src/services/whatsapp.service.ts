@@ -32,13 +32,13 @@ class WhatsAppService {
 
         this.client.on('qr', (qr: string) => {
             console.log('[WhatsApp] Action Required: Scan QR Code to connect!');
-            // Render visual QR code in terminal
-            try {
-                const qrcode = require('qrcode-terminal');
+            // Render visual QR code in terminal using dynamic import (ESM)
+            import('qrcode-terminal').then((qrModule: any) => {
+                const qrcode = qrModule.default || qrModule;
                 qrcode.generate(qr, { small: true });
-            } catch (e: any) {
+            }).catch(() => {
                 console.log('[WhatsApp] QR Data:', qr);
-            }
+            });
         });
 
         this.client.on('ready', async () => {
