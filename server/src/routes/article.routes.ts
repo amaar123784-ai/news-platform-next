@@ -342,7 +342,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             },
         }).catch(console.error);
 
-        // Trigger Webhook if Published
+        // Trigger Webhook and WhatsApp if Published
         if (article.status === 'PUBLISHED') {
             // Invalidate caches
             await Promise.all([
@@ -353,6 +353,11 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             const { webhookService } = await import('../services/webhook.service.js');
             webhookService.notifyNewArticle(article.id).catch(err => {
                 console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+
+            const { whatsappService } = await import('../services/whatsapp.service.js');
+            whatsappService.sendArticleToWhatsApp(article).catch(err => {
+                console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
             });
         }
 
@@ -404,11 +409,16 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             },
         }).catch(console.error);
 
-        // Trigger Webhook if status changed to PUBLISHED
+        // Trigger Webhook and WhatsApp if status changed to PUBLISHED
         if (article.status === 'PUBLISHED' && existing.status !== 'PUBLISHED') {
             const { webhookService } = await import('../services/webhook.service.js');
             webhookService.notifyNewArticle(article.id).catch(err => {
                 console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
+            });
+
+            const { whatsappService } = await import('../services/whatsapp.service.js');
+            whatsappService.sendArticleToWhatsApp(article).catch(err => {
+                console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
             });
         }
 
@@ -496,6 +506,12 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             cache.invalidatePattern('articles:breaking'),
             cache.del(cacheKeys.article(article.slug)),
         ]);
+
+        // Send to WhatsApp
+        const { whatsappService } = await import('../services/whatsapp.service.js');
+        whatsappService.sendArticleToWhatsApp(article).catch(err => {
+            console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
+        });
 
         res.json({ success: true, data: article });
     } catch (error) {
