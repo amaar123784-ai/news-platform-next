@@ -1,8 +1,9 @@
-import { Client, LocalAuth } from 'whatsapp-web.js';
-import qrcode from 'qrcode-terminal';
+// @ts-ignore
+import pkg from 'whatsapp-web.js';
+const { Client, LocalAuth } = pkg;
 
 class WhatsAppService {
-    private client: Client;
+    private client: any;
     private isReady: boolean = false;
     private channelId: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
@@ -21,7 +22,7 @@ class WhatsAppService {
         this.initializeClient();
     }
 
-    private initializeClient() {
+    private initializeClient(): void {
         if (process.env.WHATSAPP_ENABLE !== 'true') {
             console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
             return;
@@ -29,10 +30,10 @@ class WhatsAppService {
 
         console.log('[WhatsApp] Initializing client...');
 
-        this.client.on('qr', (qr) => {
+        this.client.on('qr', (qr: string) => {
             console.log('[WhatsApp] Action Required: Scan QR Code to connect!');
-            // Print the QR code in the terminal
-            qrcode.generate(qr, { small: true });
+            console.log('[WhatsApp] QR Code (copy the text below if terminal does not render):');
+            console.log(qr);
         });
 
         this.client.on('ready', async () => {
@@ -41,24 +42,24 @@ class WhatsAppService {
 
             // Fetch and print all chats to help user find the Channel ID
             try {
-                const chats = await this.client.getChats();
-                const channels = chats.filter(c => c.id._serialized.includes('newsletter'));
-                const groups = chats.filter(c => c.isGroup);
+                const chats: any[] = await this.client.getChats();
+                const channels = chats.filter((c: any) => c.id._serialized.includes('newsletter'));
+                const groups = chats.filter((c: any) => c.isGroup);
 
                 console.log('\n--- WhatsApp Connected Targets ---');
                 if (channels.length > 0) {
                     console.log('Channels found:');
-                    channels.forEach(ch => console.log(`  - ${ch.name}: ${ch.id._serialized}`));
+                    channels.forEach((ch: any) => console.log(`  - ${ch.name}: ${ch.id._serialized}`));
                 } else {
                     console.log('No Channels found.');
                 }
 
                 if (groups.length > 0) {
                     console.log('Groups found:');
-                    groups.forEach(g => console.log(`  - ${g.name}: ${g.id._serialized}`));
+                    groups.forEach((g: any) => console.log(`  - ${g.name}: ${g.id._serialized}`));
                 }
                 console.log('----------------------------------\n');
-            } catch (error) {
+            } catch (error: any) {
                 console.error('[WhatsApp] Could not fetch chats:', error);
             }
         });
@@ -67,17 +68,16 @@ class WhatsAppService {
             console.log('[WhatsApp] Authenticated successfully!');
         });
 
-        this.client.on('auth_failure', (msg) => {
+        this.client.on('auth_failure', (msg: string) => {
             console.error('[WhatsApp] Authentication failure:', msg);
         });
 
-        this.client.on('disconnected', (reason) => {
+        this.client.on('disconnected', (reason: string) => {
             console.log('[WhatsApp] Client was disconnected:', reason);
             this.isReady = false;
-            // Optionally auto-reconnect or require manual restart
         });
 
-        this.client.initialize().catch(err => {
+        this.client.initialize().catch((err: any) => {
             console.error('[WhatsApp] Failed to initialize client:', err);
         });
     }
@@ -92,7 +92,7 @@ class WhatsAppService {
     /**
      * Main function to format and send the article
      */
-    public async sendArticleToWhatsApp(article: any) {
+    public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.isReady) {
             console.log('[WhatsApp] Cannot send article: Client is not ready.');
             return;
@@ -112,13 +112,10 @@ class WhatsAppService {
             // Build the message template
             const message = `🚨 *خبر جديد - صوت تهامة* 🚨\n\n*${article.title}*\n\n${excerpt}\n\n🔗 *التفاصيل:* \n${articleUrl}`;
 
-            // If there's an image, we could theoretically send it, but sending text with a link usually generates a preview automatically in WhatsApp.
-            // For now, we will send the text message which relies on WhatsApp's link preview generator.
-
             await this.client.sendMessage(this.channelId, message);
             console.log(`[WhatsApp] Successfully sent article "${article.title}" to channel!`);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('[WhatsApp] Failed to send article:', error);
         }
     }
