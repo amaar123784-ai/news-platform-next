@@ -5,12 +5,14 @@ import { getArticles } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
 
 import { Container, Button, Icon } from "@/components/atoms";
+import { UrlPagination } from "@/components/molecules";
 import Link from "next/link";
 
 export const revalidate = 60;
 
 interface CategoryPageProps {
     params: Promise<{ slug: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
@@ -51,13 +53,17 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     };
 }
 
-export default async function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
     const { slug } = await params;
+    const resolvedSearchParams = await searchParams;
+    const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page, 10) : 1;
+
     const categoryName = CATEGORY_NAMES[slug] || slug;
 
     // Fetch articles for this category
-    const { data: articles } = await getArticles({
+    const { data: articles, meta } = await getArticles({
         category: slug,
+        page: page > 0 ? page : 1,
         perPage: 12,
         status: "PUBLISHED"
     });
@@ -104,20 +110,28 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
                     {/* Articles Grid */}
                     {articles.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                            {articles.map((article: any) => (
-                                <NewsCard
-                                    key={article.id}
-                                    id={article.id}
-                                    title={article.title}
-                                    excerpt={article.excerpt}
-                                    category={article.category?.slug || slug}
-                                    imageUrl={article.imageUrl?.startsWith('http') ? article.imageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000'}${article.imageUrl || '/images/placeholder.jpg'}`}
-                                    author={article.author?.name || "المحرر"}
-                                    timeAgo={new Date(article.publishedAt || article.createdAt).toLocaleDateString('ar-YE')}
-                                />
-                            ))}
-                        </div>
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                {articles.map((article: any) => (
+                                    <NewsCard
+                                        key={article.id}
+                                        id={article.id}
+                                        title={article.title}
+                                        excerpt={article.excerpt}
+                                        category={article.category?.slug || slug}
+                                        imageUrl={article.imageUrl?.startsWith('http') ? article.imageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000'}${article.imageUrl || '/images/placeholder.jpg'}`}
+                                        author={article.author?.name || "المحرر"}
+                                        timeAgo={new Date(article.publishedAt || article.createdAt).toLocaleDateString('ar-YE')}
+                                    />
+                                ))}
+                            </div>
+
+                            {meta && meta.totalPages > 1 && (
+                                <div className="mt-8 pb-4">
+                                    <UrlPagination currentPage={page} totalPages={meta.totalPages} />
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="text-center py-20 bg-white rounded-lg shadow-sm">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">

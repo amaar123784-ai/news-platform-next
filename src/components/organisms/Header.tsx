@@ -57,41 +57,45 @@ export const Header: React.FC = () => {
 
     return (
         <header className="bg-white border-b-2 border-primary shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+            <div className="max-w-7xl mx-auto px-4 h-16 lg:h-20 flex items-center justify-between">
 
-                {/* Mobile Menu Button */}
-                <button
-                    className="lg:hidden p-2 text-gray-700 hover:text-primary"
-                    onClick={() => setMobileMenuOpen(true)}
-                    aria-label="فتح القائمة"
-                >
-                    <Icon name="ri-menu-line" size="xl" />
-                </button>
+                {/* Mobile Menu Button (Right side in RTL) */}
+                <div className="flex-1 lg:hidden flex justify-start">
+                    <button
+                        className="w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                        onClick={() => setMobileMenuOpen(true)}
+                        aria-label="فتح القائمة"
+                    >
+                        <Icon name="ri-menu-line" size="xl" />
+                    </button>
+                </div>
 
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 group">
-                    <Image
-                        src="/images/logo.webp"
-                        alt={siteName}
-                        width={64}
-                        height={64}
-                        priority
-                        className="h-16 w-auto group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="flex flex-col">
-                        <span className="text-2xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
-                        <span className="text-xs font-bold text-gray-600 tracking-widest mt-1 whitespace-nowrap">VOICE OF TIHAMA</span>
-                    </div>
-                </Link>
+                <div className="flex justify-center lg:justify-start lg:flex-none">
+                    <Link href="/" className="flex items-center gap-2 group">
+                        <Image
+                            src="/images/logo.webp"
+                            alt={siteName}
+                            width={64}
+                            height={64}
+                            priority
+                            className="h-10 lg:h-14 w-auto group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="flex flex-col justify-center pt-1">
+                            <span className="text-[22px] lg:text-3xl font-black text-primary tracking-tight leading-none whitespace-nowrap">{siteName}</span>
+                            <span className="text-[10px] lg:text-xs font-bold text-gray-400 tracking-[0.15em] uppercase mt-0.5 whitespace-nowrap text-center lg:text-right">VOICE OF TIHAMA</span>
+                        </div>
+                    </Link>
+                </div>
 
                 {/* Desktop Navigation */}
-                <nav className="hidden lg:flex items-center gap-2">
+                <nav className="hidden lg:flex items-center justify-center gap-1 flex-1 px-4">
                     {navLinks.map((link) => (
                         <Link
                             key={link.path}
                             href={link.path}
                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap ${isActive(link.path)
-                                ? 'bg-primary text-white shadow-md'
+                                ? 'bg-primary/10 text-primary'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
                                 }`}
                         >
@@ -101,34 +105,46 @@ export const Header: React.FC = () => {
                 </nav>
 
                 {/* Actions */}
-                <div className="flex items-center gap-3">
-                    <Button variant="icon" onClick={() => router.push('/search')} className="hover:bg-primary/10 hover:text-primary" aria-label="بحث">
+                <div className="flex-1 lg:flex-none flex items-center justify-end gap-2 lg:gap-3">
+                    {/* Mobile Search */}
+                    <button
+                        onClick={() => router.push('/search')}
+                        className="w-10 h-10 flex lg:hidden items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                        aria-label="بحث"
+                    >
+                        <Icon name="ri-search-line" size="xl" />
+                    </button>
+
+                    {/* Desktop Search */}
+                    <Button variant="icon" onClick={() => router.push('/search')} className="hidden lg:flex hover:bg-primary/10 hover:text-primary" aria-label="بحث">
                         <Icon name="ri-search-line" size="lg" />
                     </Button>
 
-                    {user ? (
-                        <div className="hidden sm:flex items-center gap-3">
-                            <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{user.name}</span>
-                            {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
-                                <Link href="/admin">
-                                    <Button variant="outline" size="sm" className="whitespace-nowrap">
-                                        <Icon name="ri-dashboard-line" className="ml-1" />
-                                        لوحة التحكم
-                                    </Button>
+                    <div className="hidden lg:block">
+                        {user ? (
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{user.name}</span>
+                                {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
+                                    <Link href="/admin">
+                                        <Button variant="outline" size="sm" className="whitespace-nowrap">
+                                            <Icon name="ri-dashboard-line" className="ml-1" />
+                                            لوحة التحكم
+                                        </Button>
+                                    </Link>
+                                )}
+                                <Button variant="primary" size="sm" onClick={logout} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <Link href="/login">
+                                    <Button variant="outline" size="sm" className="whitespace-nowrap">دخول</Button>
                                 </Link>
-                            )}
-                            <Button variant="primary" size="sm" onClick={logout} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
-                        </div>
-                    ) : (
-                        <div className="hidden sm:flex items-center gap-3">
-                            <Link href="/login">
-                                <Button variant="outline" size="sm" className="whitespace-nowrap">دخول</Button>
-                            </Link>
-                            <Link href="/register">
-                                <Button variant="primary" size="sm" className="whitespace-nowrap">اشتراك</Button>
-                            </Link>
-                        </div>
-                    )}
+                                <Link href="/register">
+                                    <Button variant="primary" size="sm" className="whitespace-nowrap">اشتراك</Button>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

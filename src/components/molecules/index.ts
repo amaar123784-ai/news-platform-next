@@ -13,6 +13,7 @@ export { ShareButtons, type ShareButtonsProps } from './ShareButtons';
 export { SocialButtons, type SocialButtonsProps } from './SocialButtons';
 export { SearchInput, type SearchInputProps } from './SearchInput';
 export { Pagination, type PaginationProps } from './Pagination';
+export { UrlPagination } from './UrlPagination';
 export { ConfirmModal } from './ConfirmModal';
 export {
     TableSkeleton,
