@@ -2,17 +2,20 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import axios from 'axios';
 
-/** Max caption length (WhatsApp limit); keep room for title + link */
-const CAPTION_MAX_LENGTH = 900;
-const EXCERPT_MAX_LENGTH = 200;
+/** WhatsApp caption limit */
+const CAPTION_MAX_LENGTH = 1024;
+/** First block: short summary under the image */
+const SUMMARY_MAX_LENGTH = 130;
+/** Second block: headline + body (content or excerpt) */
+const BODY_MAX_LENGTH = 420;
 
 class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
-    /** Brand/header shown at top of each post (e.g. منبر الأخبار) */
-    private headerLabel: string = process.env.WHATSAPP_HEADER || 'منبر الأخبار';
+    /** Brand/header shown at top of each post (e.g. صوت تهامة) */
+    private headerLabel: string = process.env.WHATSAPP_HEADER || 'صوت تهامة';
 
     constructor() {
         this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
@@ -128,9 +131,9 @@ class WhatsAppService {
     }
 
     /**
-     * Truncate excerpt for caption (single line or short block)
+     * Truncate text for caption (single line or short block)
      */
-    private truncateExcerpt(text: string, maxLen: number = EXCERPT_MAX_LENGTH): string {
+    private truncateText(text: string, maxLen: number): string {
         const cleaned = text.replace(/\s+/g, ' ').trim();
         if (cleaned.length <= maxLen) return cleaned;
         return cleaned.slice(0, maxLen).trim() + '…';
@@ -164,26 +167,34 @@ class WhatsAppService {
     }
 
     /**
-     * Build caption in card style: header, title, excerpt, link, domain
+     * Build caption in two-block style (like reference):
+     * Block 1: headline + short summary → domain
+     * Block 2: headline + body → "اقرأ المزيد على منصة صوت تهامة:" → URL
      */
     private buildCaption(article: any): string {
         const title = (article.title || '').trim();
         const rawExcerpt = article.excerpt ? this.stripHtml(article.excerpt) : '';
-        const excerpt = this.truncateExcerpt(rawExcerpt);
+        const rawContent = article.content ? this.stripHtml(article.content) : rawExcerpt;
+        const summary = this.truncateText(rawExcerpt, SUMMARY_MAX_LENGTH);
+        const body = this.truncateText(rawContent, BODY_MAX_LENGTH);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
         const domain = this.platformUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-        const footerDomain = domain.startsWith('www.') ? domain : `www.${domain}`;
 
         const lines: string[] = [
-            this.headerLabel,
-            '',
+            // Block 1: headline + summary
             `*${title}*`,
             '',
-            excerpt,
+            summary,
             '',
+            domain,
+            '',
+            // Block 2: headline + full body
+            `*${title}*`,
+            '',
+            body,
+            '',
+            'اقرأ المزيد على منصة صوت تهامة:',
             articleUrl,
-            '',
-            footerDomain,
         ];
         const caption = lines.join('\n').trim();
         return caption.length > CAPTION_MAX_LENGTH ? caption.slice(0, CAPTION_MAX_LENGTH - 1) + '…' : caption;
