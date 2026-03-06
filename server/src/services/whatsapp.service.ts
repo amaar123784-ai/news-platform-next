@@ -24,7 +24,7 @@ class WhatsAppService {
             const { state, saveCreds } = await useMultiFileAuthState('./whatsapp-auth');
             const { version } = await fetchLatestBaileysVersion();
 
-            this.sock = makeWASocket.default({
+            this.sock = makeWASocket({
                 version,
                 auth: state,
                 printQRInTerminal: true,  // This prints the QR code visually!
