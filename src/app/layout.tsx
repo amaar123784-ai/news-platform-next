@@ -90,6 +90,7 @@ export default function RootLayout({
         <link rel="icon" href="/images/logo.webp" />
         <link rel="shortcut icon" href="/images/logo.webp" />
         <link rel="apple-touch-icon" href="/images/logo.webp" />
+        <link rel="alternate" type="application/rss+xml" title="صوت تهامة - RSS" href="/rss.xml" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
 

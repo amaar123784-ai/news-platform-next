@@ -824,4 +824,44 @@ router.get('/stats', authenticate, requireRole('ADMIN', 'EDITOR'), async (req: R
     }
 });
 
+/**
+ * POST /api/rss/feeds/validate - Validate an RSS feed URL before saving
+ */
+router.post('/feeds/validate', authenticate, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { url } = z.object({ url: z.string().url() }).parse(req.body);
+
+        const Parser = (await import('rss-parser')).default;
+        const parser = new Parser({
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; YemenNewsBot/1.0)',
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            },
+        });
+
+        const feed = await parser.parseURL(url);
+
+        res.json({
+            success: true,
+            data: {
+                title: feed.title,
+                description: feed.description,
+                itemCount: feed.items?.length || 0,
+                lastItem: feed.items?.[0] ? {
+                    title: feed.items[0].title,
+                    pubDate: feed.items[0].pubDate,
+                } : null,
+            },
+            message: `✅ رابط صالح - ${feed.items?.length || 0} مقال`,
+        });
+    } catch (error: any) {
+        res.json({
+            success: false,
+            message: `❌ رابط غير صالح: ${error.message}`,
+        });
+    }
+});
+
 export default router;
+

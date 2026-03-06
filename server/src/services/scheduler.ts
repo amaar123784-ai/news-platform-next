@@ -6,6 +6,7 @@
 import cron from 'node-cron';
 import { fetchAllActiveFeeds, cleanupOldArticles, expireOldArticles } from './rss.service.js';
 import { processScrapeQueue } from './scraper.service.js';
+import { automationService } from './automation.service.js';
 
 let isSchedulerInitialized = false;
 
@@ -64,10 +65,32 @@ export function initializeScheduler(): void {
         }
     });
 
+    // Process social media queue every 2 minutes
+    cron.schedule('*/2 * * * *', async () => {
+        try {
+            const pendingPosts = await automationService.getPendingSocialPosts();
+            if (pendingPosts.length > 0) {
+                console.log(`[Scheduler] Processing ${pendingPosts.length} social media posts...`);
+                for (const post of pendingPosts) {
+                    try {
+                        // WhatsApp & Telegram are sent inline during publishToPlatform,
+                        // so we just mark these as completed
+                        await automationService.markSocialPosted(post.id, 'auto-completed');
+                    } catch (err: any) {
+                        await automationService.markSocialFailed(post.id, err.message);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Scheduler] Social media worker error:', error);
+        }
+    });
+
     isSchedulerInitialized = true;
     console.log('[Scheduler] Background jobs initialized successfully');
     console.log('[Scheduler] - RSS fetch: every 15 minutes');
     console.log('[Scheduler] - Scrape queue: every 5 minutes');
+    console.log('[Scheduler] - Social media: every 2 minutes');
     console.log('[Scheduler] - Article expiry: daily at 2 AM');
     console.log('[Scheduler] - Cleanup: daily at 3 AM');
 }

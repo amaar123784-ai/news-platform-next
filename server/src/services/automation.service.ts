@@ -217,6 +217,14 @@ export class AutomationService {
         } catch (err: any) {
             console.error('[Automation] WhatsApp send failed:', err.message);
         }
+
+        // Send to Telegram channel
+        try {
+            const { telegramService } = await import('./telegram.service.js');
+            await telegramService.sendArticleWithPhoto(newArticle);
+        } catch (err: any) {
+            console.error('[Automation] Telegram send failed:', err.message);
+        }
     }
 
     /**

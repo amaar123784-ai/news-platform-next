@@ -355,6 +355,19 @@ export const rssService = {
         const response = await api.get('/rss/ai-status');
         return response.data;
     },
+
+    /**
+     * Validate an RSS feed URL before saving
+     */
+    async validateFeedUrl(url: string): Promise<SingleResponse<{
+        title: string;
+        description: string;
+        itemCount: number;
+        lastItem: { title: string; pubDate: string } | null;
+    }>> {
+        const response = await api.post('/rss/feeds/validate', { url });
+        return response.data;
+    },
 };
 
 export default rssService;
