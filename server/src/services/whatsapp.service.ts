@@ -133,26 +133,17 @@ class WhatsAppService {
     }
 
     /**
-     * Build message identical to ShareButtons whatsapp share format:
-     * *Title*
-     *
-     * excerpt
-     *
-     * اقرأ المزيد على منصة صوت تهامة:
-     * articleUrl
+     * Build message exactly as ShareButtons: *${title || ""}*\n\n${excerpt || ""}\n\nاقرأ المزيد...
      */
     private buildMessage(article: any): string {
-        const title = (article.title || '').trim();
-        const rawExcerpt = article.excerpt ? this.stripHtml(article.excerpt) : '';
+        const title = article.title || '';
+        const excerpt = article.excerpt || '';
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-
-        let message = `*${title}*\n\n${rawExcerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
-        if (message.length > MESSAGE_MAX_LENGTH) {
-            const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
-            const excerpt = this.truncateText(rawExcerpt, Math.max(100, excerptMax));
-            message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
-        }
-        return message;
+        const message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+        if (message.length <= MESSAGE_MAX_LENGTH) return message;
+        const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
+        const excerptTrimmed = this.truncateText(this.stripHtml(excerpt), Math.max(50, excerptMax));
+        return `*${title}*\n\n${excerptTrimmed}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
     }
 
     /**
