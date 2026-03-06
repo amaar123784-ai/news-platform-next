@@ -1,7 +1,7 @@
 /**
  * Facebook Page Service
  * Sends articles to a Facebook Page via the official Graph API.
- * Uses Page Access Token for authentication.
+ * Automatically exchanges User Access Token for Page Access Token.
  */
 
 const GRAPH_API = 'https://graph.facebook.com/v19.0';
@@ -10,16 +10,17 @@ class FacebookService {
     private pageId: string | null = null;
     private pageToken: string | null = null;
     private isEnabled: boolean = false;
+    private isReady: boolean = false;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
 
     constructor() {
         this.pageId = process.env.FACEBOOK_PAGE_ID || null;
-        this.pageToken = process.env.FACEBOOK_PAGE_TOKEN || null;
+        const token = process.env.FACEBOOK_PAGE_TOKEN || null;
         this.isEnabled = process.env.FACEBOOK_ENABLE === 'true';
 
-        if (this.isEnabled && this.pageId && this.pageToken) {
+        if (this.isEnabled && this.pageId && token) {
             console.log('[Facebook] ✅ Service enabled. Page ID:', this.pageId);
-            this.verifyToken();
+            this.initialize(token);
         } else if (this.isEnabled) {
             console.log('[Facebook] ⚠️ Enabled but missing FACEBOOK_PAGE_ID or FACEBOOK_PAGE_TOKEN.');
         } else {
@@ -28,20 +29,42 @@ class FacebookService {
     }
 
     /**
-     * Verify the page token by fetching page info
+     * Initialize: try to get the correct Page Access Token.
+     * If the provided token is a User Token, exchange it for a Page Token via /me/accounts.
+     * If it's already a Page Token, use it directly.
      */
-    private async verifyToken(): Promise<void> {
+    private async initialize(token: string): Promise<void> {
         try {
-            const res = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${this.pageToken}`);
+            // Step 1: Try /me/accounts to get the page-specific token
+            console.log('[Facebook] Fetching Page Access Token via /me/accounts...');
+            const res = await fetch(`${GRAPH_API}/me/accounts?access_token=${token}`);
             const data = await res.json();
-            if (data.name) {
-                console.log(`[Facebook] ✅ Page verified: ${data.name} (${data.id})`);
+
+            if (data.data && data.data.length > 0) {
+                // Find the matching page
+                const page = data.data.find((p: any) => p.id === this.pageId) || data.data[0];
+                this.pageId = page.id;
+                this.pageToken = page.access_token;
+                this.isReady = true;
+                console.log(`[Facebook] ✅ Page verified: ${page.name} (${page.id})`);
+                return;
+            }
+
+            // Step 2: If /me/accounts failed, try using the token directly as a Page Token
+            console.log('[Facebook] /me/accounts returned no pages, trying token directly...');
+            const pageRes = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${token}`);
+            const pageData = await pageRes.json();
+
+            if (pageData.name) {
+                this.pageToken = token;
+                this.isReady = true;
+                console.log(`[Facebook] ✅ Page verified (direct): ${pageData.name} (${pageData.id})`);
             } else {
-                console.error('[Facebook] ❌ Token verification failed:', data.error?.message || 'Unknown error');
-                this.isEnabled = false;
+                console.error('[Facebook] ❌ Could not verify page. Error:', pageData.error?.message || JSON.stringify(data.error || data));
+                console.error('[Facebook] 💡 Make sure the token has pages_manage_posts and pages_read_engagement permissions.');
             }
         } catch (error: any) {
-            console.error('[Facebook] ❌ Failed to verify token:', error.message);
+            console.error('[Facebook] ❌ Failed to initialize:', error.message);
         }
     }
 
@@ -67,7 +90,7 @@ class FacebookService {
      * Post article to Facebook Page
      */
     public async postArticleToFacebook(article: any): Promise<void> {
-        if (!this.isEnabled || !this.pageId || !this.pageToken) {
+        if (!this.isEnabled || !this.isReady || !this.pageId || !this.pageToken) {
             console.log('[Facebook] Cannot post article: Service is not ready.');
             return;
         }
@@ -91,7 +114,7 @@ class FacebookService {
             const data = await response.json();
 
             if (data.id) {
-                console.log(`[Facebook] ✅ Posted article "${article.title?.substring(0, 40)}..." (Post ID: ${data.id})`);
+                console.log(`[Facebook] ✅ Posted "${article.title?.substring(0, 40)}..." (Post ID: ${data.id})`);
             } else {
                 console.error('[Facebook] ❌ Failed to post:', data.error?.message || 'Unknown error');
             }
