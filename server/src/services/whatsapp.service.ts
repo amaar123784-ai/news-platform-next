@@ -3,6 +3,8 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaile
 
 /** WhatsApp message limit */
 const MESSAGE_MAX_LENGTH = 1024;
+/** Delay (ms) before sending so article page/image are ready for link preview. Env: WHATSAPP_SEND_DELAY_MS */
+const SEND_DELAY_MS = parseInt(process.env.WHATSAPP_SEND_DELAY_MS || '5000', 10) || 5000;
 
 class WhatsAppService {
     private sock: any = null;
@@ -162,8 +164,9 @@ class WhatsAppService {
         }
 
         try {
-            console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
+            console.log(`[WhatsApp] Preparing to send article: ${article.title} (delay ${SEND_DELAY_MS}ms for link preview)`);
             const text = this.buildMessage(article);
+            await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
             await this.sock.sendMessage(this.channelJid, { text });
             console.log(`[WhatsApp] ✅ Sent article "${article.title}".`);
         } catch (error: any) {
