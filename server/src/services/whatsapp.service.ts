@@ -1,6 +1,5 @@
 // @ts-ignore
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
-import axios from 'axios';
 
 /** WhatsApp caption limit */
 const CAPTION_MAX_LENGTH = 1024;
@@ -150,28 +149,11 @@ class WhatsAppService {
     }
 
     /**
-     * Fetch image buffer from URL (for sending as media)
-     */
-    private async fetchImageBuffer(imageUrl: string): Promise<Buffer | null> {
-        try {
-            const res = await axios.get(imageUrl, {
-                responseType: 'arraybuffer',
-                timeout: 15000,
-                maxContentLength: 5 * 1024 * 1024, // 5MB
-                validateStatus: (s) => s === 200,
-            });
-            return Buffer.from(res.data);
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Build caption in two-block style (like reference):
+     * Build message in two-block style; image included as link (URL) only.
      * Block 1: headline + short summary → domain
      * Block 2: headline + body → "اقرأ المزيد على منصة صوت تهامة:" → URL
      */
-    private buildCaption(article: any): string {
+    private buildMessage(article: any): string {
         const title = (article.title || '').trim();
         const rawExcerpt = article.excerpt ? this.stripHtml(article.excerpt) : '';
         const rawContent = article.content ? this.stripHtml(article.content) : rawExcerpt;
@@ -179,8 +161,13 @@ class WhatsAppService {
         const body = this.truncateText(rawContent, BODY_MAX_LENGTH);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
         const domain = this.platformUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+        const imageUrl = article.imageUrl ? this.resolveImageUrl(article.imageUrl) : '';
 
-        const lines: string[] = [
+        const lines: string[] = [];
+        if (imageUrl) {
+            lines.push(imageUrl, '');
+        }
+        lines.push(
             // Block 1: headline + summary
             `*${title}*`,
             '',
@@ -195,20 +182,13 @@ class WhatsAppService {
             '',
             'اقرأ المزيد على منصة صوت تهامة:',
             articleUrl,
-        ];
-        const caption = lines.join('\n').trim();
-        return caption.length > CAPTION_MAX_LENGTH ? caption.slice(0, CAPTION_MAX_LENGTH - 1) + '…' : caption;
+        );
+        const message = lines.join('\n').trim();
+        return message.length > CAPTION_MAX_LENGTH ? message.slice(0, CAPTION_MAX_LENGTH - 1) + '…' : message;
     }
 
     /**
-     * Build text-only message (same structure, when no image or image send fails)
-     */
-    private buildTextMessage(article: any): string {
-        return this.buildCaption(article);
-    }
-
-    /**
-     * Send article to WhatsApp channel or group (one image + caption, or text-only)
+     * Send article to WhatsApp as text only; image is included as a link (URL).
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.isReady || !this.sock) {
@@ -223,27 +203,9 @@ class WhatsAppService {
 
         try {
             console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
-
-            const caption = this.buildCaption(article);
-            const hasImage = !!article.imageUrl;
-
-            if (hasImage) {
-                const imageUrl = this.resolveImageUrl(article.imageUrl);
-                const imageBuffer = await this.fetchImageBuffer(imageUrl);
-
-                if (imageBuffer && imageBuffer.length > 0) {
-                    await this.sock.sendMessage(this.channelJid, {
-                        image: imageBuffer,
-                        caption,
-                    });
-                    console.log(`[WhatsApp] ✅ Sent article with image "${article.title}" successfully!`);
-                    return;
-                }
-                console.warn('[WhatsApp] Could not fetch image, sending text-only.');
-            }
-
-            await this.sock.sendMessage(this.channelJid, { text: this.buildTextMessage(article) });
-            console.log(`[WhatsApp] ✅ Sent article "${article.title}" successfully!`);
+            const text = this.buildMessage(article);
+            await this.sock.sendMessage(this.channelJid, { text });
+            console.log(`[WhatsApp] ✅ Sent article "${article.title}" (image as link).`);
         } catch (error: any) {
             console.error('[WhatsApp] Failed to send article:', error.message);
         }
