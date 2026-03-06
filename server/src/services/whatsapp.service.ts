@@ -27,7 +27,6 @@ class WhatsAppService {
             this.sock = makeWASocket({
                 version,
                 auth: state,
-                printQRInTerminal: true,  // This prints the QR code visually!
                 browser: ['VoiceOfTihama', 'Chrome', '120.0'],
             });
 
@@ -37,6 +36,18 @@ class WhatsAppService {
             // Handle connection updates
             this.sock.ev.on('connection.update', async (update: any) => {
                 const { connection, lastDisconnect, qr } = update;
+
+                // Show QR code when available
+                if (qr) {
+                    console.log('[WhatsApp] Scan this QR Code with your phone:');
+                    // @ts-ignore
+                    import('qrcode-terminal').then((qrModule: any) => {
+                        const qrcode = qrModule.default || qrModule;
+                        qrcode.generate(qr, { small: true });
+                    }).catch(() => {
+                        console.log('[WhatsApp] QR:', qr);
+                    });
+                }
 
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
