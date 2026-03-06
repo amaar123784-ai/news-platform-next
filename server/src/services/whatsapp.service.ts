@@ -141,24 +141,19 @@ class WhatsAppService {
             const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
 
             // Exact same format as frontend ShareButtons
-            const messageText = `*${article.title || ""}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+            let messageText = `*${article.title || ""}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
 
             if (article.imageUrl) {
-                // If the article has an image, send an image message with the text as caption
                 let imgUrl = article.imageUrl;
                 if (imgUrl.startsWith('/')) {
                     imgUrl = `${this.platformUrl}${imgUrl}`;
                 }
-
-                await this.sock.sendMessage(this.channelJid, {
-                    image: { url: imgUrl },
-                    caption: messageText
-                });
-            } else {
-                // Otherwise fallback to text message
-                await this.sock.sendMessage(this.channelJid, { text: messageText });
+                // Append image link to the text
+                messageText += `\n\nصورة الخبر:\n${imgUrl}`;
             }
 
+            // Always send as a text message to ensure it goes through to the Channel
+            await this.sock.sendMessage(this.channelJid, { text: messageText });
             console.log(`[WhatsApp] ✅ Sent article "${article.title}" successfully!`);
 
         } catch (error: any) {
