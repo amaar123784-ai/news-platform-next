@@ -1,91 +1,105 @@
 // @ts-ignore
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 
 class WhatsAppService {
-    private client: any;
+    private sock: any = null;
     private isReady: boolean = false;
-    private channelId: string | null = null;
+    private channelJid: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
 
     constructor() {
-        // Initialize client with LocalAuth to persist session
-        this.client = new Client({
-            authStrategy: new LocalAuth({ dataPath: './whatsapp-session' }),
-            puppeteer: {
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            }
-        });
+        this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
 
-        this.channelId = process.env.WHATSAPP_CHANNEL_ID || null;
-
-        this.initializeClient();
+        if (process.env.WHATSAPP_ENABLE === 'true') {
+            this.initializeClient();
+        } else {
+            console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
+        }
     }
 
-    private initializeClient(): void {
-        if (process.env.WHATSAPP_ENABLE !== 'true') {
-            console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
-            return;
-        }
+    private async initializeClient(): Promise<void> {
+        console.log('[WhatsApp] Initializing Baileys client...');
 
-        console.log('[WhatsApp] Initializing client...');
+        try {
+            const { state, saveCreds } = await useMultiFileAuthState('./whatsapp-auth');
+            const { version } = await fetchLatestBaileysVersion();
 
-        this.client.on('qr', (qr: string) => {
-            console.log('[WhatsApp] Action Required: Scan QR Code to connect!');
-            // Render visual QR code in terminal using dynamic import (ESM)
-            // @ts-ignore
-            import('qrcode-terminal').then((qrModule: any) => {
-                const qrcode = qrModule.default || qrModule;
-                qrcode.generate(qr, { small: true });
-            }).catch(() => {
-                console.log('[WhatsApp] QR Data:', qr);
+            this.sock = makeWASocket.default({
+                version,
+                auth: state,
+                printQRInTerminal: true,  // This prints the QR code visually!
+                browser: ['VoiceOfTihama', 'Chrome', '120.0'],
             });
-        });
 
-        this.client.on('ready', async () => {
-            console.log('[WhatsApp] Client is ready!');
-            this.isReady = true;
+            // Save credentials whenever they update
+            this.sock.ev.on('creds.update', saveCreds);
 
-            // Fetch and print all chats to help user find the Channel ID
-            try {
-                const chats: any[] = await this.client.getChats();
-                const channels = chats.filter((c: any) => c.id._serialized.includes('newsletter'));
-                const groups = chats.filter((c: any) => c.isGroup);
+            // Handle connection updates
+            this.sock.ev.on('connection.update', async (update: any) => {
+                const { connection, lastDisconnect, qr } = update;
 
-                console.log('\n--- WhatsApp Connected Targets ---');
-                if (channels.length > 0) {
-                    console.log('Channels found:');
-                    channels.forEach((ch: any) => console.log(`  - ${ch.name}: ${ch.id._serialized}`));
+                if (connection === 'close') {
+                    const statusCode = lastDisconnect?.error?.output?.statusCode;
+                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+                    console.log(`[WhatsApp] Connection closed. Status: ${statusCode}. Reconnecting: ${shouldReconnect}`);
+                    this.isReady = false;
+
+                    if (shouldReconnect) {
+                        // Wait a bit before reconnecting
+                        setTimeout(() => this.initializeClient(), 5000);
+                    } else {
+                        console.log('[WhatsApp] Logged out. Please delete whatsapp-auth folder and restart to re-scan QR.');
+                    }
+                }
+
+                if (connection === 'open') {
+                    console.log('[WhatsApp] ✅ Connected successfully!');
+                    this.isReady = true;
+
+                    // List available newsletters/channels
+                    await this.listChannels();
+                }
+            });
+
+        } catch (error: any) {
+            console.error('[WhatsApp] Failed to initialize:', error.message);
+        }
+    }
+
+    /**
+     * List all subscribed newsletters/channels
+     */
+    private async listChannels(): Promise<void> {
+        try {
+            if (this.sock?.newsletterSubscriptions) {
+                const newsletters = await this.sock.newsletterSubscriptions();
+                console.log('\n--- WhatsApp Channels (Newsletters) ---');
+                if (newsletters && newsletters.length > 0) {
+                    newsletters.forEach((nl: any) => {
+                        console.log(`  - ${nl.name || 'Unnamed'}: ${nl.id}`);
+                    });
                 } else {
-                    console.log('No Channels found.');
+                    console.log('  No subscribed channels found.');
                 }
-
-                if (groups.length > 0) {
-                    console.log('Groups found:');
-                    groups.forEach((g: any) => console.log(`  - ${g.name}: ${g.id._serialized}`));
-                }
-                console.log('----------------------------------\n');
-            } catch (error: any) {
-                console.error('[WhatsApp] Could not fetch chats:', error);
+                console.log('---------------------------------------\n');
             }
-        });
 
-        this.client.on('authenticated', () => {
-            console.log('[WhatsApp] Authenticated successfully!');
-        });
-
-        this.client.on('auth_failure', (msg: string) => {
-            console.error('[WhatsApp] Authentication failure:', msg);
-        });
-
-        this.client.on('disconnected', (reason: string) => {
-            console.log('[WhatsApp] Client was disconnected:', reason);
-            this.isReady = false;
-        });
-
-        this.client.initialize().catch((err: any) => {
-            console.error('[WhatsApp] Failed to initialize client:', err);
-        });
+            // Also try listing groups
+            const groups = await this.sock?.groupFetchAllParticipating?.();
+            if (groups) {
+                const groupList = Object.values(groups) as any[];
+                if (groupList.length > 0) {
+                    console.log('--- WhatsApp Groups ---');
+                    groupList.slice(0, 10).forEach((g: any) => {
+                        console.log(`  - ${g.subject}: ${g.id}`);
+                    });
+                    console.log('-----------------------\n');
+                }
+            }
+        } catch (error: any) {
+            console.log('[WhatsApp] Could not list channels:', error.message);
+        }
     }
 
     /**
@@ -96,15 +110,15 @@ class WhatsAppService {
     }
 
     /**
-     * Main function to format and send the article
+     * Send article to WhatsApp channel or group
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
-        if (!this.isReady) {
+        if (!this.isReady || !this.sock) {
             console.log('[WhatsApp] Cannot send article: Client is not ready.');
             return;
         }
 
-        if (!this.channelId) {
+        if (!this.channelJid) {
             console.log('[WhatsApp] Cannot send article: WHATSAPP_CHANNEL_ID is not configured.');
             return;
         }
@@ -115,17 +129,16 @@ class WhatsAppService {
             const excerpt = article.excerpt ? this.stripHtml(article.excerpt) : '';
             const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
 
-            // Build the message template
-            const message = `🚨 *خبر جديد - صوت تهامة* 🚨\n\n*${article.title}*\n\n${excerpt}\n\n🔗 *التفاصيل:* \n${articleUrl}`;
+            const message = `🚨 *خبر جديد - صوت تهامة* 🚨\n\n*${article.title}*\n\n${excerpt}\n\n🔗 *التفاصيل:*\n${articleUrl}`;
 
-            await this.client.sendMessage(this.channelId, message);
-            console.log(`[WhatsApp] Successfully sent article "${article.title}" to channel!`);
+            await this.sock.sendMessage(this.channelJid, { text: message });
+            console.log(`[WhatsApp] ✅ Sent article "${article.title}" successfully!`);
 
         } catch (error: any) {
-            console.error('[WhatsApp] Failed to send article:', error);
+            console.error('[WhatsApp] Failed to send article:', error.message);
         }
     }
 }
 
-// Export a singleton instance
+// Export singleton
 export const whatsappService = new WhatsAppService();
