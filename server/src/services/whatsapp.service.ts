@@ -4,7 +4,7 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaile
 /** WhatsApp message limit */
 const MESSAGE_MAX_LENGTH = 1024;
 /** Delay (ms) before sending so article page/image are ready for link preview. Env: WHATSAPP_SEND_DELAY_MS */
-const SEND_DELAY_MS = parseInt(process.env.WHATSAPP_SEND_DELAY_MS || '5000', 10) || 5000;
+const SEND_DELAY_MS = parseInt(process.env.WHATSAPP_SEND_DELAY_MS || '15000', 10) || 15000;
 
 class WhatsAppService {
     private sock: any = null;
