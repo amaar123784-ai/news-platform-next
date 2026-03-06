@@ -359,6 +359,11 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             whatsappService.sendArticleToWhatsApp(article).catch(err => {
                 console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
             });
+
+            const { telegramService } = await import('../services/telegram.service.js');
+            telegramService.sendArticleWithPhoto(article).catch(err => {
+                console.error(`[Telegram] Failed to send article ${article.id}:`, err);
+            });
         }
 
         res.status(201).json({ success: true, data: article });
@@ -419,6 +424,11 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             const { whatsappService } = await import('../services/whatsapp.service.js');
             whatsappService.sendArticleToWhatsApp(article).catch(err => {
                 console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
+            });
+
+            const { telegramService } = await import('../services/telegram.service.js');
+            telegramService.sendArticleWithPhoto(article).catch(err => {
+                console.error(`[Telegram] Failed to send article ${article.id}:`, err);
             });
         }
 
@@ -507,10 +517,15 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             cache.del(cacheKeys.article(article.slug)),
         ]);
 
-        // Send to WhatsApp
+        // Send to WhatsApp & Telegram
         const { whatsappService } = await import('../services/whatsapp.service.js');
         whatsappService.sendArticleToWhatsApp(article).catch(err => {
             console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
+        });
+
+        const { telegramService } = await import('../services/telegram.service.js');
+        telegramService.sendArticleWithPhoto(article).catch(err => {
+            console.error(`[Telegram] Failed to send article ${article.id}:`, err);
         });
 
         res.json({ success: true, data: article });
