@@ -37,6 +37,7 @@ const services = [
     { label: 'سياسة الخصوصية', href: '/privacy' },
     { label: 'الشروط والأحكام', href: '/terms' },
     { label: 'الأخبار العاجلة', href: '/breaking' },
+    { label: 'خلاصة الأخبار (RSS)', href: '/rss.xml' },
 ];
 
 export const Footer: React.FC<FooterProps> = ({
