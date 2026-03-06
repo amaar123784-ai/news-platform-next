@@ -6,6 +6,7 @@
 import { PrismaClient, AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
 import { rewriteArticle as rewriteWithAI } from './ai.service.js';
 import { notificationService } from './notification.service.js';
+// @ts-ignore
 import slugify from 'slugify';
 import crypto from 'crypto';
 
@@ -208,6 +209,14 @@ export class AutomationService {
         });
 
         console.log(`[Automation] Created platform article: ${newArticle.slug}`);
+
+        // Send to WhatsApp channel
+        try {
+            const { whatsappService } = await import('./whatsapp.service.js');
+            await whatsappService.sendArticleToWhatsApp(newArticle);
+        } catch (err: any) {
+            console.error('[Automation] WhatsApp send failed:', err.message);
+        }
     }
 
     /**
