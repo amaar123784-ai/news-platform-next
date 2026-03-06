@@ -210,6 +210,18 @@ export class AutomationService {
 
         console.log(`[Automation] Created platform article: ${newArticle.slug}`);
 
+        // Auto-detect breaking news from title
+        const breakingKeywords = ['عاجل', 'خبر عاجل', 'عاجل:', 'عاجل |', 'breaking'];
+        const titleTrimmed = newArticle.title.trim();
+        const isBreaking = breakingKeywords.some(kw => titleTrimmed.startsWith(kw));
+        if (isBreaking) {
+            await prisma.article.update({
+                where: { id: newArticle.id },
+                data: { isBreaking: true }
+            });
+            console.log(`[Automation] 🔴 Marked as BREAKING: "${newArticle.title.substring(0, 40)}..."`);
+        }
+
         // Send to WhatsApp channel
         try {
             const { whatsappService } = await import('./whatsapp.service.js');

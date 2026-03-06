@@ -86,11 +86,34 @@ export function initializeScheduler(): void {
         }
     });
 
+    // Expire stale breaking news every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
+        try {
+            const { expireBreakingNews } = await import('./news-curation.service.js');
+            await expireBreakingNews(6); // 6 hours
+        } catch (error) {
+            console.error('[Scheduler] Breaking news expiry error:', error);
+        }
+    });
+
+    // Refresh featured articles every hour (at minute 5)
+    cron.schedule('5 * * * *', async () => {
+        try {
+            const { refreshFeaturedArticles } = await import('./news-curation.service.js');
+            const result = await refreshFeaturedArticles();
+            console.log(`[Scheduler] Featured refresh: ${result.featured} articles featured`);
+        } catch (error) {
+            console.error('[Scheduler] Featured refresh error:', error);
+        }
+    });
+
     isSchedulerInitialized = true;
     console.log('[Scheduler] Background jobs initialized successfully');
     console.log('[Scheduler] - RSS fetch: every 15 minutes');
     console.log('[Scheduler] - Scrape queue: every 5 minutes');
     console.log('[Scheduler] - Social media: every 2 minutes');
+    console.log('[Scheduler] - Breaking news expiry: every 30 minutes');
+    console.log('[Scheduler] - Featured refresh: every hour');
     console.log('[Scheduler] - Article expiry: daily at 2 AM');
     console.log('[Scheduler] - Cleanup: daily at 3 AM');
 }
