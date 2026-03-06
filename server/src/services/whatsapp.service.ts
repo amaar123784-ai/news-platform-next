@@ -1,20 +1,15 @@
 // @ts-ignore
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import axios from 'axios';
 
-/** WhatsApp caption limit */
-const CAPTION_MAX_LENGTH = 1024;
-/** First block: short summary under the image */
-const SUMMARY_MAX_LENGTH = 130;
-/** Second block: headline + body (content or excerpt) */
-const BODY_MAX_LENGTH = 420;
+/** WhatsApp message/caption limit */
+const MESSAGE_MAX_LENGTH = 1024;
 
 class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
-    /** Brand/header shown at top of each post (e.g. صوت تهامة) */
-    private headerLabel: string = process.env.WHATSAPP_HEADER || 'صوت تهامة';
 
     constructor() {
         this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
@@ -130,7 +125,7 @@ class WhatsAppService {
     }
 
     /**
-     * Truncate text for caption (single line or short block)
+     * Truncate text when message would exceed WhatsApp limit
      */
     private truncateText(text: string, maxLen: number): string {
         const cleaned = text.replace(/\s+/g, ' ').trim();
@@ -138,9 +133,7 @@ class WhatsAppService {
         return cleaned.slice(0, maxLen).trim() + '…';
     }
 
-    /**
-     * Resolve full image URL (relative -> absolute)
-     */
+    /** Resolve full image URL (relative -> absolute) */
     private resolveImageUrl(imageUrl: string): string {
         if (!imageUrl) return '';
         if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
@@ -148,47 +141,46 @@ class WhatsAppService {
         return imageUrl.startsWith('/') ? `${base}${imageUrl}` : `${base}/${imageUrl}`;
     }
 
+    /** Fetch image buffer for sending as media */
+    private async fetchImageBuffer(imageUrl: string): Promise<Buffer | null> {
+        try {
+            const res = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 15000,
+                maxContentLength: 5 * 1024 * 1024,
+                validateStatus: (s) => s === 200,
+            });
+            return Buffer.from(res.data);
+        } catch {
+            return null;
+        }
+    }
+
     /**
-     * Build message in two-block style; image included as link (URL) only.
-     * Block 1: headline + short summary → domain
-     * Block 2: headline + body → "اقرأ المزيد على منصة صوت تهامة:" → URL
+     * Build message identical to ShareButtons whatsapp share format:
+     * *Title*
+     *
+     * excerpt
+     *
+     * اقرأ المزيد على منصة صوت تهامة:
+     * articleUrl
      */
     private buildMessage(article: any): string {
         const title = (article.title || '').trim();
         const rawExcerpt = article.excerpt ? this.stripHtml(article.excerpt) : '';
-        const rawContent = article.content ? this.stripHtml(article.content) : rawExcerpt;
-        const summary = this.truncateText(rawExcerpt, SUMMARY_MAX_LENGTH);
-        const body = this.truncateText(rawContent, BODY_MAX_LENGTH);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-        const domain = this.platformUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-        const imageUrl = article.imageUrl ? this.resolveImageUrl(article.imageUrl) : '';
 
-        const lines: string[] = [];
-        if (imageUrl) {
-            lines.push(imageUrl, '');
+        let message = `*${title}*\n\n${rawExcerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+        if (message.length > MESSAGE_MAX_LENGTH) {
+            const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
+            const excerpt = this.truncateText(rawExcerpt, Math.max(100, excerptMax));
+            message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
         }
-        lines.push(
-            // Block 1: headline + summary
-            `*${title}*`,
-            '',
-            summary,
-            '',
-            domain,
-            '',
-            // Block 2: headline + full body
-            `*${title}*`,
-            '',
-            body,
-            '',
-            'اقرأ المزيد على منصة صوت تهامة:',
-            articleUrl,
-        );
-        const message = lines.join('\n').trim();
-        return message.length > CAPTION_MAX_LENGTH ? message.slice(0, CAPTION_MAX_LENGTH - 1) + '…' : message;
+        return message;
     }
 
     /**
-     * Send article to WhatsApp as text only; image is included as a link (URL).
+     * Send article to WhatsApp channel (same format as share: image + caption so image appears like when sharing).
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.isReady || !this.sock) {
@@ -203,9 +195,20 @@ class WhatsAppService {
 
         try {
             console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
-            const text = this.buildMessage(article);
-            await this.sock.sendMessage(this.channelJid, { text });
-            console.log(`[WhatsApp] ✅ Sent article "${article.title}" (image as link).`);
+            const caption = this.buildMessage(article);
+
+            if (article.imageUrl) {
+                const imageUrl = this.resolveImageUrl(article.imageUrl);
+                const imageBuffer = await this.fetchImageBuffer(imageUrl);
+                if (imageBuffer && imageBuffer.length > 0) {
+                    await this.sock.sendMessage(this.channelJid, { image: imageBuffer, caption });
+                    console.log(`[WhatsApp] ✅ Sent article with image "${article.title}".`);
+                    return;
+                }
+            }
+
+            await this.sock.sendMessage(this.channelJid, { text: caption });
+            console.log(`[WhatsApp] ✅ Sent article "${article.title}".`);
         } catch (error: any) {
             console.error('[WhatsApp] Failed to send article:', error.message);
         }
