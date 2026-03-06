@@ -140,7 +140,8 @@ class WhatsAppService {
     private buildMessage(article: any): string {
         const title = article.title || '';
         const excerpt = article.excerpt || '';
-        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+        // Use article ID for shorter URLs
+        const articleUrl = `${this.platformUrl}/article/${article.id}`;
         const message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
         if (message.length <= MESSAGE_MAX_LENGTH) return message;
         const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
@@ -184,7 +185,7 @@ class WhatsAppService {
 
         try {
             const text = this.buildMessage(article);
-            const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+            const articleUrl = `${this.platformUrl}/article/${article.id}`;
 
             console.log(`[WhatsApp] Preparing to send article: ${article.title} (delay ${SEND_DELAY_MS}ms for page build)`);
             await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
@@ -199,27 +200,37 @@ class WhatsAppService {
             }
 
             if (jpegThumbnail) {
-                // Send with large image preview using externalAdReply
+                // Send with clean large preview using ExtendedTextMessage (no icons/attribution)
                 try {
-                    await this.sock.sendMessage(this.channelJid, {
-                        text,
-                        contextInfo: {
-                            externalAdReply: {
-                                renderLargerThumbnail: true,
+                    // @ts-ignore
+                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
+
+                    const msg = generateWAMessageFromContent(
+                        this.channelJid,
+                        proto.Message.fromObject({
+                            extendedTextMessage: {
+                                text,
+                                matchedText: articleUrl,
+                                canonicalUrl: articleUrl,
                                 title: article.title || '',
-                                body: this.stripHtml(article.excerpt || '').substring(0, 200),
-                                mediaType: 1,
-                                sourceUrl: articleUrl,
-                                thumbnail: jpegThumbnail,
-                                showAdAttribution: false,
+                                description: this.stripHtml(article.excerpt || '').substring(0, 200),
+                                jpegThumbnail,
+                                thumbnailWidth: 960,
+                                thumbnailHeight: 540,
+                                previewType: 0,
                             }
-                        }
+                        }),
+                        { userJid: this.sock.user?.id || '' }
+                    );
+
+                    await this.sock.relayMessage(this.channelJid, msg.message!, {
+                        messageId: msg.key.id!
                     });
 
                     console.log(`[WhatsApp] ✅ Sent article with large preview "${article.title}".`);
                     return;
                 } catch (previewErr: any) {
-                    console.warn(`[WhatsApp] ⚠️ Large preview failed (${previewErr.message}), falling back to text.`);
+                    console.warn(`[WhatsApp] ⚠️ Preview failed (${previewErr.message}), falling back to text.`);
                 }
             }
 
