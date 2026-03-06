@@ -217,7 +217,7 @@ class WhatsAppService {
                                 previewType: 0,
                             }
                         }),
-                        {}
+                        { userJid: this.sock.user?.id || '' }
                     );
 
                     await this.sock.relayMessage(this.channelJid, msg.message!, {
