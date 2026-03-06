@@ -149,8 +149,27 @@ class WhatsAppService {
     }
 
     /**
-     * Send article to WhatsApp channel — text only, 100% same as share (no media).
-     * Link preview (with image) is shown by WhatsApp when the URL is in the message.
+     * Fetch article image as tiny JPEG buffer for link preview thumbnail
+     */
+    private async fetchThumbnail(imageUrl: string): Promise<Buffer | undefined> {
+        try {
+            const response = await fetch(imageUrl, {
+                headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!response.ok) return undefined;
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            // Skip if too large (max 1MB for thumbnail)
+            if (buffer.length > 1024 * 1024) return undefined;
+            return buffer;
+        } catch {
+            return undefined;
+        }
+    }
+
+    /**
+     * Send article to WhatsApp channel with rich link preview (title + description + image).
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.isReady || !this.sock) {
@@ -164,11 +183,57 @@ class WhatsAppService {
         }
 
         try {
-            console.log(`[WhatsApp] Preparing to send article: ${article.title} (delay ${SEND_DELAY_MS}ms for link preview)`);
             const text = this.buildMessage(article);
+            const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+
+            console.log(`[WhatsApp] Preparing to send article: ${article.title} (delay ${SEND_DELAY_MS}ms for page build)`);
             await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
+
+            // Fetch thumbnail for link preview
+            let jpegThumbnail: Buffer | undefined;
+            if (article.imageUrl) {
+                const fullImageUrl = article.imageUrl.startsWith('http')
+                    ? article.imageUrl
+                    : `${this.platformUrl}${article.imageUrl}`;
+                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
+            }
+
+            if (jpegThumbnail) {
+                // Send with rich link preview using ExtendedTextMessage
+                try {
+                    // @ts-ignore
+                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
+
+                    const msg = generateWAMessageFromContent(
+                        this.channelJid,
+                        proto.Message.fromObject({
+                            extendedTextMessage: {
+                                text,
+                                matchedText: articleUrl,
+                                canonicalUrl: articleUrl,
+                                title: article.title || '',
+                                description: this.stripHtml(article.excerpt || '').substring(0, 200),
+                                jpegThumbnail,
+                                previewType: 0,
+                            }
+                        }),
+                        {}
+                    );
+
+                    await this.sock.relayMessage(this.channelJid, msg.message!, {
+                        messageId: msg.key.id!
+                    });
+
+                    console.log(`[WhatsApp] ✅ Sent article with link preview "${article.title}".`);
+                    return;
+                } catch (previewErr: any) {
+                    console.warn(`[WhatsApp] ⚠️ Link preview failed (${previewErr.message}), falling back to text.`);
+                }
+            }
+
+            // Fallback: plain text (no preview)
             await this.sock.sendMessage(this.channelJid, { text });
-            console.log(`[WhatsApp] ✅ Sent article "${article.title}".`);
+            console.log(`[WhatsApp] ✅ Sent article (text only) "${article.title}".`);
         } catch (error: any) {
             console.error('[WhatsApp] Failed to send article:', error.message);
         }
