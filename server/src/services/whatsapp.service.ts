@@ -199,35 +199,27 @@ class WhatsAppService {
             }
 
             if (jpegThumbnail) {
-                // Send with rich link preview using ExtendedTextMessage
+                // Send with large image preview using externalAdReply
                 try {
-                    // @ts-ignore
-                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
-
-                    const msg = generateWAMessageFromContent(
-                        this.channelJid,
-                        proto.Message.fromObject({
-                            extendedTextMessage: {
-                                text,
-                                matchedText: articleUrl,
-                                canonicalUrl: articleUrl,
+                    await this.sock.sendMessage(this.channelJid, {
+                        text,
+                        contextInfo: {
+                            externalAdReply: {
+                                renderLargerThumbnail: true,
                                 title: article.title || '',
-                                description: this.stripHtml(article.excerpt || '').substring(0, 200),
-                                jpegThumbnail,
-                                previewType: 0,
+                                body: this.stripHtml(article.excerpt || '').substring(0, 200),
+                                mediaType: 1,
+                                sourceUrl: articleUrl,
+                                thumbnail: jpegThumbnail,
+                                showAdAttribution: false,
                             }
-                        }),
-                        { userJid: this.sock.user?.id || '' }
-                    );
-
-                    await this.sock.relayMessage(this.channelJid, msg.message!, {
-                        messageId: msg.key.id!
+                        }
                     });
 
-                    console.log(`[WhatsApp] ✅ Sent article with link preview "${article.title}".`);
+                    console.log(`[WhatsApp] ✅ Sent article with large preview "${article.title}".`);
                     return;
                 } catch (previewErr: any) {
-                    console.warn(`[WhatsApp] ⚠️ Link preview failed (${previewErr.message}), falling back to text.`);
+                    console.warn(`[WhatsApp] ⚠️ Large preview failed (${previewErr.message}), falling back to text.`);
                 }
             }
 
