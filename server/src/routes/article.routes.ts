@@ -364,6 +364,11 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             telegramService.sendArticleWithPhoto(article).catch(err => {
                 console.error(`[Telegram] Failed to send article ${article.id}:`, err);
             });
+
+            const { facebookService } = await import('../services/facebook.service.js');
+            facebookService.postArticleToFacebook(article).catch(err => {
+                console.error(`[Facebook] Failed to post article ${article.id}:`, err);
+            });
         }
 
         res.status(201).json({ success: true, data: article });
@@ -429,6 +434,11 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             const { telegramService } = await import('../services/telegram.service.js');
             telegramService.sendArticleWithPhoto(article).catch(err => {
                 console.error(`[Telegram] Failed to send article ${article.id}:`, err);
+            });
+
+            const { facebookService } = await import('../services/facebook.service.js');
+            facebookService.postArticleToFacebook(article).catch(err => {
+                console.error(`[Facebook] Failed to post article ${article.id}:`, err);
             });
         }
 
@@ -526,6 +536,11 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
         const { telegramService } = await import('../services/telegram.service.js');
         telegramService.sendArticleWithPhoto(article).catch(err => {
             console.error(`[Telegram] Failed to send article ${article.id}:`, err);
+        });
+
+        const { facebookService } = await import('../services/facebook.service.js');
+        facebookService.postArticleToFacebook(article).catch(err => {
+            console.error(`[Facebook] Failed to post article ${article.id}:`, err);
         });
 
         res.json({ success: true, data: article });
