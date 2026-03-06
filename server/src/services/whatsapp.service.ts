@@ -1,8 +1,7 @@
 // @ts-ignore
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
-import axios from 'axios';
 
-/** WhatsApp message/caption limit */
+/** WhatsApp message limit */
 const MESSAGE_MAX_LENGTH = 1024;
 
 class WhatsAppService {
@@ -133,29 +132,6 @@ class WhatsAppService {
         return cleaned.slice(0, maxLen).trim() + '…';
     }
 
-    /** Resolve full image URL (relative -> absolute) */
-    private resolveImageUrl(imageUrl: string): string {
-        if (!imageUrl) return '';
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-        const base = this.platformUrl.replace(/\/$/, '');
-        return imageUrl.startsWith('/') ? `${base}${imageUrl}` : `${base}/${imageUrl}`;
-    }
-
-    /** Fetch image buffer for sending as media */
-    private async fetchImageBuffer(imageUrl: string): Promise<Buffer | null> {
-        try {
-            const res = await axios.get(imageUrl, {
-                responseType: 'arraybuffer',
-                timeout: 15000,
-                maxContentLength: 5 * 1024 * 1024,
-                validateStatus: (s) => s === 200,
-            });
-            return Buffer.from(res.data);
-        } catch {
-            return null;
-        }
-    }
-
     /**
      * Build message identical to ShareButtons whatsapp share format:
      * *Title*
@@ -180,7 +156,8 @@ class WhatsAppService {
     }
 
     /**
-     * Send article to WhatsApp channel (same format as share: image + caption so image appears like when sharing).
+     * Send article to WhatsApp channel — text only, 100% same as share (no media).
+     * Link preview (with image) is shown by WhatsApp when the URL is in the message.
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.isReady || !this.sock) {
@@ -195,19 +172,8 @@ class WhatsAppService {
 
         try {
             console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
-            const caption = this.buildMessage(article);
-
-            if (article.imageUrl) {
-                const imageUrl = this.resolveImageUrl(article.imageUrl);
-                const imageBuffer = await this.fetchImageBuffer(imageUrl);
-                if (imageBuffer && imageBuffer.length > 0) {
-                    await this.sock.sendMessage(this.channelJid, { image: imageBuffer, caption });
-                    console.log(`[WhatsApp] ✅ Sent article with image "${article.title}".`);
-                    return;
-                }
-            }
-
-            await this.sock.sendMessage(this.channelJid, { text: caption });
+            const text = this.buildMessage(article);
+            await this.sock.sendMessage(this.channelJid, { text });
             console.log(`[WhatsApp] ✅ Sent article "${article.title}".`);
         } catch (error: any) {
             console.error('[WhatsApp] Failed to send article:', error.message);
