@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
         hostname: "*.voiceoftihama.com",
         pathname: "/**",
       },
+      {
+        // Allow external RSS article images (HTTPS only)
+        protocol: "https",
+        hostname: "**",
+        pathname: "/**",
+      },
     ],
     // Enable modern image formats for better compression
     formats: ["image/avif", "image/webp"],
