@@ -70,23 +70,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={arabicFont.variable}>
       <head>
-        {/* DNS Prefetch and Preconnect for external resources */}
-        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
-        <link
-          rel="preconnect"
-          href="https://cdn.jsdelivr.net"
-          crossOrigin="anonymous"
-        />
-        {/* Preload remixicon CSS for faster loading */}
-        <link
-          rel="preload"
-          as="style"
-          href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
-        />
-        <link
-          href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css"
-          rel="stylesheet"
-        />
+        {/* Remixicon is now self-hosted via globals.css import */}
         <link rel="icon" href="/images/logo.webp" />
         <link rel="shortcut icon" href="/images/logo.webp" />
         <link rel="apple-touch-icon" href="/images/logo.webp" />

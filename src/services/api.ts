@@ -46,7 +46,7 @@ const api: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 300000,
+    timeout: 15000,
 });
 
 // Request interceptor - Add auth token

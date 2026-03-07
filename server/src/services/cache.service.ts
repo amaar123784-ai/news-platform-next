@@ -148,10 +148,26 @@ export const cache = {
             const client = getRedis();
 
             if (client && !useMemoryFallback) {
-                const keys = await client.keys(pattern);
-                if (keys.length > 0) {
-                    await client.del(...keys);
-                }
+                // Use SCAN instead of KEYS to avoid blocking Redis
+                const stream = client.scanStream({ match: pattern, count: 100 });
+                const pipeline = client.pipeline();
+                let keyCount = 0;
+
+                await new Promise<void>((resolve, reject) => {
+                    stream.on('data', (keys: string[]) => {
+                        if (keys.length > 0) {
+                            keys.forEach((key: string) => pipeline.del(key));
+                            keyCount += keys.length;
+                        }
+                    });
+                    stream.on('end', async () => {
+                        if (keyCount > 0) {
+                            await pipeline.exec();
+                        }
+                        resolve();
+                    });
+                    stream.on('error', reject);
+                });
                 return;
             }
 
@@ -172,6 +188,76 @@ export const cache = {
      */
     isUsingRedis(): boolean {
         return !useMemoryFallback && redis !== null;
+    },
+
+    /**
+     * Increment article view count in Redis (batched flush to DB)
+     */
+    async incrementViewCount(articleId: string): Promise<void> {
+        try {
+            const client = getRedis();
+            if (client && !useMemoryFallback) {
+                await client.incr(`views:${articleId}`);
+                return;
+            }
+            // Memory fallback
+            const key = `views:${articleId}`;
+            const current = memoryCache.get(key);
+            const count = current ? parseInt(current.data) + 1 : 1;
+            memoryCache.set(key, { data: String(count), expiry: Date.now() + 86400000 });
+        } catch (error) {
+            console.warn('[Cache] View increment error:', error);
+        }
+    },
+
+    /**
+     * Flush accumulated view counts from Redis to the database
+     */
+    async flushViewCounts(prisma: any): Promise<number> {
+        let flushed = 0;
+        try {
+            const client = getRedis();
+            if (client && !useMemoryFallback) {
+                const stream = client.scanStream({ match: 'views:*', count: 100 });
+                const keys: string[] = [];
+                await new Promise<void>((resolve, reject) => {
+                    stream.on('data', (batch: string[]) => keys.push(...batch));
+                    stream.on('end', resolve);
+                    stream.on('error', reject);
+                });
+
+                for (const key of keys) {
+                    const count = await client.getdel(key);
+                    if (count && parseInt(count) > 0) {
+                        const articleId = key.replace('views:', '');
+                        await prisma.article.update({
+                            where: { id: articleId },
+                            data: { views: { increment: parseInt(count) } },
+                        }).catch(() => { });
+                        flushed++;
+                    }
+                }
+            } else {
+                // Memory fallback
+                for (const [key, value] of memoryCache.entries()) {
+                    if (key.startsWith('views:')) {
+                        const articleId = key.replace('views:', '');
+                        const count = parseInt(value.data);
+                        if (count > 0) {
+                            await prisma.article.update({
+                                where: { id: articleId },
+                                data: { views: { increment: count } },
+                            }).catch(() => { });
+                            flushed++;
+                        }
+                        memoryCache.delete(key);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('[Cache] Flush view counts error:', error);
+        }
+        return flushed;
     },
 };
 

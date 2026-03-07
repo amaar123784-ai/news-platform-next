@@ -18,7 +18,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "voiceoftihama.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.voiceoftihama.com",
+        pathname: "/**",
       },
     ],
     // Enable modern image formats for better compression

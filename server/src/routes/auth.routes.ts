@@ -5,12 +5,14 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../index.js';
 import { env } from '../config/env.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../validators/schemas.js';
+import { z } from 'zod';
 import { verifyGoogleToken, verifyFacebookToken, findOrCreateSocialUser } from '../services/oauth.service.js';
 
 const router = Router();
@@ -30,6 +32,11 @@ function generateTokens(user: { id: string; email: string; role: string }) {
     );
 
     return { accessToken, refreshToken };
+}
+
+// Helper to hash refresh tokens before storing in DB
+function hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
@@ -64,7 +71,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
         // Store refresh token
         await prisma.refreshToken.create({
             data: {
-                token: refreshToken,
+                token: hashToken(refreshToken),
                 userId: user.id,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
             },
@@ -95,10 +102,10 @@ router.post('/google', authLimiter, async (req, res, next) => {
 
         const tokens = generateTokens(user);
 
-        // Store refresh token
+        // Store refresh token (hashed)
         await prisma.refreshToken.create({
             data: {
-                token: tokens.refreshToken,
+                token: hashToken(tokens.refreshToken),
                 userId: user.id,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
@@ -133,10 +140,10 @@ router.post('/facebook', authLimiter, async (req, res, next) => {
 
         const tokens = generateTokens(user);
 
-        // Store refresh token
+        // Store refresh token (hashed)
         await prisma.refreshToken.create({
             data: {
-                token: tokens.refreshToken,
+                token: hashToken(tokens.refreshToken),
                 userId: user.id,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
@@ -256,9 +263,10 @@ router.post('/refresh', async (req, res, next) => {
         // Verify refresh token
         const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { userId: string };
 
-        // Check if token exists in DB
+        // Check if hashed token exists in DB
+        const hashedIncoming = hashToken(refreshToken);
         const storedToken = await prisma.refreshToken.findFirst({
-            where: { token: refreshToken, userId: decoded.userId },
+            where: { token: hashedIncoming, userId: decoded.userId },
         });
 
         if (!storedToken || storedToken.expiresAt < new Date()) {
@@ -278,7 +286,7 @@ router.post('/refresh', async (req, res, next) => {
         await prisma.refreshToken.update({
             where: { id: storedToken.id },
             data: {
-                token: tokens.refreshToken,
+                token: hashToken(tokens.refreshToken),
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
         });
@@ -322,7 +330,12 @@ router.get('/me', authenticate, async (req, res, next) => {
  */
 router.patch('/me', authenticate, async (req, res, next) => {
     try {
-        const { name, avatar, bio } = req.body;
+        const updateProfileSchema = z.object({
+            name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(100).optional(),
+            avatar: z.string().url('رابط الصورة غير صالح').optional().nullable(),
+            bio: z.string().max(500, 'النبذة يجب ألا تتجاوز 500 حرف').optional(),
+        });
+        const { name, avatar, bio } = updateProfileSchema.parse(req.body);
 
         const user = await prisma.user.update({
             where: { id: req.user!.userId },

@@ -1,3 +1,4 @@
+@import "remixicon/fonts/remixicon.css";
 @import "tailwindcss";
 
 /* ============================================
@@ -211,7 +212,4 @@ tr:hover {
   transform: scaleX(-1);
 }
 
-/* Hide original source attribution */
-.article-source {
-  display: none !important;
-}
+/* Source attribution — visible for proper content attribution */

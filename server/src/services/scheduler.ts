@@ -107,6 +107,20 @@ export function initializeScheduler(): void {
         }
     });
 
+    // Flush view counts from Redis to DB every 5 minutes
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            const { cache } = await import('./cache.service.js');
+            const { prisma } = await import('../index.js');
+            const flushed = await cache.flushViewCounts(prisma);
+            if (flushed > 0) {
+                console.log(`[Scheduler] Flushed ${flushed} article view counts to DB`);
+            }
+        } catch (error) {
+            console.error('[Scheduler] View count flush error:', error);
+        }
+    });
+
     isSchedulerInitialized = true;
     console.log('[Scheduler] Background jobs initialized successfully');
     console.log('[Scheduler] - RSS fetch: every 15 minutes');

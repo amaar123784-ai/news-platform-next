@@ -21,9 +21,9 @@ export default async function PublicLayout({
             </div>
 
             {/* Main Page Content */}
-            <div className="relative z-10 flex-grow">
+            <main className="relative z-10 flex-grow">
                 {children}
-            </div>
+            </main>
 
             {/* Footer */}
             <Footer />

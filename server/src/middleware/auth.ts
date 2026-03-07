@@ -35,24 +35,28 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
         const token = authHeader.split(' ')[1];
 
+        let decoded: JwtPayload;
         try {
-            const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-
-            // Verify user still exists and is active
-            const user = await prisma.user.findUnique({
-                where: { id: decoded.userId },
-                select: { id: true, isActive: true },
-            });
-
-            if (!user || !user.isActive) {
-                throw createError(401, 'المستخدم غير موجود أو تم تعطيل الحساب.', 'USER_INACTIVE');
+            decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+        } catch (jwtError: any) {
+            if (jwtError.name === 'TokenExpiredError') {
+                throw createError(401, 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.', 'TOKEN_EXPIRED');
             }
-
-            req.user = decoded;
-            next();
-        } catch (jwtError) {
-            throw createError(401, 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.', 'TOKEN_EXPIRED');
+            throw createError(401, 'رمز الدخول غير صالح.', 'INVALID_TOKEN');
         }
+
+        // Verify user still exists and is active
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, isActive: true },
+        });
+
+        if (!user || !user.isActive) {
+            throw createError(401, 'المستخدم غير موجود أو تم تعطيل الحساب.', 'USER_INACTIVE');
+        }
+
+        req.user = decoded;
+        next();
     } catch (error) {
         next(error);
     }

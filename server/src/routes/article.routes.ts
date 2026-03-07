@@ -242,11 +242,9 @@ router.get('/:idOrSlug', optionalAuth, async (req, res, next) => {
             }
         }
 
-        // Increment views (don't await)
-        prisma.article.update({
-            where: { id: article.id },
-            data: { views: { increment: 1 } },
-        }).catch(() => { });
+        // Increment views via Redis (batched flush to DB)
+        const { cache } = await import('../services/cache.service.js');
+        cache.incrementViewCount(article.id).catch(() => { });
 
         res.json({ success: true, data: article });
     } catch (error) {
@@ -342,7 +340,7 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
             },
         }).catch(console.error);
 
-        // Trigger Webhook and WhatsApp if Published
+        // Trigger Webhook and Social Posting if Published
         if (article.status === 'PUBLISHED') {
             // Invalidate caches
             await Promise.all([
@@ -355,20 +353,8 @@ router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), asy
                 console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
             });
 
-            const { whatsappService } = await import('../services/whatsapp.service.js');
-            whatsappService.sendArticleToWhatsApp(article).catch(err => {
-                console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
-            });
-
-            const { telegramService } = await import('../services/telegram.service.js');
-            telegramService.sendArticleWithPhoto(article).catch(err => {
-                console.error(`[Telegram] Failed to send article ${article.id}:`, err);
-            });
-
-            const { facebookService } = await import('../services/facebook.service.js');
-            facebookService.postArticleToFacebook(article).catch(err => {
-                console.error(`[Facebook] Failed to post article ${article.id}:`, err);
-            });
+            const { publishToSocialChannels } = await import('../services/socialPublisher.service.js');
+            publishToSocialChannels(article).catch(console.error);
         }
 
         res.status(201).json({ success: true, data: article });
@@ -419,27 +405,15 @@ router.patch('/:id', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'),
             },
         }).catch(console.error);
 
-        // Trigger Webhook and WhatsApp if status changed to PUBLISHED
+        // Trigger Webhook and Social Posting if status changed to PUBLISHED
         if (article.status === 'PUBLISHED' && existing.status !== 'PUBLISHED') {
             const { webhookService } = await import('../services/webhook.service.js');
             webhookService.notifyNewArticle(article.id).catch(err => {
                 console.error(`[Webhook] Failed to notify n8n for article ${article.id}:`, err);
             });
 
-            const { whatsappService } = await import('../services/whatsapp.service.js');
-            whatsappService.sendArticleToWhatsApp(article).catch(err => {
-                console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
-            });
-
-            const { telegramService } = await import('../services/telegram.service.js');
-            telegramService.sendArticleWithPhoto(article).catch(err => {
-                console.error(`[Telegram] Failed to send article ${article.id}:`, err);
-            });
-
-            const { facebookService } = await import('../services/facebook.service.js');
-            facebookService.postArticleToFacebook(article).catch(err => {
-                console.error(`[Facebook] Failed to post article ${article.id}:`, err);
-            });
+            const { publishToSocialChannels } = await import('../services/socialPublisher.service.js');
+            publishToSocialChannels(article).catch(console.error);
         }
 
         // Invalidate caches
@@ -527,21 +501,9 @@ router.post('/:id/publish', authenticate, requireRole('ADMIN', 'EDITOR'), async 
             cache.del(cacheKeys.article(article.slug)),
         ]);
 
-        // Send to WhatsApp & Telegram
-        const { whatsappService } = await import('../services/whatsapp.service.js');
-        whatsappService.sendArticleToWhatsApp(article).catch(err => {
-            console.error(`[WhatsApp] Failed to send article ${article.id}:`, err);
-        });
-
-        const { telegramService } = await import('../services/telegram.service.js');
-        telegramService.sendArticleWithPhoto(article).catch(err => {
-            console.error(`[Telegram] Failed to send article ${article.id}:`, err);
-        });
-
-        const { facebookService } = await import('../services/facebook.service.js');
-        facebookService.postArticleToFacebook(article).catch(err => {
-            console.error(`[Facebook] Failed to post article ${article.id}:`, err);
-        });
+        // Publish to social channels
+        const { publishToSocialChannels } = await import('../services/socialPublisher.service.js');
+        publishToSocialChannels(article).catch(console.error);
 
         res.json({ success: true, data: article });
     } catch (error) {

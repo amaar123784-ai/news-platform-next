@@ -3,14 +3,13 @@
  * Handles AI rewriting, platform publishing, and social media posting
  */
 
-import { PrismaClient, AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
+import { AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
+import { prisma } from '../index.js';
 import { rewriteArticle as rewriteWithAI } from './ai.service.js';
 import { notificationService } from './notification.service.js';
 // @ts-ignore
 import slugify from 'slugify';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Configuration
 const SOCIAL_DELAY_MINUTES = 5; // Delay before posting to social media
@@ -222,20 +221,12 @@ export class AutomationService {
             console.log(`[Automation] 🔴 Marked as BREAKING: "${newArticle.title.substring(0, 40)}..."`);
         }
 
-        // Send to WhatsApp channel
+        // Publish to social channels
         try {
-            const { whatsappService } = await import('./whatsapp.service.js');
-            await whatsappService.sendArticleToWhatsApp(newArticle);
+            const { publishToSocialChannels } = await import('./socialPublisher.service.js');
+            await publishToSocialChannels(newArticle);
         } catch (err: any) {
-            console.error('[Automation] WhatsApp send failed:', err.message);
-        }
-
-        // Send to Telegram channel
-        try {
-            const { telegramService } = await import('./telegram.service.js');
-            await telegramService.sendArticleWithPhoto(newArticle);
-        } catch (err: any) {
-            console.error('[Automation] Telegram send failed:', err.message);
+            console.error('[Automation] Social publishing failed:', err.message);
         }
     }
 
