@@ -5,12 +5,20 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaile
 const MESSAGE_MAX_LENGTH = 1024;
 /** Delay (ms) before sending so article page/image are ready for link preview. Env: WHATSAPP_SEND_DELAY_MS */
 const SEND_DELAY_MS = parseInt(process.env.WHATSAPP_SEND_DELAY_MS || '15000', 10) || 15000;
+/** Max retries to wait for WhatsApp connection before giving up */
+const READY_WAIT_RETRIES = 6;
+/** Delay between each ready-check retry (ms) */
+const READY_WAIT_INTERVAL = 8000;
+/** Max pending queue size */
+const MAX_PENDING_QUEUE = 20;
 
 class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
+    private pendingQueue: any[] = [];
+    private isFlushingQueue: boolean = false;
 
     constructor() {
         this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
@@ -75,6 +83,9 @@ class WhatsAppService {
 
                     // List available newsletters/channels
                     await this.listChannels();
+
+                    // Flush any pending messages that were queued while disconnected
+                    this.flushPendingQueue();
                 }
             });
 
@@ -200,24 +211,74 @@ class WhatsAppService {
             } catch (err: any) {
                 console.log(`[WhatsApp] ⏳ Page check failed (${err.message}), attempt ${attempt}/${maxAttempts}...`);
             }
-            if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 8000));
+            if (attempt < maxAttempts) {
+                await new Promise(r => setTimeout(r, 5000));
+            }
         }
-        console.log(`[WhatsApp] ⚠️ Page not ready after ${maxAttempts} attempts, proceeding anyway...`);
+        console.log(`[WhatsApp] ⚠️ Article page not ready after ${maxAttempts} attempts, sending anyway.`);
         return false;
     }
 
     /**
-     * Send article to WhatsApp channel with rich link preview (title + description + image).
+     * Wait for the WhatsApp client to become ready, retrying several times.
      */
-    public async sendArticleToWhatsApp(article: any): Promise<void> {
-        if (!this.isReady || !this.sock) {
-            console.log('[WhatsApp] Cannot send article: Client is not ready.');
-            return;
+    private async waitForReady(): Promise<boolean> {
+        if (this.isReady && this.sock) return true;
+
+        for (let i = 1; i <= READY_WAIT_RETRIES; i++) {
+            console.log(`[WhatsApp] ⏳ Waiting for connection... attempt ${i}/${READY_WAIT_RETRIES}`);
+            await new Promise(r => setTimeout(r, READY_WAIT_INTERVAL));
+            if (this.isReady && this.sock) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Flush queued messages once connection is restored.
+     */
+    private async flushPendingQueue(): Promise<void> {
+        if (this.isFlushingQueue || this.pendingQueue.length === 0) return;
+        this.isFlushingQueue = true;
+
+        console.log(`[WhatsApp] 📤 Flushing ${this.pendingQueue.length} pending message(s)...`);
+
+        while (this.pendingQueue.length > 0 && this.isReady) {
+            const article = this.pendingQueue.shift();
+            try {
+                await this.sendArticleToWhatsApp(article);
+                // Small delay between messages to avoid rate limits
+                await new Promise(r => setTimeout(r, 3000));
+            } catch (err: any) {
+                console.error(`[WhatsApp] Failed to flush queued article: ${err.message}`);
+            }
         }
 
+        this.isFlushingQueue = false;
+    }
+
+    /**
+     * Send article to WhatsApp channel with rich link preview (title + description + image).
+     * If the client is not ready, waits for reconnection; if still unavailable, queues the message.
+     */
+    public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.channelJid) {
             console.log('[WhatsApp] Cannot send article: WHATSAPP_CHANNEL_ID is not configured.');
             return;
+        }
+
+        // If not ready, wait for reconnection
+        if (!this.isReady || !this.sock) {
+            const ready = await this.waitForReady();
+            if (!ready) {
+                // Queue the message for later delivery
+                if (this.pendingQueue.length < MAX_PENDING_QUEUE) {
+                    this.pendingQueue.push(article);
+                    console.log(`[WhatsApp] ⏸️ Queued article "${article.title}" (${this.pendingQueue.length} pending)`);
+                } else {
+                    console.error(`[WhatsApp] ❌ Queue full (${MAX_PENDING_QUEUE}). Dropping article: ${article.title}`);
+                }
+                return;
+            }
         }
 
         try {
