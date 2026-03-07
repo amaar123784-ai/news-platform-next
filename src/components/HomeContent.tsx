@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Icon } from "@/components/atoms";
 import { NewsCardSmall } from "@/components/molecules";
-import { FeaturedNews, FeaturedNewsCarousel, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
+import { FeaturedNews, FeaturedNewsGrid, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
 import type { Article } from "@/lib/api";
 import { formatTimeAgo } from "@/utils/date";
 
@@ -47,50 +47,48 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
     });
 
     const displayArticles = filteredData || articles;
-    const featuredArticle = featuredArticles?.[0];
 
     // Helper to get image URL using environment variable
     const getImageUrl = (imageUrl?: string) => {
         if (!imageUrl) return fallbackImg;
         if (imageUrl.startsWith("http")) return imageUrl;
-        // Use NEXT_PUBLIC_API_URL directly without stripping /api
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
-        // Remove trailing /api if present, then add it back to ensure consistency
         const baseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
         return `${baseUrl}${imageUrl}`;
     };
 
+    // Fallback: if no featured articles, use top 3 articles with images
+    const effectiveFeatured = featuredArticles && featuredArticles.length > 0
+        ? featuredArticles
+        : articles.filter(a => a.imageUrl).slice(0, 3);
+
+    // Map to FeaturedNewsGrid format
+    const featuredGridArticles = effectiveFeatured.map(article => ({
+        id: article.id,
+        title: article.title,
+        excerpt: article.excerpt,
+        category: (article.category?.slug || "politics") as any,
+        imageUrl: getImageUrl(article.imageUrl),
+        author: article.author?.name || "المحرر",
+        timeAgo: formatTimeAgo(article.publishedAt || article.createdAt),
+        views: article.views,
+        isBreaking: (article as any).isBreaking || false,
+    }));
+
     return (
         <>
-
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                 {/* Main Content */}
                 <div className="lg:col-span-3">
-                    {/* Featured Article Carousel */}
-                    <section className="mb-6 sm:mb-8">
-                        {featuredArticles && featuredArticles.length > 0 ? (
-                            <FeaturedNewsCarousel
-                                interval={6000}
-                                pauseOnHover={true}
-                                articles={featuredArticles.map(article => ({
-                                    id: article.id,
-                                    title: article.title,
-                                    excerpt: article.excerpt,
-                                    category: (article.category?.slug || "politics") as any,
-                                    imageUrl: getImageUrl(article.imageUrl),
-                                    author: article.author?.name || "المحرر",
-                                    timeAgo: formatTimeAgo(article.publishedAt || article.createdAt),
-                                    views: article.views,
-                                    isBreaking: article.views > 1000,
-                                }))}
-                            />
-                        ) : (
-                            <div className="h-64 sm:h-80 lg:h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">
-                                لا توجد مقالات مميزة
-                            </div>
-                        )}
-                    </section>
+                    {/* Featured Articles Grid */}
+                    {featuredGridArticles.length > 0 ? (
+                        <FeaturedNewsGrid articles={featuredGridArticles} />
+                    ) : (
+                        <div className="h-64 sm:h-80 lg:h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400 mb-6">
+                            لا توجد مقالات مميزة
+                        </div>
+                    )}
 
                     {/* News Grid */}
                     <section className="mb-6 sm:mb-8">

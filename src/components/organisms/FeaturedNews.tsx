@@ -1,20 +1,12 @@
+"use client";
+
 /**
- * FeaturedNews Component
+ * FeaturedNews Component — Redesigned
  * 
- * Hero-style featured article with large image and overlay content.
- * 
- * @see components.cards.featuredNews in design-system.json
- * 
- * @example
- * <FeaturedNews
- *   title="عنوان الخبر الرئيسي"
- *   excerpt="ملخص تفصيلي للخبر..."
- *   category="politics"
- *   imageUrl="/hero.jpg"
- *   author="المحرر السياسي"
- *   timeAgo="منذ 30 دقيقة"
- *   views={15240}
- * />
+ * Premium hero-style layout:
+ * - Main large article (left/top on mobile)
+ * - 2 smaller articles stacked on the right
+ * - Gradient overlays with elegant typography
  */
 
 import React from 'react';
@@ -23,103 +15,166 @@ import { Icon, Badge } from '@/components/atoms';
 import { categoryBadges, type CategoryType } from '@/design-system/tokens';
 
 export interface FeaturedNewsProps {
-    /** Article ID for linking */
     id?: string;
-    /** Article title */
     title: string;
-    /** Article excerpt/summary */
     excerpt?: string;
-    /** Category key from design system */
     category: CategoryType;
-    /** Featured image URL */
     imageUrl: string;
-    /** Author name */
     author?: string;
-    /** Time since publication */
     timeAgo?: string;
-    /** View count */
     views?: number;
-    /** Whether this is breaking news */
     isBreaking?: boolean;
-    /** Link URL (deprecated) */
     href?: string;
 }
 
-export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
-    id,
-    title,
-    excerpt,
-    category,
-    imageUrl,
-    author,
-    timeAgo,
-    views,
-    isBreaking = false,
-    href,
+/** Single featured article card */
+const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }> = ({
+    id, title, excerpt, category, imageUrl, author, timeAgo, views, isBreaking, href, variant,
 }) => {
     const categoryInfo = categoryBadges[category] || categoryBadges.politics || { bg: 'bg-gray-100', text: 'text-gray-600', label: 'عام' };
     const link = id ? `/article/${id}` : href || '#';
-
-    // Handle image URL with environment variable
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
     const displayImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
 
-    return (
-        <article className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <a href={link} className="block relative">
-                {/* Large Image - Optimized with Next.js Image for LCP */}
-                <div className="relative w-full h-96">
+    if (variant === 'large') {
+        return (
+            <article className="relative h-full min-h-[420px] lg:min-h-[500px] rounded-2xl overflow-hidden group">
+                <a href={link} className="block h-full">
                     <Image
                         src={displayImageUrl}
                         alt={title}
                         fill
                         priority
                         fetchPriority="high"
-                        className="object-cover object-center"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                        className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, 60vw"
                     />
-                </div>
+                    {/* Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
-                {/* Gradient Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900/90 via-blue-900/40 to-transparent p-4 pt-16 md:p-6 md:pt-24">
-                    {/* Badges */}
-                    <div className="flex items-center gap-3 mb-2 md:mb-4">
-                        <Badge variant="primary">{categoryInfo.label}</Badge>
-                        {isBreaking && <Badge variant="breaking">عاجل</Badge>}
+                    {/* Content */}
+                    <div className="absolute bottom-0 right-0 left-0 p-5 md:p-8">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Badge variant="primary">{categoryInfo.label}</Badge>
+                            {isBreaking && <Badge variant="breaking">عاجل</Badge>}
+                        </div>
+                        <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white mb-3 leading-tight line-clamp-3">
+                            {title}
+                        </h2>
+                        {excerpt && (
+                            <p className="text-gray-200 text-sm md:text-base line-clamp-2 mb-4 hidden md:block max-w-xl">
+                                {excerpt}
+                            </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-white/80">
+                            {timeAgo && (
+                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                                    <Icon name="ri-time-line" size="sm" className="text-secondary" />
+                                    {timeAgo}
+                                </span>
+                            )}
+                            {author && (
+                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                                    <Icon name="ri-user-line" size="sm" className="text-secondary" />
+                                    {author}
+                                </span>
+                            )}
+                            {views !== undefined && views > 0 && (
+                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                                    <Icon name="ri-eye-line" size="sm" className="text-secondary" />
+                                    {views.toLocaleString('ar-YE')} مشاهدة
+                                </span>
+                            )}
+                        </div>
                     </div>
+                </a>
+            </article>
+        );
+    }
 
-                    {/* Title */}
-                    <h2 className="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3 leading-tight">{title}</h2>
+    // Small variant
+    return (
+        <article className="relative h-full min-h-[200px] lg:min-h-[240px] rounded-2xl overflow-hidden group">
+            <a href={link} className="block h-full">
+                <Image
+                    src={displayImageUrl}
+                    alt={title}
+                    fill
+                    className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                    sizes="(max-width: 768px) 100vw, 30vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                    {/* Excerpt */}
-                    {excerpt && (
-                        <p className="text-gray-200 mb-3 md:mb-4 text-sm md:text-lg line-clamp-2 hidden md:block">{excerpt}</p>
-                    )}
-
-                    {/* Metadata */}
-                    <div className="flex flex-wrap items-center gap-2 md:gap-6 text-sm text-white font-medium">
+                <div className="absolute bottom-0 right-0 left-0 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="primary" className="text-xs">{categoryInfo.label}</Badge>
+                        {isBreaking && <Badge variant="breaking" className="text-xs">عاجل</Badge>}
+                    </div>
+                    <h3 className="text-base md:text-lg font-bold text-white leading-snug line-clamp-2 mb-2">
+                        {title}
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs text-white/70">
                         {timeAgo && (
-                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
+                            <span className="flex items-center gap-1">
                                 <Icon name="ri-time-line" size="sm" className="text-secondary" />
-                                <span>{timeAgo}</span>
-                            </div>
+                                {timeAgo}
+                            </span>
                         )}
-                        {author && (
-                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
-                                <Icon name="ri-user-line" size="sm" className="text-secondary" />
-                                <span>{author}</span>
-                            </div>
-                        )}
-                        {views !== undefined && (
-                            <div className="flex items-center gap-2 bg-black/20 px-2 py-1 md:px-3 md:py-1 rounded-full backdrop-blur-sm whitespace-nowrap">
+                        {views !== undefined && views > 0 && (
+                            <span className="flex items-center gap-1">
                                 <Icon name="ri-eye-line" size="sm" className="text-secondary" />
-                                <span>{views.toLocaleString('ar-YE')} مشاهدة</span>
-                            </div>
+                                {views.toLocaleString('ar-YE')}
+                            </span>
                         )}
                     </div>
                 </div>
             </a>
         </article>
+    );
+};
+
+/** Grid layout: 1 large + 2 small */
+export const FeaturedNews: React.FC<FeaturedNewsProps> = (props) => {
+    return <FeaturedCard {...props} variant="large" />;
+};
+
+/** Main export: Featured News Grid with 1 large + 2 small */
+export const FeaturedNewsGrid: React.FC<{ articles: FeaturedNewsProps[] }> = ({ articles }) => {
+    if (!articles || articles.length === 0) return null;
+
+    const mainArticle = articles[0];
+    const sideArticles = articles.slice(1, 3);
+
+    return (
+        <section className="mb-6 sm:mb-8">
+            {/* Section Header */}
+            <div className="flex items-center gap-2 sm:gap-3 mb-4">
+                <Icon name="ri-fire-fill" size="xl" className="text-primary" />
+                <h2 className="text-lg sm:text-xl font-bold">مقالات مميزة</h2>
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Icon name="ri-refresh-line" size="sm" />
+                    تحديث تلقائي
+                </span>
+            </div>
+
+            {/* Grid: 1 large + 2 stacked small */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                {/* Main Article — 3/5 width */}
+                <div className="lg:col-span-3">
+                    <FeaturedCard {...mainArticle} variant="large" />
+                </div>
+
+                {/* Side Articles — 2/5 width, stacked */}
+                {sideArticles.length > 0 && (
+                    <div className="lg:col-span-2 grid grid-cols-1 gap-4">
+                        {sideArticles.map((article, i) => (
+                            <FeaturedCard key={article.id || i} {...article} variant="small" />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </section>
     );
 };
 
