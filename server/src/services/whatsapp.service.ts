@@ -152,25 +152,26 @@ class WhatsAppService {
     /**
      * Fetch article image as tiny JPEG buffer for link preview thumbnail — with retries
      */
-    private async fetchThumbnail(imageUrl: string, retries: number = 3): Promise<Buffer | undefined> {
+    private async fetchThumbnail(imageUrl: string, retries: number = 4): Promise<Buffer | undefined> {
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
                 const response = await fetch(imageUrl, {
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
-                    signal: AbortSignal.timeout(10000),
+                    signal: AbortSignal.timeout(20000),
                 });
                 if (!response.ok) {
                     console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} failed: HTTP ${response.status}`);
-                    if (attempt < retries) await new Promise(r => setTimeout(r, 3000));
+                    if (attempt < retries) await new Promise(r => setTimeout(r, 5000));
                     continue;
                 }
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
                 if (buffer.length > 1024 * 1024) return undefined;
+                console.log(`[WhatsApp] ✅ Image downloaded (${Math.round(buffer.length / 1024)}KB) on attempt ${attempt}`);
                 return buffer;
             } catch (err: any) {
                 console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} error: ${err.message}`);
-                if (attempt < retries) await new Promise(r => setTimeout(r, 3000));
+                if (attempt < retries) await new Promise(r => setTimeout(r, 5000));
             }
         }
         return undefined;
@@ -180,12 +181,15 @@ class WhatsAppService {
      * Verify article page is accessible (Next.js has built it)
      */
     private async waitForArticlePage(url: string, maxAttempts: number = 5): Promise<boolean> {
+        // Initial delay to give Next.js time to start building the page
+        await new Promise(r => setTimeout(r, 10000));
+
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 const response = await fetch(url, {
                     method: 'HEAD',
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
-                    signal: AbortSignal.timeout(5000),
+                    signal: AbortSignal.timeout(10000),
                     redirect: 'follow',
                 });
                 if (response.ok) {
@@ -196,7 +200,7 @@ class WhatsAppService {
             } catch (err: any) {
                 console.log(`[WhatsApp] ⏳ Page check failed (${err.message}), attempt ${attempt}/${maxAttempts}...`);
             }
-            if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 5000));
+            if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 8000));
         }
         console.log(`[WhatsApp] ⚠️ Page not ready after ${maxAttempts} attempts, proceeding anyway...`);
         return false;
