@@ -1,36 +1,21 @@
 /**
- * NewsCardSmall Component
+ * NewsCardSmall Component — Redesigned
  * 
  * Compact news card for sidebar lists and related articles.
- * 
- * @see components.cards in design-system.json
- * 
- * @example
- * <NewsCardSmall
- *   title="عنوان الخبر"
- *   timeAgo="منذ ساعة"
- *   views={1500}
- *   rank={1}
- * />
+ * Uses next/image for optimization, gradient rank badge, improved spacing.
  */
 
 import React from 'react';
+import Image from 'next/image';
 import { Icon } from '@/components/atoms';
 
 export interface NewsCardSmallProps {
-    /** Article title */
     title: string;
-    /** Image URL (optional) */
     imageUrl?: string;
-    /** Time since publication */
     timeAgo?: string;
-    /** View count */
     views?: number;
-    /** Rank number for "most read" lists */
     rank?: number;
-    /** onClick handler */
     onClick?: () => void;
-    /** Additional CSS classes */
     className?: string;
 }
 
@@ -43,39 +28,57 @@ export const NewsCardSmall: React.FC<NewsCardSmallProps> = ({
     onClick,
     className = '',
 }) => {
+    // Handle image URL
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
+    const displayImageUrl = imageUrl
+        ? imageUrl.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`
+        : null;
+
     return (
         <article
             className={`
-        flex gap-3 pb-4 border-b border-gray-100 
-        last:border-b-0 last:pb-0 
-        cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2
-        ${className}
-      `}
+                flex gap-3 py-3 border-b border-gray-100/80
+                last:border-b-0 last:pb-0
+                cursor-pointer hover:bg-gray-50/60 rounded-lg px-2 -mx-2
+                transition-colors duration-200
+                ${className}
+            `}
             onClick={onClick}
             role="article"
         >
+            {/* Rank Badge */}
             {rank && (
-                <span className="text-2xl font-bold text-primary" aria-label={`المرتبة ${rank}`}>
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 text-primary font-bold text-sm shrink-0 mt-0.5"
+                    aria-label={`المرتبة ${rank}`}
+                >
                     {rank}
                 </span>
             )}
 
-            {imageUrl && (
-                <img
-                    src={imageUrl}
-                    alt={title}
-                    className="w-20 h-15 object-cover rounded-lg"
-                    loading="lazy"
-                />
+            {/* Thumbnail */}
+            {displayImageUrl && (
+                <div className="relative w-20 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                    <Image
+                        src={displayImageUrl}
+                        alt={title}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                        loading="lazy"
+                    />
+                </div>
             )}
 
-            <div className="flex-1">
-                <h4 className="font-medium text-sm mb-1 line-clamp-2">{title}</h4>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm mb-1.5 line-clamp-2 leading-relaxed text-gray-800">
+                    {title}
+                </h4>
+                <div className="flex items-center gap-3 text-[11px] text-gray-400">
                     {views !== undefined && (
                         <span className="flex items-center gap-1">
                             <Icon name="ri-eye-line" size="sm" />
-                            <span>{views.toLocaleString('ar-YE')} مشاهدة</span>
+                            <span>{views.toLocaleString('ar-YE')}</span>
                         </span>
                     )}
                     {timeAgo && (

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Icon } from "@/components/atoms";
+import { Icon } from "@/components/atoms";
 import { NewsCardSmall } from "@/components/molecules";
-import { FeaturedNews, FeaturedNewsGrid, NewsCard, Header, Footer, BreakingNewsTicker, PublicSidebar } from "@/components/organisms";
+import { NewsCardSkeleton } from "@/components/molecules/NewsCardSkeleton";
+import { FeaturedNewsGrid, NewsCard, PublicSidebar } from "@/components/organisms";
 import type { Article } from "@/lib/api";
 import { formatTimeAgo } from "@/utils/date";
 
@@ -14,15 +15,13 @@ interface HomeContentProps {
     topArticles: Article[];
 }
 
-
-
 // Category tabs
 const categoryTabs = [
-    { key: "all", label: "جميع الأخبار" },
-    { key: "politics", label: "السياسة" },
-    { key: "economy", label: "الاقتصاد" },
-    { key: "sports", label: "الرياضة" },
-    { key: "culture", label: "الثقافة" },
+    { key: "all", label: "جميع الأخبار", icon: "ri-newspaper-line" },
+    { key: "politics", label: "السياسة", icon: "ri-government-line" },
+    { key: "economy", label: "الاقتصاد", icon: "ri-money-dollar-circle-line" },
+    { key: "sports", label: "الرياضة", icon: "ri-football-line" },
+    { key: "culture", label: "الثقافة", icon: "ri-book-2-line" },
 ];
 
 // Fallback image
@@ -32,7 +31,7 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
     const [activeCategory, setActiveCategory] = useState("all");
 
     // Client-side category filtering
-    const { data: filteredData } = useQuery({
+    const { data: filteredData, isLoading, isFetching } = useQuery({
         queryKey: ["articles", "list", activeCategory],
         queryFn: async () => {
             if (activeCategory === "all") return articles;
@@ -47,8 +46,9 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
     });
 
     const displayArticles = filteredData || articles;
+    const showSkeleton = isFetching && activeCategory !== "all";
 
-    // Helper to get image URL using environment variable
+    // Helper to get image URL
     const getImageUrl = (imageUrl?: string) => {
         if (!imageUrl) return fallbackImg;
         if (imageUrl.startsWith("http")) return imageUrl;
@@ -77,8 +77,7 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
 
     return (
         <>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
                 {/* Main Content */}
                 <div className="lg:col-span-3">
                     {/* Featured Articles Grid */}
@@ -90,31 +89,64 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
                         </div>
                     )}
 
-                    {/* News Grid */}
+                    {/* News Grid with Category Tabs */}
                     <section className="mb-6 sm:mb-8">
-                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                        {/* Section Header */}
+                        <div className="flex items-center gap-2 sm:gap-3 mb-5">
                             <Icon name="ri-newspaper-line" size="xl" className="text-primary" />
                             <h2 className="text-lg sm:text-xl font-bold">أحدث الأخبار</h2>
                             <div className="flex-1 h-px bg-gray-200" />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                            {displayArticles.map((article: Article) => (
-                                <NewsCard
-                                    key={article.id}
-                                    id={article.id}
-                                    title={article.title}
-                                    excerpt={article.excerpt}
-                                    category={(article.category?.slug || "politics") as any}
-                                    imageUrl={getImageUrl(article.imageUrl)}
-                                    author={article.author?.name || "المحرر"}
-                                    authorId={article.author?.id}
-                                    timeAgo={formatTimeAgo(article.publishedAt || article.createdAt)}
-                                />
+
+                        {/* Category Tabs */}
+                        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
+                            {categoryTabs.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveCategory(tab.key)}
+                                    className={`
+                                        flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
+                                        whitespace-nowrap transition-all duration-200
+                                        ${activeCategory === tab.key
+                                            ? 'bg-primary text-white shadow-sm shadow-primary/25'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                                        }
+                                    `}
+                                >
+                                    <Icon name={tab.icon} size="sm" />
+                                    {tab.label}
+                                </button>
                             ))}
                         </div>
+
+                        {/* Cards Grid — with skeleton or real data */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            {showSkeleton ? (
+                                Array.from({ length: 4 }).map((_, i) => (
+                                    <NewsCardSkeleton key={i} />
+                                ))
+                            ) : (
+                                displayArticles.map((article: Article, index: number) => (
+                                    <div
+                                        key={article.id}
+                                        className="animate-fade-in"
+                                        style={{ animationDelay: `${index * 60}ms` }}
+                                    >
+                                        <NewsCard
+                                            id={article.id}
+                                            title={article.title}
+                                            excerpt={article.excerpt}
+                                            category={(article.category?.slug || "politics") as any}
+                                            imageUrl={getImageUrl(article.imageUrl)}
+                                            author={article.author?.name || "المحرر"}
+                                            authorId={article.author?.id}
+                                            timeAgo={formatTimeAgo(article.publishedAt || article.createdAt)}
+                                        />
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </section>
-
-
                 </div>
 
                 {/* Sidebar */}

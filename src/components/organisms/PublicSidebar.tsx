@@ -11,56 +11,68 @@ interface PublicSidebarProps {
     mostReadNews: Article[];
 }
 
-
-
 export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) {
     return (
-        <aside className="space-y-4 sm:space-y-6">
-            {/* Urgent News */}
-            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-primary">
-                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                    <Icon name="ri-notification-3-line" size="xl" className="text-primary" />
-                    <h3 className="text-base sm:text-lg font-bold">أخبار عاجلة</h3>
+        <aside className="space-y-5 lg:sticky lg:top-28" aria-label="الشريط الجانبي">
+
+            {/* Urgent News — Red accent */}
+            <section
+                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100/60"
+                aria-label="أخبار عاجلة"
+            >
+                {/* Red accent header */}
+                <div className="bg-gradient-to-l from-red-500 to-red-600 px-5 py-3 flex items-center gap-2.5">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    <Icon name="ri-notification-3-line" size="lg" className="text-white" />
+                    <h3 className="text-white font-bold text-sm">أخبار عاجلة</h3>
                 </div>
-                <div className="space-y-3 sm:space-y-4">
+
+                <div className="p-4 space-y-0">
                     {urgentNews.slice(0, 5).map((news) => (
                         <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group">
-                            <article className="pb-3 sm:pb-4 border-b border-gray-100 last:border-b-0">
-                                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                                    <span className="text-xs text-red-600 font-medium">
+                            <article className="py-3 border-b border-gray-100/60 last:border-b-0 px-1 hover:bg-red-50/40 rounded transition-colors">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                                    <span className="text-[11px] text-red-500 font-medium">
                                         {formatTimeAgo(news.publishedAt || news.createdAt)}
                                     </span>
                                 </div>
-                                <h4 className="font-medium text-xs sm:text-sm group-hover:text-primary transition line-clamp-2">{news.title}</h4>
+                                <h4 className="font-medium text-sm group-hover:text-red-600 transition-colors line-clamp-2 leading-relaxed text-gray-800">
+                                    {news.title}
+                                </h4>
                             </article>
                         </Link>
                     ))}
                     {urgentNews.length === 0 && (
-                        <p className="text-gray-500 text-sm">لا توجد أخبار عاجلة حالياً</p>
+                        <p className="text-gray-400 text-sm py-4 text-center">لا توجد أخبار عاجلة حالياً</p>
                     )}
                 </div>
             </section>
 
-            {/* Most Read */}
-            <section className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border-t-4 border-primary">
-                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                    <Icon name="ri-fire-line" size="xl" className="text-primary" />
-                    <h3 className="text-base sm:text-lg font-bold">الأكثر قراءة</h3>
+            {/* Most Read — Amber/Primary accent */}
+            <section
+                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100/60"
+                aria-label="الأكثر قراءة"
+            >
+                {/* Amber accent header */}
+                <div className="bg-gradient-to-l from-amber-500 to-orange-500 px-5 py-3 flex items-center gap-2.5">
+                    <Icon name="ri-fire-line" size="lg" className="text-white" />
+                    <h3 className="text-white font-bold text-sm">الأكثر قراءة</h3>
                 </div>
-                <div className="space-y-4">
+
+                <div className="p-4 space-y-0" role="list">
                     {mostReadNews.map((news, index) => (
-                        <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group">
+                        <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group" role="listitem">
                             <NewsCardSmall
                                 title={news.title}
                                 views={news.views}
                                 rank={index + 1}
-                                className="group-hover:bg-gray-50 transition-colors"
+                                className="group-hover:bg-amber-50/40 transition-colors"
                             />
                         </Link>
                     ))}
                     {mostReadNews.length === 0 && (
-                        <p className="text-gray-500 text-sm">لا توجد مقالات مميزة حالياً</p>
+                        <p className="text-gray-400 text-sm py-4 text-center">لا توجد مقالات مميزة حالياً</p>
                     )}
                 </div>
             </section>

@@ -1,0 +1,96 @@
+# 🚀 دليل نشر منصة "صوت تهامة" (Deployment Guide)
+
+هذا الدليل يحتوي على جميع الخطوات والأوامر اللازمة لإدارة وصيانة موقع **[VoiceOfTihama.com](https://voiceoftihama.com)** على سيرفر VPS.
+
+---
+
+## 📋 معلومات السيرفر
+- **المزود:** Hostinger VPS
+- **عنوان IP:** `72.61.120.86`
+- **نظام التشغيل:** Ubuntu 22.04 LTS
+- **الدومين:** `voiceoftihama.com`
+
+---
+
+## 🛠️ الأوامر السريعة (Quick Maintenance)
+
+### تحديث الموقع (عند وجود تعديلات جديدة)
+عندما تقوم برفع تعديلات جديدة لـ GitHub، نفذ هذه الأوامر على السيرفر لتطبيقها:
+
+```bash
+# 1. الدخول لمجلد المشروع
+cd /var/www/voiceoftihama
+
+# 2. سحب التعديلات
+git pull
+
+# 3. إعادة بناء الواجهة الأمامية وتشغيلها
+npm run build
+pm2 restart frontend
+
+# 4. تحديث السيرفر الخلفي (ضروري إذا تم تعديل قاعدة البيانات أو API)
+cd server
+npm install    
+npx prisma generate
+npm run build
+pm2 restart api
+cd ..
+```
+
+### إدارة العمليات (PM2)
+```bash
+pm2 list          # عرض حالة التطبيقات
+pm2 logs          # عرض سجلات الأخطاء والنشاط
+pm2 restart all   # إعادة تشغيل كل شيء
+pm2 stop frontend # إيقاف الموقع مؤقتاً
+```
+
+---
+
+## ⚙️ إعدادات البيئة (Environment Variables)
+
+### ملف الواجهة الأمامية (`.env.local`)
+مسار الملف: `/var/www/voiceoftihama/.env.local`
+```env
+NEXT_PUBLIC_API_URL=https://voiceoftihama.com/api
+NEXT_PUBLIC_SITE_URL=https://voiceoftihama.com
+API_URL=http://127.0.0.1:5000/api
+```
+
+### ملف السيرفر الخلفي ([server/.env](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/.env))
+مسار الملف: `/var/www/voiceoftihama/server/.env`
+```env
+DATABASE_URL="mysql://voice_user:YOUR_PASSWORD@localhost:3306/voiceoftihama"
+JWT_SECRET="YOUR_LONG_RANDOM_SECRET"
+JWT_REFRESH_SECRET="YOUR_LONG_RANDOM_REFRESH_SECRET"
+PORT=5000
+NODE_ENV=production
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+```
+
+---
+
+## 🐛 حل المشاكل الشائعة (Troubleshooting)
+
+### 1. الموقع لا يفتح (502 Bad Gateway)
+- تأكد أن التطبيق يعمل: `pm2 list`
+- تأكد أن Nginx يعمل: `systemctl status nginx`
+- تحقق من سجلات Nginx: `tail -n 50 /var/log/nginx/error.log`
+
+### 2. خطأ في الاتصال بقاعدة البيانات
+- تأكد أن MySQL يعمل: `systemctl status mysql`
+- تأكد من صحة الرابط في ملف `.env`
+
+### 3. شهادة SSL انتهت أو لا تعمل
+- جدد الشهادة يدوياً: `certbot renew`
+
+---
+
+## 📁 هيكلية المجلدات على السيرفر
+- `/var/www/voiceoftihama` -> المجلد الرئيسي
+- `/var/www/voiceoftihama/server` -> ملفات السيرفر الخلفي (API)
+- `/var/www/voiceoftihama/public` -> الملفات العامة (الصور، ملفات التحقق)
+- `/var/www/voiceoftihama/.next` -> ملفات البناء (Build Files)
+
+---
+*تم إنشاء هذا الدليل بواسطة المساعد الذكي - يناير 2026*
