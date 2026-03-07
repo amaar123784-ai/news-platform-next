@@ -150,23 +150,56 @@ class WhatsAppService {
     }
 
     /**
-     * Fetch article image as tiny JPEG buffer for link preview thumbnail
+     * Fetch article image as tiny JPEG buffer for link preview thumbnail — with retries
      */
-    private async fetchThumbnail(imageUrl: string): Promise<Buffer | undefined> {
-        try {
-            const response = await fetch(imageUrl, {
-                headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
-                signal: AbortSignal.timeout(10000),
-            });
-            if (!response.ok) return undefined;
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            // Skip if too large (max 1MB for thumbnail)
-            if (buffer.length > 1024 * 1024) return undefined;
-            return buffer;
-        } catch {
-            return undefined;
+    private async fetchThumbnail(imageUrl: string, retries: number = 3): Promise<Buffer | undefined> {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const response = await fetch(imageUrl, {
+                    headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
+                    signal: AbortSignal.timeout(10000),
+                });
+                if (!response.ok) {
+                    console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} failed: HTTP ${response.status}`);
+                    if (attempt < retries) await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                if (buffer.length > 1024 * 1024) return undefined;
+                return buffer;
+            } catch (err: any) {
+                console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} error: ${err.message}`);
+                if (attempt < retries) await new Promise(r => setTimeout(r, 3000));
+            }
         }
+        return undefined;
+    }
+
+    /**
+     * Verify article page is accessible (Next.js has built it)
+     */
+    private async waitForArticlePage(url: string, maxAttempts: number = 5): Promise<boolean> {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const response = await fetch(url, {
+                    method: 'HEAD',
+                    headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
+                    signal: AbortSignal.timeout(5000),
+                    redirect: 'follow',
+                });
+                if (response.ok) {
+                    console.log(`[WhatsApp] ✅ Article page ready (attempt ${attempt}/${maxAttempts})`);
+                    return true;
+                }
+                console.log(`[WhatsApp] ⏳ Page not ready yet (HTTP ${response.status}), attempt ${attempt}/${maxAttempts}...`);
+            } catch (err: any) {
+                console.log(`[WhatsApp] ⏳ Page check failed (${err.message}), attempt ${attempt}/${maxAttempts}...`);
+            }
+            if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 5000));
+        }
+        console.log(`[WhatsApp] ⚠️ Page not ready after ${maxAttempts} attempts, proceeding anyway...`);
+        return false;
     }
 
     /**
@@ -187,16 +220,18 @@ class WhatsAppService {
             const text = this.buildMessage(article);
             const articleUrl = `${this.platformUrl}/article/${article.id}`;
 
-            console.log(`[WhatsApp] Preparing to send article: ${article.title} (delay ${SEND_DELAY_MS}ms for page build)`);
-            await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
+            console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
 
-            // Fetch thumbnail for link preview
+            // Step 1: Wait for article page to be built and accessible
+            await this.waitForArticlePage(articleUrl);
+
+            // Step 2: Fetch thumbnail with retries
             let jpegThumbnail: Buffer | undefined;
             if (article.imageUrl) {
                 const fullImageUrl = article.imageUrl.startsWith('http')
                     ? article.imageUrl
                     : `${this.platformUrl}${article.imageUrl}`;
-                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
+                jpegThumbnail = await this.fetchThumbnail(fullImageUrl, 3);
             }
 
             if (jpegThumbnail) {
