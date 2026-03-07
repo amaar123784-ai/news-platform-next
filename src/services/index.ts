@@ -4,7 +4,7 @@
  * Re-exports all API services for convenient imports.
  */
 
-export { default as api, setAuthToken, clearAuthToken, getAuthToken, isAuthenticated } from './api';
+export { default as api, isAuthenticated } from './api';
 export { authService } from './auth.service';
 export { articleService } from './article.service';
 export { userService } from './user.service';

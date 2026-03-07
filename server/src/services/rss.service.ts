@@ -6,8 +6,12 @@
 import Parser from 'rss-parser';
 import crypto from 'crypto';
 import path from 'path';
+import pLimit from 'p-limit';
 import { prisma } from '../index.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
+
+/** Maximum number of feeds fetched simultaneously to protect DB and network */
+const FEED_CONCURRENCY = 5;
 
 // FilterResult type for article processing (filter disabled globally)
 type FilterResult = {
@@ -642,13 +646,13 @@ export async function fetchAllActiveFeeds(): Promise<{
         return { feedsChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
     }
 
-    // Fetch all feeds in parallel with error isolation
+    // Fetch feeds with bounded concurrency — at most FEED_CONCURRENCY in-flight at once.
+    // This prevents DB connection pool exhaustion and excessive outbound HTTP traffic
+    // when many feeds are due simultaneously.
+    const limit = pLimit(FEED_CONCURRENCY);
+
     const results = await Promise.allSettled(
-        dueFeeds.map(async (feed, index) => {
-            // Stagger requests to avoid thundering herd
-            await new Promise(resolve => setTimeout(resolve, index * 500));
-            return fetchRSSFeed(feed.id);
-        })
+        dueFeeds.map(feed => limit(() => fetchRSSFeed(feed.id)))
     );
 
     // Count results

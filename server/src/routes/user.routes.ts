@@ -22,7 +22,7 @@ router.get('/', async (req, res, next) => {
         const { page, perPage } = paginationSchema.parse(req.query);
         const { role, search } = req.query;
 
-        const where: any = {};
+        const where: any = { deletedAt: null }; // Exclude soft-deleted users
         if (role) where.role = role;
         if (search) {
             where.OR = [
@@ -198,12 +198,18 @@ router.delete('/:id', async (req, res, next) => {
             throw createError(400, 'لا يمكنك حذف حسابك الخاص', 'CANNOT_DELETE_SELF');
         }
 
-        const user = await prisma.user.findUnique({ where: { id } });
+        const user = await prisma.user.findFirst({ where: { id, deletedAt: null } });
         if (!user) {
             throw createError(404, 'المستخدم غير موجود', 'USER_NOT_FOUND');
         }
 
-        await prisma.user.delete({ where: { id } });
+        // Soft-delete: deactivate account and set deletedAt instead of hard-deleting.
+        // Hard-delete is blocked because Article uses onDelete:Restrict — admin must
+        // reassign articles before the user's record can ever be physically removed.
+        await prisma.user.update({
+            where: { id },
+            data: { isActive: false, deletedAt: new Date() },
+        });
 
         // Log activity
         await prisma.activityLog.create({
@@ -216,7 +222,7 @@ router.delete('/:id', async (req, res, next) => {
             },
         });
 
-        res.json({ success: true, message: 'تم حذف المستخدم بنجاح' });
+        res.json({ success: true, message: 'تم تعطيل المستخدم بنجاح' });
     } catch (error) {
         next(error);
     }

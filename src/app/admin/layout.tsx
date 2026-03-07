@@ -37,8 +37,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
     }, [pathname]);
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         router.push('/login');
     };
 

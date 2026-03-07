@@ -111,7 +111,7 @@ export const Header: React.FC = () => {
                                         </Button>
                                     </Link>
                                 )}
-                                <Button variant="primary" size="sm" onClick={logout} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
+                                <Button variant="primary" size="sm" onClick={async () => { await logout(); router.push('/login'); }} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
@@ -200,7 +200,7 @@ export const Header: React.FC = () => {
                                             </Button>
                                         </Link>
                                     )}
-                                    <Button variant="secondary" className="w-full justify-center text-red-600 hover:bg-red-50" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                                    <Button variant="secondary" className="w-full justify-center text-red-600 hover:bg-red-50" onClick={async () => { setMobileMenuOpen(false); await logout(); router.push('/login'); }}>
                                         تسجيل خروج
                                     </Button>
                                 </div>

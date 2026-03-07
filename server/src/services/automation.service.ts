@@ -33,24 +33,22 @@ export class AutomationService {
         console.log(`[Automation] Starting pipeline for RSS article: ${rssArticleId}`);
 
         try {
-            // Check if already in queue
-            const existing = await prisma.automationQueue.findUnique({
-                where: { rssArticleId }
-            });
-
-            if (existing) {
-                console.log(`[Automation] Article already in queue with status: ${existing.status}`);
-                return;
-            }
-
-            // Create queue entry
-            const queueItem = await prisma.automationQueue.create({
-                data: {
+            // Upsert: create only if not already queued, skip if it exists
+            const queueItem = await prisma.automationQueue.upsert({
+                where: { rssArticleId },
+                create: {
                     rssArticleId,
                     status: AutomationStatus.PENDING,
                     socialPlatform: SocialPlatform.FACEBOOK
-                }
+                },
+                update: {} // no-op on duplicate
             });
+
+            // Only launch the pipeline if this is a genuinely new (PENDING) entry
+            if (queueItem.status !== AutomationStatus.PENDING) {
+                console.log(`[Automation] Article already in queue with status: ${queueItem.status}`);
+                return;
+            }
 
             // Start processing immediately (async)
             this.processQueue(queueItem.id).catch(err => {
@@ -154,6 +152,16 @@ export class AutomationService {
             include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
 
+        // Step guard: skip if we already created an article (e.g. retry after partial failure)
+        if (queueItem.createdArticleId) {
+            console.log(`[Automation] Step 2: Article already created (${queueItem.createdArticleId}), skipping.`);
+            await prisma.automationQueue.update({
+                where: { id: queueId },
+                data: { status: AutomationStatus.PUBLISHED }
+            });
+            return;
+        }
+
         const article = queueItem.rssArticle!;
         const category = article.feed.category;
 
@@ -221,10 +229,15 @@ export class AutomationService {
             console.log(`[Automation] 🔴 Marked as BREAKING: "${newArticle.title.substring(0, 40)}..."`);
         }
 
-        // Publish to social channels
+        // Publish to social channels and persist per-platform delivery status
         try {
             const { publishToSocialChannels } = await import('./socialPublisher.service.js');
-            await publishToSocialChannels(newArticle);
+            const platformResults = await publishToSocialChannels(newArticle);
+            const allSucceeded = platformResults.every(r => r.success);
+            if (!allSucceeded) {
+                const failed = platformResults.filter(r => !r.success).map(r => r.platform).join(', ');
+                console.warn(`[Automation] Some social platforms failed for article ${newArticle.id}: ${failed}`);
+            }
         } catch (err: any) {
             console.error('[Automation] Social publishing failed:', err.message);
         }
@@ -303,6 +316,11 @@ export class AutomationService {
         const newRetryCount = queueItem.retryCount + 1;
         const shouldRetry = newRetryCount < 3;
 
+        // Exponential backoff: 5 min × 2^(attempt-1)  →  5 m, 10 m, 20 m …
+        const backoffMs = shouldRetry
+            ? 5 * 60 * 1000 * Math.pow(2, newRetryCount - 1)
+            : undefined;
+
         await prisma.automationQueue.update({
             where: { id: queueId },
             data: {
@@ -310,7 +328,7 @@ export class AutomationService {
                 socialStatus: shouldRetry ? SocialPostStatus.PENDING : SocialPostStatus.FAILED,
                 errorMessage,
                 retryCount: newRetryCount,
-                socialScheduledAt: shouldRetry ? new Date(Date.now() + 5 * 60 * 1000) : undefined
+                socialScheduledAt: backoffMs ? new Date(Date.now() + backoffMs) : undefined
             }
         });
 

@@ -1,21 +1,23 @@
 /**
  * Auth Service
- * 
- * Handles authentication operations.
+ *
+ * Security hardening (S1):
+ *   - Tokens are now stored in HttpOnly cookies by the server.
+ *   - This service NO LONGER reads/writes tokens from localStorage.
+ *   - setAuthToken / clearAuthToken helpers have been removed from api.ts.
+ *   - After login, the server sets the cookie; the UI just receives the user object.
  */
 
-import api, { setAuthToken, clearAuthToken } from './api';
+import api from './api';
 import type { LoginRequest, LoginResponse, RegisterRequest, User, ApiResponse } from '@/types/api.types';
 
 export const authService = {
     /**
-     * Login user
+     * Login — server sets access_token and refresh_token HttpOnly cookies
      */
     async login(credentials: LoginRequest): Promise<LoginResponse> {
         const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', credentials);
-        const { user, token, refreshToken } = response.data.data;
-        setAuthToken(token, refreshToken);
-        return { user, token, refreshToken };
+        return response.data.data; // { user }
     },
 
     /**
@@ -23,9 +25,7 @@ export const authService = {
      */
     async loginWithGoogle(token: string): Promise<LoginResponse> {
         const response = await api.post<ApiResponse<LoginResponse>>('/auth/google', { token });
-        const { user, token: accessToken, refreshToken } = response.data.data;
-        setAuthToken(accessToken, refreshToken);
-        return { user, token: accessToken, refreshToken };
+        return response.data.data;
     },
 
     /**
@@ -33,34 +33,26 @@ export const authService = {
      */
     async loginWithFacebook(token: string): Promise<LoginResponse> {
         const response = await api.post<ApiResponse<LoginResponse>>('/auth/facebook', { token });
-        const { user, token: accessToken, refreshToken } = response.data.data;
-        setAuthToken(accessToken, refreshToken);
-        return { user, token: accessToken, refreshToken };
+        return response.data.data;
     },
 
     /**
-     * Register new user
+     * Register new user — server sets auth cookies
      */
     async register(data: RegisterRequest): Promise<LoginResponse> {
         const response = await api.post<ApiResponse<LoginResponse>>('/auth/register', data);
-        const { user, token, refreshToken } = response.data.data;
-        setAuthToken(token, refreshToken);
-        return { user, token, refreshToken };
+        return response.data.data;
     },
 
     /**
-     * Logout user
+     * Logout — server clears cookies server-side
      */
     async logout(): Promise<void> {
-        try {
-            await api.post('/auth/logout');
-        } finally {
-            clearAuthToken();
-        }
+        await api.post('/auth/logout');
     },
 
     /**
-     * Get current user profile
+     * Get current user profile (confirms session is valid via cookie)
      */
     async getCurrentUser(): Promise<User> {
         const response = await api.get<ApiResponse<User>>('/auth/me');

@@ -35,10 +35,11 @@ export interface LoginRequest {
     password: string;
 }
 
+/** Response from any auth endpoint (login, register, google, facebook)
+ *  Tokens are set as HttpOnly cookies — NOT returned in the response body.
+ */
 export interface LoginResponse {
     user: User;
-    token: string;
-    refreshToken?: string;
 }
 
 export interface RegisterRequest {

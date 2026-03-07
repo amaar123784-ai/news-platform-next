@@ -1,26 +1,28 @@
 /**
  * API Client
- * 
- * Base axios instance with interceptors for auth and error handling.
- * Updated for Next.js - uses process.env instead of import.meta.env
+ *
+ * Security hardening (S1):
+ *   - JWT tokens are now stored in HttpOnly, Secure, SameSite=Strict cookies set by the server.
+ *   - The frontend never reads, writes, or stores tokens — they are NOT accessible to JavaScript.
+ *   - `withCredentials: true` tells Axios to include cookies on every cross-origin request.
+ *   - The old localStorage helpers (setAuthToken / clearAuthToken / getAuthToken) are removed.
+ *     Session state is determined by calling GET /auth/me (see AuthContext).
+ *
+ * Refresh flow:
+ *   - When a 401 is received, POST /auth/refresh is called.
+ *   - The server reads the refresh_token HttpOnly cookie automatically and rotates tokens.
+ *   - If refresh fails, the user is redirected to /login.
  */
 
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { ApiError } from '@/types/api.types';
 
-/**
- * API Configuration
- * Uses environment variable for production flexibility
- * Defaults to localhost for development
- */
 const getApiBaseUrl = (): string => {
-    // Next.js uses process.env.NEXT_PUBLIC_* for client-side env vars
     const envUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!envUrl) {
         if (process.env.NODE_ENV === 'production') {
             console.warn('[API] NEXT_PUBLIC_API_URL not set in production environment');
         }
-        // Force IPv4 loopback to avoid "resolved to private ip" errors in Next.js image optimization
         return 'http://127.0.0.1:5000/api';
     }
     return envUrl;
@@ -28,77 +30,67 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Token storage keys
-const TOKEN_KEY = 'auth_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-
-// Safe localStorage access (for SSR compatibility)
-const getLocalStorage = () => {
-    if (typeof window !== 'undefined') {
-        return window.localStorage;
-    }
-    return null;
-};
-
 // Create axios instance
+// withCredentials ensures cookies are sent on every cross-origin request
 const api: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
     timeout: 15000,
+    withCredentials: true, // Required for HttpOnly cookie auth
 });
 
-// Request interceptor - Add auth token
-api.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-        const storage = getLocalStorage();
-        const token = storage?.getItem(TOKEN_KEY);
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+// Track whether a token refresh is already in-flight to avoid parallel refresh attempts
+let isRefreshing = false;
+let pendingRequests: Array<() => void> = [];
 
-// Response interceptor - Handle errors
+function onRefreshSuccess() {
+    pendingRequests.forEach((cb) => cb());
+    pendingRequests = [];
+}
+
+function onRefreshFailure() {
+    pendingRequests = [];
+}
+
+// Response interceptor — auto-refresh on 401
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError<ApiError>) => {
-        const originalRequest = error.config;
-        const storage = getLocalStorage();
+        const originalRequest = error.config as typeof error.config & { _retry?: boolean };
 
-        // Handle 401 Unauthorized - Token expired
-        // Skip for login requests to allow components to handle invalid credentials
-        if (error.response?.status === 401 && originalRequest && !originalRequest.url?.includes('/auth/login')) {
-            // Try to refresh token
-            const refreshToken = storage?.getItem(REFRESH_TOKEN_KEY);
-            if (refreshToken) {
-                try {
-                    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-                        refreshToken,
-                    });
-                    const { token } = response.data;
-                    storage?.setItem(TOKEN_KEY, token);
+        // Handle 401 — token expired, attempt silent refresh
+        // Skip for login and refresh endpoints to avoid infinite loops
+        const isAuthEndpoint =
+            originalRequest?.url?.includes('/auth/login') ||
+            originalRequest?.url?.includes('/auth/refresh');
 
-                    // Retry original request
-                    if (originalRequest.headers) {
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-                    }
-                    return api(originalRequest);
-                } catch (refreshError) {
-                    // Refresh failed - logout user
-                    storage?.removeItem(TOKEN_KEY);
-                    storage?.removeItem(REFRESH_TOKEN_KEY);
-                    if (typeof window !== 'undefined') {
-                        window.location.href = '/login';
-                    }
-                }
-            } else {
-                // No refresh token - redirect to login
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
+            originalRequest._retry = true;
+
+            if (isRefreshing) {
+                // Queue request until refresh completes
+                return new Promise((resolve) => {
+                    pendingRequests.push(() => resolve(api(originalRequest)));
+                });
+            }
+
+            isRefreshing = true;
+            try {
+                // POST /auth/refresh — server reads HttpOnly refresh_token cookie automatically
+                await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+
+                isRefreshing = false;
+                onRefreshSuccess();
+
+                // Retry the original request (new access_token cookie is now set)
+                return api(originalRequest);
+            } catch {
+                isRefreshing = false;
+                onRefreshFailure();
+
+                // Refresh failed — redirect to login
                 if (typeof window !== 'undefined') {
                     window.location.href = '/login';
                 }
@@ -117,23 +109,18 @@ api.interceptors.response.use(
     }
 );
 
-// Token management utilities
-export const setAuthToken = (token: string, refreshToken?: string) => {
-    const storage = getLocalStorage();
-    storage?.setItem(TOKEN_KEY, token);
-    if (refreshToken) {
-        storage?.setItem(REFRESH_TOKEN_KEY, refreshToken);
+/**
+ * isAuthenticated — check session server-side by calling /auth/me.
+ * Do NOT use localStorage checks; there is no token accessible to JS anymore.
+ * This is handled inside AuthContext.
+ */
+export const isAuthenticated = async (): Promise<boolean> => {
+    try {
+        await api.get('/auth/me');
+        return true;
+    } catch {
+        return false;
     }
 };
-
-export const clearAuthToken = () => {
-    const storage = getLocalStorage();
-    storage?.removeItem(TOKEN_KEY);
-    storage?.removeItem(REFRESH_TOKEN_KEY);
-};
-
-export const getAuthToken = () => getLocalStorage()?.getItem(TOKEN_KEY);
-
-export const isAuthenticated = () => !!getAuthToken();
 
 export default api;

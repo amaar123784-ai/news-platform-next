@@ -1,6 +1,6 @@
 /**
  * Social Publisher Service
- * 
+ *
  * Unified entry point for publishing articles to all social media platforms.
  * Replaces the duplicated social posting blocks in article.routes.ts.
  */
@@ -15,13 +15,21 @@ interface ArticlePayload {
     [key: string]: any;
 }
 
+export interface PlatformResult {
+    platform: string;
+    success: boolean;
+    postId?: string;
+    error?: string;
+}
+
 const PLATFORMS = ['WhatsApp', 'Telegram', 'Facebook'] as const;
 
 /**
  * Publish an article to all configured social media channels.
  * Each platform posts independently — a failure in one does not block others.
+ * Returns per-platform outcomes so callers can persist delivery status.
  */
-export async function publishToSocialChannels(article: ArticlePayload): Promise<void> {
+export async function publishToSocialChannels(article: ArticlePayload): Promise<PlatformResult[]> {
     const tasks: Array<{ name: string; fn: () => Promise<void> }> = [];
 
     try {
@@ -48,13 +56,19 @@ export async function publishToSocialChannels(article: ArticlePayload): Promise<
         });
     } catch { /* service unavailable */ }
 
-    const results = await Promise.allSettled(tasks.map(t => t.fn()));
+    const settled = await Promise.allSettled(tasks.map(t => t.fn()));
 
-    results.forEach((result, i) => {
+    const platformResults: PlatformResult[] = settled.map((result, i) => {
+        const name = tasks[i].name;
         if (result.status === 'fulfilled') {
-            console.log(`[Social] ✅ ${tasks[i].name} posted article ${article.id}`);
+            console.log(`[Social] ✅ ${name} posted article ${article.id}`);
+            return { platform: name, success: true };
         } else {
-            console.error(`[Social] ❌ ${tasks[i].name} failed for article ${article.id}:`, result.reason?.message || result.reason);
+            const errMsg = result.reason?.message || String(result.reason);
+            console.error(`[Social] ❌ ${name} failed for article ${article.id}:`, errMsg);
+            return { platform: name, success: false, error: errMsg };
         }
     });
+
+    return platformResults;
 }

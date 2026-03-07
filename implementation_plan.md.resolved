@@ -1,0 +1,575 @@
+# Implementation Plan: Critical & High-Severity Fixes
+
+Prioritized plan to fix all **5 Critical** and **16 High** severity issues identified in the [audit report](file:///C:/Users/MahmoodCenter/.gemini/antigravity/brain/56c0c1ac-3b04-475f-9c65-d450f75d38cd/audit_report.md).
+
+Organized into **5 sprints**, ordered by risk and dependency. Each sprint is designed to be independently shippable.
+
+---
+
+## Sprint 1: Immediate Security Fixes (Critical — do first)
+
+> [!CAUTION]
+> These issues represent active vulnerabilities. They should be fixed before any other changes.
+
+### 1.1 — Fix .env exposure (S5)
+
+**Severity:** Critical | **Effort:** 5 min
+
+#### [MODIFY] [.gitignore](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/.gitignore)
+
+- Add [server/.env](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/.env) to [.gitignore](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/.gitignore) (verify it's not already tracked in git history)
+
+#### Verification
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next
+git ls-files server/.env  # Should return empty after fix
+```
+
+---
+
+### 1.2 — Fix refresh token hashing inconsistency (S3)
+
+**Severity:** Critical | **Effort:** 30 min
+
+#### [MODIFY] [auth.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/auth.routes.ts)
+
+**Problem:** Login (line ~195) stores the **raw** refresh token in the DB. The `/refresh` endpoint (line ~287) stores a **hashed** version. Token comparison in `/refresh` uses `findFirst` searching for raw token, but on rotation stores hashed — mismatch.
+
+**Fix:**
+- Hash refresh token before storing in ALL locations (register, login, Google OAuth, Facebook OAuth)
+- On `/refresh`, hash the incoming token before DB lookup
+- Ensure `findFirst` query compares hashed values consistently
+
+**Files changed:**
+- [auth.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/auth.routes.ts) — 4 locations where refresh tokens are stored
+
+#### Verification
+- Extend existing [auth.middleware.test.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/tests/auth.middleware.test.ts) with a new `describe('Refresh Token Hashing')` block:
+  - Test that stored tokens are never raw
+  - Test that refresh flow correctly matches hashed tokens
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run src/tests/auth.middleware.test.ts
+```
+
+---
+
+### 1.3 — Prevent User cascade delete destroying articles (B3)
+
+**Severity:** Critical | **Effort:** 20 min
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/prisma/schema.prisma)
+
+**Problem:** `Article.author` relation uses `onDelete: Cascade` (line 93) — deleting a user permanently destroys ALL their articles.
+
+**Fix:**
+- Change `onDelete: Cascade` to `onDelete: Restrict` on the Article→User relation
+- This means a user cannot be deleted if they have articles — admin must reassign articles first
+- Add a `deletedAt DateTime?` field to `User` for soft-delete (groundwork for D1)
+- Update [user.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/user.routes.ts) DELETE endpoint to soft-delete (set `isActive: false, deletedAt: now()`) instead of hard delete
+
+**Files changed:**
+- [schema.prisma](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/prisma/schema.prisma) — Article relation + User model
+- [user.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/user.routes.ts) — DELETE /api/users/:id endpoint
+
+#### Verification
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx prisma migrate dev --name prevent-user-cascade-delete
+npx vitest run
+```
+- Manual: Attempt to delete a user who has articles → should receive error message saying "Cannot delete user with existing articles"
+
+---
+
+### 1.4 — Add HTML sanitization for article content (S6)
+
+**Severity:** High | **Effort:** 30 min
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+**Problem:** Article `content` field accepts raw HTML with no sanitization — stored XSS is possible.
+
+**Fix:**
+- Install `dompurify` and `jsdom` (jsdom already installed)
+- Create a `sanitizeHtml()` utility in `server/src/services/` or `server/src/utils/`
+- Call it on `content` in both POST and PATCH article routes
+- Allowlist: standard HTML tags (p, h1-h6, a, img, ul, ol, li, strong, em, blockquote, br, div, span, table, etc.)
+- Strip: script, iframe, onX event attributes, javascript: URLs
+
+#### [NEW] `server/src/utils/sanitize.ts`
+- Export `sanitizeHtml(html: string): string`
+- Export `sanitizeText(text: string): string` for plain-text fields (title, excerpt)
+
+#### Verification
+- Write a new test file `server/src/tests/sanitize.test.ts`:
+  - Test XSS vectors are stripped: `<script>alert('xss')</script>`, `<img onerror="alert(1)">`, `javascript:` URLs
+  - Test valid HTML is preserved: `<p>`, `<strong>`, `<a href="https://...">`, `<img src="...">`
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run src/tests/sanitize.test.ts
+```
+
+---
+
+### 1.5 — Move JWT tokens from localStorage to httpOnly cookies (S1)
+
+**Severity:** Critical | **Effort:** 2-3 hours
+
+> [!WARNING]
+> This is the largest change in Sprint 1. It requires coordinated frontend + backend changes.
+
+#### [MODIFY] [auth.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/auth.routes.ts)
+
+- Set JWT access token as `httpOnly`, `Secure`, `SameSite=Strict` cookie on login/register/refresh/OAuth responses
+- Set refresh token as a separate `httpOnly` cookie with a longer `maxAge`
+- Remove token from JSON response body (keep only user data)
+- Read tokens from cookies in `/refresh` and `/logout`
+
+#### [MODIFY] [auth.ts (middleware)](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/middleware/auth.ts)
+
+- Read JWT from cookies instead of / in addition to `Authorization` header
+- Install `cookie-parser` middleware
+
+#### [MODIFY] [app.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/app.ts)
+
+- Add `cookie-parser` middleware
+- Update CORS to include `credentials: true` (already set)
+
+#### [MODIFY] [api.ts (frontend)](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/services/api.ts)
+
+- Remove localStorage token reads/writes
+- Set `withCredentials: true` on axios instance
+- Remove `Authorization` header from request interceptor (cookies are sent automatically)
+- Update token refresh logic to use cookie-based flow
+
+#### [MODIFY] [AuthContext](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/contexts/AuthContext.tsx)
+
+- Remove localStorage token management
+- Auth state derived from `/api/auth/me` call result
+- Login/logout trigger cookie-based endpoints
+
+#### Verification
+- Update existing [auth.middleware.test.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/tests/auth.middleware.test.ts) to test cookie-based auth
+- Update [article.publish.integration.test.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/tests/article.publish.integration.test.ts) if header-based auth changes
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run
+```
+- **Manual verification required:** Log in via browser, check DevTools → Application → Cookies, verify `httpOnly` flag is set, verify `localStorage` no longer contains tokens
+
+---
+
+### 1.6 — Restrict CORS in production (S4)
+
+**Severity:** High | **Effort:** 10 min
+
+#### [MODIFY] [app.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/app.ts)
+
+**Fix:** Make CORS origin dynamic based on `NODE_ENV`:
+```typescript
+origin: env.NODE_ENV === 'production' 
+    ? [env.FRONTEND_URL]                                // Only production domain
+    : [env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:4000', 'http://localhost:5173'],
+```
+
+#### Verification
+- Manual: Set `NODE_ENV=production`, inspect CORS headers on response — should only include production URL
+
+---
+
+## Sprint 2: Data Integrity & Business Logic (High)
+
+### 2.1 — Add soft-delete for Articles and RSS Articles (D1 partial)
+
+**Severity:** High | **Effort:** 1-2 hours
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/prisma/schema.prisma)
+
+- Add `deletedAt DateTime?` to `Article` and `RSSArticle` models
+- Add index `@@index([deletedAt])` on both
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+- DELETE endpoint: set `deletedAt = new Date()` instead of `prisma.article.delete()`
+- All queries: add `where: { deletedAt: null }` filter
+- Add admin-only `/api/articles/:id/restore` endpoint
+
+#### Verification
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx prisma migrate dev --name add-soft-delete
+npx vitest run src/tests/article.publish.integration.test.ts
+```
+
+---
+
+### 2.2 — Add transaction to article creation (B2)
+
+**Severity:** High | **Effort:** 30 min
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+**Problem:** Article + tags + activity log are created in separate queries — partial failure leaves orphaned data.
+
+**Fix:** Wrap the create flow in `prisma.$transaction()`:
+```typescript
+const result = await prisma.$transaction(async (tx) => {
+    const article = await tx.article.create({ ... });
+    if (tags?.length) await tx.articleTag.createMany({ ... });
+    await tx.activityLog.create({ ... });
+    return article;
+});
+```
+
+#### Verification
+- Existing [article.publish.integration.test.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/tests/article.publish.integration.test.ts) covers the create flow — run it to ensure no regression
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run src/tests/article.publish.integration.test.ts
+```
+
+---
+
+### 2.3 — Fix slug generation race condition (B1)
+
+**Severity:** High | **Effort:** 20 min
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+**Fix:** Use a `try/catch` around `prisma.article.create()` — if unique constraint violation on `slug`, append a random suffix and retry (up to 3 times). This is more reliable than the current check-then-create pattern.
+
+#### Verification
+- Manual: Create two articles with the same title simultaneously — both should succeed with different slugs
+
+---
+
+### 2.4 — Fix social media scheduler auto-completing without posting (B6)
+
+**Severity:** High | **Effort:** 45 min
+
+#### [MODIFY] [scheduler.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/services/scheduler.ts)
+
+**Problem:** Social media cron job (line 82-88) calls `markSocialPosted(post.id, 'auto-completed')` without actually calling any social platform API.
+
+**Fix:**
+- Import `publishToSocialChannels` from `socialPublisher.service.ts`
+- Actually call `publishToSocialChannels()` for each pending post
+- Only mark as posted after successful result
+- Mark as failed on error with retry tracking
+
+#### Verification
+- Manual: Approve an RSS article, wait 2 minutes, check that Telegram/WhatsApp actually receive the post (requires live social accounts configured)
+
+---
+
+### 2.5 — Add idempotency guard to automation pipeline (B7)
+
+**Severity:** High | **Effort:** 30 min
+
+#### [MODIFY] [automation.service.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/services/automation.service.ts)
+
+**Problem:** `publishToPlatform()` can create duplicate articles if retried.
+
+**Fix:**
+- In `publishToPlatform()`: check if `createdArticleId` is already set before creating a new article
+- In `processAIRewrite()`: check if `aiRewrittenContent` already exists before re-processing
+- Add `retryAutomation()` guard: only allow retry if status is `FAILED`
+
+#### Verification
+- Manual: Start automation for same RSS article twice → verify only one platform article is created
+
+---
+
+### 2.6 — Prevent cascading RSS source delete without impact preview (U8)
+
+**Severity:** High | **Effort:** 30 min
+
+#### [MODIFY] [rss.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/rss.routes.ts)
+
+**Fix:**
+- Before deleting, query the count of feeds and articles that will be affected
+- Return the count to the frontend as a confirmation payload
+- Frontend shows "This will delete X feeds and Y articles. Are you sure?"
+
+#### [MODIFY] [rss/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/admin/rss/page.tsx)
+
+- Update delete confirmation modal to show impact count
+
+#### Verification
+- Manual: Click delete on an RSS source → confirm dialog should show "This will delete X feeds and Y articles"
+
+---
+
+## Sprint 3: Performance Fixes (High)
+
+### 3.1 — Add concurrency limit to RSS feed fetching (P5)
+
+**Severity:** High | **Effort:** 15 min
+
+#### [MODIFY] [rss.service.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/services/rss.service.ts)
+
+**Problem:** `fetchAllActiveFeeds()` runs all feeds via `Promise.allSettled` with no concurrency limiting. The `p-limit` package is already installed.
+
+**Fix:**
+```typescript
+import pLimit from 'p-limit';
+const limit = pLimit(5); // Max 5 concurrent fetches
+
+const results = await Promise.allSettled(
+    dueFeeds.map(feed => limit(() => fetchRSSFeed(feed.id)))
+);
+```
+
+#### Verification
+- Add `console.log` showing concurrent active fetches, verify never exceeds 5
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npm run dev
+# Trigger manual fetch, observe logs
+```
+
+---
+
+### 3.2 — Use MySQL FULLTEXT index for article search (P3)
+
+**Severity:** High | **Effort:** 30 min
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+**Problem:** Search uses `{ contains: search }` which does a `LIKE '%search%'` scan. The schema already declares `@@fulltext([title, excerpt, content])` but it's never used.
+
+**Fix:**
+```typescript
+if (search) {
+    where.OR = undefined; // Remove the old contains approach
+    // Use Prisma's fulltext search
+    where.title = { search: search };
+    where.excerpt = { search: search };
+    where.content = { search: search };
+}
+```
+
+Or use raw query for better control:
+```typescript
+if (search) {
+    articles = await prisma.$queryRaw`
+        SELECT * FROM Article 
+        WHERE MATCH(title, excerpt, content) AGAINST(${search} IN NATURAL LANGUAGE MODE)
+        AND deletedAt IS NULL
+        ORDER BY ...
+    `;
+}
+```
+
+#### Verification
+- Manual: Search for an Arabic term, verify results are returned and response time is under 200ms
+
+---
+
+### 3.3 — Move image processing off main thread (P6)
+
+**Severity:** High | **Effort:** 1 hour
+
+#### [MODIFY] [imageProcessor.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/services/imageProcessor.ts)
+
+**Fix:**
+- Use Node.js `worker_threads` to run Sharp operations in a worker
+- Or, simpler approach: use `sharp`'s built-in async pipeline (it already uses libvips threads internally) — ensure no `sync` methods are called
+- Add a processing queue to prevent more than 3 concurrent image operations
+
+#### Verification
+- Manual: Upload 5 images simultaneously via media manager → server should remain responsive
+
+---
+
+### 3.4 — Fix N+1 query in RSS sources list (P1)
+
+**Severity:** High | **Effort:** 20 min
+
+#### [MODIFY] [rss.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/rss.routes.ts)
+
+**Problem:** Sources list loads all feeds with all categories in a single query, but then loops to compute stats — partially an N+1 pattern.
+
+**Fix:**
+- Use Prisma's `_count` aggregate in the include
+- Remove post-query computation loops
+- Add server-side pagination (currently loads ALL sources)
+
+#### Verification
+- Manual: With 20+ RSS sources, check response time is <500ms
+
+---
+
+## Sprint 4: Admin Dashboard UX (High)
+
+### 4.1 — Decompose 879-line RSS page (U1)
+
+**Severity:** High | **Effort:** 2 hours
+
+#### [MODIFY] [rss/page.tsx](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/src/app/admin/rss/page.tsx)
+
+**Fix:** Extract into components:
+- `src/components/organisms/rss/SourceTable.tsx` — table rendering
+- `src/components/organisms/rss/SourceFormModal.tsx` — create/edit source modal
+- `src/components/organisms/rss/FeedManagementModal.tsx` — feeds CRUD modal
+- `src/components/organisms/rss/FeedFormModal.tsx` — individual feed edit modal
+- Use `useReducer` or URL-based state for modal management
+
+#### Verification
+- Manual: Navigate to RSS page, verify all CRUD operations still work (create source, add feed, edit feed, delete, fetch)
+
+---
+
+### 4.2 — Add unsaved-changes warning (U4)
+
+**Severity:** High | **Effort:** 45 min
+
+#### [NEW] `src/hooks/useUnsavedChanges.ts`
+
+- Custom hook using `beforeunload` event and Next.js router events
+- Warns before navigation if form has unsaved changes
+
+#### [MODIFY] Article editor forms, RSS source forms
+
+- Integrate `useUnsavedChanges` hook
+
+#### Verification
+- Manual: Make edits in article form → try navigating away → should see browser confirmation dialog
+
+---
+
+### 4.3 — Add cascade delete confirmation with impact count (U8)
+
+**Severity:** High | already covered in Sprint 2.6
+
+---
+
+## Sprint 5: Architecture Improvements (High)
+
+### 5.1 — Extract service layer from fat route files (A1)
+
+**Severity:** Critical | **Effort:** 4-6 hours (phased)
+
+> [!IMPORTANT]
+> This is the largest refactor. It should be done incrementally — one route file at a time.
+
+#### Phase A: Article Service
+
+#### [NEW] `server/src/services/article.service.ts`
+
+Extract from `article.routes.ts`:
+- `createArticle(data, userId)`
+- `updateArticle(id, data, userId)`
+- `deleteArticle(id, userId)` (soft-delete)
+- `publishArticle(id, userId)`
+- `getArticles(query)`
+- `getArticleBySlug(slug)`
+
+#### [MODIFY] [article.routes.ts](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/src/routes/article.routes.ts)
+
+- Routes become thin wrappers that call service methods
+
+#### Phase B: RSS Service refactor
+
+Same pattern for RSS routes — extract CRUD logic from `rss.routes.ts` into the existing `rss.service.ts` (which currently only handles fetching/parsing).
+
+#### Phase C: Auth Service
+
+Same pattern for auth routes — extract token generation, user lookup logic.
+
+#### Verification
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run
+```
+- All existing tests should pass since the logic is only being moved, not changed
+
+---
+
+### 5.2 — Add social media tracking table for multi-platform (D6)
+
+**Severity:** High | **Effort:** 1 hour
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/MahmoodCenter/Desktop/news-platform-next/server/prisma/schema.prisma)
+
+- Add `WHATSAPP` to `SocialPlatform` enum
+- Create new `SocialPost` model:
+```prisma
+model SocialPost {
+    id              String           @id @default(uuid())
+    articleId       String
+    platform        SocialPlatform
+    status          SocialPostStatus @default(PENDING)
+    postId          String?          // Platform-specific post ID
+    scheduledAt     DateTime?
+    postedAt        DateTime?
+    errorMessage    String?          @db.Text
+    retryCount      Int              @default(0)
+    createdAt       DateTime         @default(now())
+    
+    @@index([articleId, platform])
+    @@index([status])
+    @@unique([articleId, platform])
+}
+```
+
+#### Verification
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx prisma migrate dev --name add-social-post-tracking
+```
+
+---
+
+## Summary: Sprint Roadmap
+
+| Sprint | Focus | Issues Fixed | Estimated Effort |
+|---|---|---|---|
+| **Sprint 1** | 🔴 Security | S1, S3, S4, S5, S6, B3 | ~4-5 hours |
+| **Sprint 2** | 🟠 Data Integrity | B1, B2, B6, B7, D1, U8 | ~3-4 hours |
+| **Sprint 3** | 🟠 Performance | P1, P3, P5, P6 | ~2-3 hours |
+| **Sprint 4** | 🟠 Dashboard UX | U1, U4, U8 | ~3-4 hours |
+| **Sprint 5** | 🟠 Architecture | A1, D6 | ~5-7 hours |
+| **Total** | | **21 issues** | **~17-23 hours** |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+All tests are run with Vitest from the server directory:
+```bash
+cd c:\Users\MahmoodCenter\Desktop\news-platform-next\server
+npx vitest run
+```
+
+Existing tests (2 files, ~670 lines):
+- `auth.middleware.test.ts` — JWT auth & role-based access (will be extended)
+- `article.publish.integration.test.ts` — Full article lifecycle
+
+New tests to add:
+- `sanitize.test.ts` — HTML sanitization
+- `auth.routes.test.ts` — Refresh token hashing consistency
+- `automation.service.test.ts` — Idempotency guards (optional, lower priority)
+
+### Manual Verification
+
+The user should manually verify the following after each sprint:
+
+1. **Sprint 1:** Log in → check cookies in DevTools → verify `httpOnly` flag → attempt creating article with `<script>` tag → verify it's stripped
+2. **Sprint 2:** Delete user with articles → should be blocked → delete article → check it's soft-deleted (recoverable) → approve RSS article → verify single article created
+3. **Sprint 3:** Add 30+ RSS sources → trigger fetch-all → verify server stays responsive → search for Arabic term → verify speed
+4. **Sprint 4:** Navigate RSS management → verify CRUD works → edit article form → navigate away → see warning
+5. **Sprint 5:** All existing functionality should work identically — regression check
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Sprint 1.5 (JWT cookies)** is the highest-risk change — it touches auth flow across both frontend and backend. Please confirm:
+> 1. Are there any mobile apps or external API consumers that rely on the current `Authorization: Bearer` header pattern? If so, we need to support both cookies and headers.
+> 2. Is the backend deployed with HTTPS in production? (`Secure` cookies require HTTPS)
+> 3. Should we start with Sprint 1 (security) or would you prefer a different order?
