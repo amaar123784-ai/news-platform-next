@@ -73,12 +73,6 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
                                     {timeAgo}
                                 </span>
                             )}
-                            {author && (
-                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
-                                    <Icon name="ri-user-line" size="sm" className="text-secondary" />
-                                    {author}
-                                </span>
-                            )}
                             {views !== undefined && views > 0 && (
                                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
                                     <Icon name="ri-eye-line" size="sm" className="text-secondary" />

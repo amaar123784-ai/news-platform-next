@@ -69,7 +69,6 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
         excerpt: article.excerpt,
         category: (article.category?.slug || "politics") as any,
         imageUrl: getImageUrl(article.imageUrl),
-        author: article.author?.name || "المحرر",
         timeAgo: formatTimeAgo(article.publishedAt || article.createdAt),
         views: article.views,
         isBreaking: (article as any).isBreaking || false,
@@ -138,8 +137,6 @@ export function HomeContent({ featuredArticles, articles, topArticles }: HomeCon
                                             excerpt={article.excerpt}
                                             category={(article.category?.slug || "politics") as any}
                                             imageUrl={getImageUrl(article.imageUrl)}
-                                            author={article.author?.name || "المحرر"}
-                                            authorId={article.author?.id}
                                             timeAgo={formatTimeAgo(article.publishedAt || article.createdAt)}
                                         />
                                     </div>

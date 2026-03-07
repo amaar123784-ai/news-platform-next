@@ -118,20 +118,6 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                 {/* Metadata Footer */}
                 <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-medium relative z-10">
                     <div className="flex items-center gap-2">
-                        {author && (
-                            authorId ? (
-                                <Link
-                                    href={`/author/${authorId}`}
-                                    className="hover:text-primary transition-colors truncate max-w-[120px]"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {author}
-                                </Link>
-                            ) : (
-                                <span className="truncate max-w-[120px]">{author}</span>
-                            )
-                        )}
-                        {author && timeAgo && <span className="text-gray-200">•</span>}
                         {timeAgo && (
                             <span className="flex items-center gap-1 whitespace-nowrap">
                                 <Icon name="ri-time-line" size="sm" />
