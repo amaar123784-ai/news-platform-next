@@ -227,7 +227,8 @@ export const cache = {
                 });
 
                 for (const key of keys) {
-                    const count = await client.getdel(key);
+                    // Use GET + DEL instead of GETDEL for Redis < 6.2 compatibility
+                    const [[, count]] = await client.pipeline().get(key).del(key).exec();
                     if (count && parseInt(count) > 0) {
                         const articleId = key.replace('views:', '');
                         await prisma.article.update({
