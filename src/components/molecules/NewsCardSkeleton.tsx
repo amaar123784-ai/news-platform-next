@@ -14,10 +14,10 @@ export const NewsCardSkeleton: React.FC = () => {
             <div className="h-[3px] bg-gray-200" />
 
             {/* Image placeholder */}
-            <div className="aspect-[16/9] w-full bg-gray-200 shimmer" />
+            <div className="aspect-[4/3] w-full bg-gray-200 shimmer" />
 
             {/* Content */}
-            <div className="p-5 flex flex-col flex-1">
+            <div className="p-4 flex flex-col flex-1">
                 {/* Title lines */}
                 <div className="h-5 bg-gray-200 rounded-md w-full mb-2 shimmer" />
                 <div className="h-5 bg-gray-200 rounded-md w-3/4 mb-4 shimmer" />

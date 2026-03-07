@@ -62,7 +62,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             <div className="h-[3px] bg-gradient-to-l from-primary via-primary/60 to-transparent" />
 
             {/* Image Container — 16:9 */}
-            <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100 shrink-0">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 shrink-0">
                 <Image
                     src={displayImageUrl}
                     alt={title}
@@ -96,9 +96,9 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             </div>
 
             {/* Content */}
-            <div className="flex flex-col flex-1 p-5">
+            <div className="flex flex-col flex-1 p-4">
                 {/* Title */}
-                <h3 className="font-bold text-lg leading-snug mb-2 line-clamp-2">
+                <h3 className="font-bold text-base leading-snug mb-1.5 line-clamp-2">
                     <Link
                         href={articleLink}
                         onClick={onClick}
@@ -110,7 +110,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
 
                 {/* Excerpt */}
                 {excerpt && (
-                    <p className="text-gray-500 text-[13px] leading-relaxed mb-4 line-clamp-2 flex-1">
+                    <p className="text-gray-500 text-xs leading-relaxed mb-3 line-clamp-2 flex-1">
                         {excerpt}
                     </p>
                 )}
