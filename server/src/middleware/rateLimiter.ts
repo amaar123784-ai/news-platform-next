@@ -48,7 +48,7 @@ initRedisStore().catch(() => { });
 
 export const rateLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute
+    max: 500, // 500 requests per minute (generous for SPA with many API calls)
     message: {
         success: false,
         message: 'تم تجاوز الحد الأقصى للطلبات. يرجى المحاولة لاحقاً.',
@@ -56,13 +56,14 @@ export const rateLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/api/health', // Don't rate-limit health checks
     ...(storeOption && { store: storeOption }),
 });
 
 // Stricter limit for auth routes (enabled in production)
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: isProduction ? 5 : 1000, // 5 attempts in production, 1000 in development
+    max: isProduction ? 30 : 1000, // 30 attempts in production, 1000 in development
     message: {
         success: false,
         message: 'محاولات تسجيل دخول كثيرة. يرجى الانتظار 15 دقيقة.',

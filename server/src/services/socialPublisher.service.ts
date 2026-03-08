@@ -2,7 +2,6 @@
  * Social Publisher Service
  *
  * Unified entry point for publishing articles to all social media platforms.
- * Replaces the duplicated social posting blocks in article.routes.ts.
  */
 
 interface ArticlePayload {
@@ -18,57 +17,47 @@ interface ArticlePayload {
 export interface PlatformResult {
     platform: string;
     success: boolean;
-    postId?: string;
     error?: string;
 }
-
-const PLATFORMS = ['WhatsApp', 'Telegram', 'Facebook'] as const;
 
 /**
  * Publish an article to all configured social media channels.
  * Each platform posts independently — a failure in one does not block others.
- * Returns per-platform outcomes so callers can persist delivery status.
  */
 export async function publishToSocialChannels(article: ArticlePayload): Promise<PlatformResult[]> {
-    const tasks: Array<{ name: string; fn: () => Promise<void> }> = [];
+    const results: PlatformResult[] = [];
 
+    // WhatsApp (Async Queue)
     try {
         const { whatsappService } = await import('./whatsapp.service.js');
-        tasks.push({
-            name: 'WhatsApp',
-            fn: () => whatsappService.sendArticleToWhatsApp(article),
+        // WhatsApp is fire-and-forget to the internal queue which handles retries
+        whatsappService.sendArticleToWhatsApp(article).catch(err => {
+            console.error(`[Social] WhatsApp queue error for article ${article.id}:`, err.message);
         });
-    } catch { /* service unavailable */ }
+        results.push({ platform: 'WhatsApp', success: true }); // Means successfully queued
+    } catch (err: any) {
+        results.push({ platform: 'WhatsApp', success: false, error: 'Service unavailable' });
+    }
 
+    // Telegram
     try {
         const { telegramService } = await import('./telegram.service.js');
-        tasks.push({
-            name: 'Telegram',
-            fn: () => telegramService.sendArticleWithPhoto(article),
-        });
-    } catch { /* service unavailable */ }
+        const success = await telegramService.sendArticleWithPhoto(article);
+        results.push({ platform: 'Telegram', success });
+    } catch (err: any) {
+        console.error(`[Social] Telegram failed for article ${article.id}:`, err.message);
+        results.push({ platform: 'Telegram', success: false, error: err.message });
+    }
 
+    // Facebook
     try {
         const { facebookService } = await import('./facebook.service.js');
-        tasks.push({
-            name: 'Facebook',
-            fn: () => facebookService.postArticleToFacebook(article),
-        });
-    } catch { /* service unavailable */ }
+        const success = await facebookService.postArticleToFacebook(article);
+        results.push({ platform: 'Facebook', success });
+    } catch (err: any) {
+        console.error(`[Social] Facebook failed for article ${article.id}:`, err.message);
+        results.push({ platform: 'Facebook', success: false, error: err.message });
+    }
 
-    const settled = await Promise.allSettled(tasks.map(t => t.fn()));
-
-    const platformResults: PlatformResult[] = settled.map((result, i) => {
-        const name = tasks[i].name;
-        if (result.status === 'fulfilled') {
-            console.log(`[Social] ✅ ${name} posted article ${article.id}`);
-            return { platform: name, success: true };
-        } else {
-            const errMsg = result.reason?.message || String(result.reason);
-            console.error(`[Social] ❌ ${name} failed for article ${article.id}:`, errMsg);
-            return { platform: name, success: false, error: errMsg };
-        }
-    });
-
-    return platformResults;
+    return results;
 }

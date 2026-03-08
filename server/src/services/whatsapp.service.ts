@@ -10,15 +10,19 @@ const READY_WAIT_RETRIES = 6;
 /** Delay between each ready-check retry (ms) */
 const READY_WAIT_INTERVAL = 8000;
 /** Max pending queue size */
-const MAX_PENDING_QUEUE = 20;
+const MAX_PENDING_QUEUE = 50;
+/** Max retries for sending a single message */
+const MAX_SEND_RETRIES = 3;
+/** Interval between processing messages in the queue (ms) to avoid rate limiting */
+const QUEUE_PROCESS_INTERVAL = 5000;
 
 class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
-    private pendingQueue: any[] = [];
-    private isFlushingQueue: boolean = false;
+    private messageQueue: any[] = [];
+    private isProcessingQueue: boolean = false;
 
     constructor() {
         this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
@@ -41,6 +45,10 @@ class WhatsAppService {
                 version,
                 auth: state,
                 browser: ['VoiceOfTihama', 'Chrome', '120.0'],
+                printQRInTerminal: false, // We handle it manually
+                connectTimeoutMs: 60000,
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
             });
 
             // Save credentials whenever they update
@@ -53,13 +61,13 @@ class WhatsAppService {
                 // Show QR code when available
                 if (qr) {
                     console.log('[WhatsApp] Scan this QR Code with your phone:');
-                    // @ts-ignore
-                    import('qrcode-terminal').then((qrModule: any) => {
-                        const qrcode = qrModule.default || qrModule;
-                        qrcode.generate(qr, { small: true });
-                    }).catch(() => {
+                    try {
+                        // @ts-ignore
+                        const qrcode = await import('qrcode-terminal');
+                        (qrcode.default || qrcode).generate(qr, { small: true });
+                    } catch (err) {
                         console.log('[WhatsApp] QR:', qr);
-                    });
+                    }
                 }
 
                 if (connection === 'close') {
@@ -70,27 +78,29 @@ class WhatsAppService {
                     this.isReady = false;
 
                     if (shouldReconnect) {
-                        // Wait a bit before reconnecting
+                        // Wait a bit before reconnecting with exponential backoff feel
                         setTimeout(() => this.initializeClient(), 5000);
                     } else {
-                        console.log('[WhatsApp] Logged out. Please delete whatsapp-auth folder and restart to re-scan QR.');
+                        console.error('[WhatsApp] Logged out or critical error. Please check whatsapp-auth folder.');
                     }
                 }
 
                 if (connection === 'open') {
                     console.log('[WhatsApp] ✅ Connected successfully!');
                     this.isReady = true;
-
-                    // List available newsletters/channels
                     await this.listChannels();
-
-                    // Flush any pending messages that were queued while disconnected
-                    this.flushPendingQueue();
+                    
+                    // Start processing queue if items exist
+                    if (this.messageQueue.length > 0) {
+                        this.processQueue();
+                    }
                 }
             });
 
         } catch (error: any) {
             console.error('[WhatsApp] Failed to initialize:', error.message);
+            // Retry initialization after a delay
+            setTimeout(() => this.initializeClient(), 10000);
         }
     }
 
@@ -111,19 +121,6 @@ class WhatsAppService {
                 }
                 console.log('---------------------------------------\n');
             }
-
-            // Also try listing groups
-            const groups = await this.sock?.groupFetchAllParticipating?.();
-            if (groups) {
-                const groupList = Object.values(groups) as any[];
-                if (groupList.length > 0) {
-                    console.log('--- WhatsApp Groups ---');
-                    groupList.slice(0, 10).forEach((g: any) => {
-                        console.log(`  - ${g.subject}: ${g.id}`);
-                    });
-                    console.log('-----------------------\n');
-                }
-            }
         } catch (error: any) {
             console.log('[WhatsApp] Could not list channels:', error.message);
         }
@@ -133,11 +130,12 @@ class WhatsAppService {
      * Helper to clean HTML excerpt
      */
     private stripHtml(html: string): string {
+        if (!html) return '';
         return html.replace(/<[^>]*>?/gm, '').trim();
     }
 
     /**
-     * Truncate text when message would exceed WhatsApp limit
+     * Truncate text safely (Arabic-aware)
      */
     private truncateText(text: string, maxLen: number): string {
         const cleaned = text.replace(/\s+/g, ' ').trim();
@@ -146,53 +144,58 @@ class WhatsAppService {
     }
 
     /**
-     * Build message exactly as ShareButtons: *${title || ""}*\n\n${excerpt || ""}\n\nاقرأ المزيد...
+     * Build message exactly as ShareButtons
      */
     private buildMessage(article: any): string {
         const title = article.title || '';
         const excerpt = article.excerpt || '';
-        // Use article ID for shorter URLs
-        const articleUrl = `${this.platformUrl}/article/${article.id}`;
+        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+        
         const message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+        
         if (message.length <= MESSAGE_MAX_LENGTH) return message;
+        
         const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
         const excerptTrimmed = this.truncateText(this.stripHtml(excerpt), Math.max(50, excerptMax));
+        
         return `*${title}*\n\n${excerptTrimmed}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
     }
 
     /**
-     * Fetch article image as tiny JPEG buffer for link preview thumbnail — with retries
+     * Fetch article image as tiny JPEG buffer
      */
-    private async fetchThumbnail(imageUrl: string, retries: number = 4): Promise<Buffer | undefined> {
+    private async fetchThumbnail(imageUrl: string, retries: number = 3): Promise<Buffer | undefined> {
+        if (!imageUrl) return undefined;
+        
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
                 const response = await fetch(imageUrl, {
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
-                    signal: AbortSignal.timeout(20000),
+                    signal: AbortSignal.timeout(15000),
                 });
-                if (!response.ok) {
-                    console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} failed: HTTP ${response.status}`);
-                    if (attempt < retries) await new Promise(r => setTimeout(r, 5000));
-                    continue;
-                }
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
+                
+                // Ensure it's not too large for a thumbnail
                 if (buffer.length > 1024 * 1024) return undefined;
-                console.log(`[WhatsApp] ✅ Image downloaded (${Math.round(buffer.length / 1024)}KB) on attempt ${attempt}`);
+                
                 return buffer;
             } catch (err: any) {
-                console.log(`[WhatsApp] ⚠️ Image fetch attempt ${attempt}/${retries} error: ${err.message}`);
-                if (attempt < retries) await new Promise(r => setTimeout(r, 5000));
+                console.log(`[WhatsApp] ⚠️ Thumbnail fetch attempt ${attempt}/${retries} failed: ${err.message}`);
+                if (attempt < retries) await new Promise(r => setTimeout(r, 2000));
             }
         }
         return undefined;
     }
 
     /**
-     * Verify article page is accessible (Next.js has built it)
+     * Verify article page is accessible
      */
     private async waitForArticlePage(url: string, maxAttempts: number = 5): Promise<boolean> {
-        // Initial delay to give Next.js time to start building the page
+        // Wait for SSR/ISR to potentially finish
         await new Promise(r => setTimeout(r, 10000));
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -201,112 +204,104 @@ class WhatsAppService {
                     method: 'HEAD',
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
                     signal: AbortSignal.timeout(10000),
-                    redirect: 'follow',
                 });
-                if (response.ok) {
-                    console.log(`[WhatsApp] ✅ Article page ready (attempt ${attempt}/${maxAttempts})`);
-                    return true;
-                }
-                console.log(`[WhatsApp] ⏳ Page not ready yet (HTTP ${response.status}), attempt ${attempt}/${maxAttempts}...`);
+                
+                if (response.ok) return true;
+                console.log(`[WhatsApp] ⏳ Article page not ready (HTTP ${response.status}), attempt ${attempt}/${maxAttempts}`);
             } catch (err: any) {
-                console.log(`[WhatsApp] ⏳ Page check failed (${err.message}), attempt ${attempt}/${maxAttempts}...`);
+                console.log(`[WhatsApp] ⏳ Article page check failed: ${err.message}, attempt ${attempt}/${maxAttempts}`);
             }
-            if (attempt < maxAttempts) {
-                await new Promise(r => setTimeout(r, 5000));
-            }
-        }
-        console.log(`[WhatsApp] ⚠️ Article page not ready after ${maxAttempts} attempts, sending anyway.`);
-        return false;
-    }
-
-    /**
-     * Wait for the WhatsApp client to become ready, retrying several times.
-     */
-    private async waitForReady(): Promise<boolean> {
-        if (this.isReady && this.sock) return true;
-
-        for (let i = 1; i <= READY_WAIT_RETRIES; i++) {
-            console.log(`[WhatsApp] ⏳ Waiting for connection... attempt ${i}/${READY_WAIT_RETRIES}`);
-            await new Promise(r => setTimeout(r, READY_WAIT_INTERVAL));
-            if (this.isReady && this.sock) return true;
+            if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 5000));
         }
         return false;
     }
 
     /**
-     * Flush queued messages once connection is restored.
-     */
-    private async flushPendingQueue(): Promise<void> {
-        if (this.isFlushingQueue || this.pendingQueue.length === 0) return;
-        this.isFlushingQueue = true;
-
-        console.log(`[WhatsApp] 📤 Flushing ${this.pendingQueue.length} pending message(s)...`);
-
-        while (this.pendingQueue.length > 0 && this.isReady) {
-            const article = this.pendingQueue.shift();
-            try {
-                await this.sendArticleToWhatsApp(article);
-                // Small delay between messages to avoid rate limits
-                await new Promise(r => setTimeout(r, 3000));
-            } catch (err: any) {
-                console.error(`[WhatsApp] Failed to flush queued article: ${err.message}`);
-            }
-        }
-
-        this.isFlushingQueue = false;
-    }
-
-    /**
-     * Send article to WhatsApp channel with rich link preview (title + description + image).
-     * If the client is not ready, waits for reconnection; if still unavailable, queues the message.
+     * Main entry point to send article. Adds to queue.
      */
     public async sendArticleToWhatsApp(article: any): Promise<void> {
         if (!this.channelJid) {
-            console.log('[WhatsApp] Cannot send article: WHATSAPP_CHANNEL_ID is not configured.');
+            console.warn('[WhatsApp] Skip sending: WHATSAPP_CHANNEL_ID not configured.');
             return;
         }
 
-        // If not ready, wait for reconnection
-        if (!this.isReady || !this.sock) {
-            const ready = await this.waitForReady();
-            if (!ready) {
-                // Queue the message for later delivery
-                if (this.pendingQueue.length < MAX_PENDING_QUEUE) {
-                    this.pendingQueue.push(article);
-                    console.log(`[WhatsApp] ⏸️ Queued article "${article.title}" (${this.pendingQueue.length} pending)`);
-                } else {
-                    console.error(`[WhatsApp] ❌ Queue full (${MAX_PENDING_QUEUE}). Dropping article: ${article.title}`);
-                }
+        if (this.messageQueue.length >= MAX_PENDING_QUEUE) {
+            console.error(`[WhatsApp] ❌ Queue full. Dropping article: ${article.title}`);
+            return;
+        }
+
+        console.log(`[WhatsApp] 📝 Article queued: ${article.title}`);
+        this.messageQueue.push({ article, retries: 0 });
+        
+        if (!this.isProcessingQueue) {
+            this.processQueue();
+        }
+    }
+
+    /**
+     * Sequential queue processor
+     */
+    private async processQueue(): Promise<void> {
+        if (this.isProcessingQueue || this.messageQueue.length === 0) return;
+        this.isProcessingQueue = true;
+
+        while (this.messageQueue.length > 0) {
+            if (!this.isReady || !this.sock) {
+                console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
+                this.isProcessingQueue = false;
                 return;
+            }
+
+            const item = this.messageQueue[0];
+            const success = await this.attemptSend(item.article);
+
+            if (success) {
+                this.messageQueue.shift(); // Remove from queue
+                // Cooldown between messages
+                await new Promise(r => setTimeout(r, QUEUE_PROCESS_INTERVAL));
+            } else {
+                item.retries++;
+                if (item.retries >= MAX_SEND_RETRIES) {
+                    console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
+                    this.messageQueue.shift();
+                } else {
+                    console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
+                    await new Promise(r => setTimeout(r, 30000)); // Wait longer before retry
+                }
             }
         }
 
+        this.isProcessingQueue = false;
+    }
+
+    /**
+     * Single send attempt
+     */
+    private async attemptSend(article: any): Promise<boolean> {
         try {
             const text = this.buildMessage(article);
-            const articleUrl = `${this.platformUrl}/article/${article.id}`;
+            const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
 
-            console.log(`[WhatsApp] Preparing to send article: ${article.title}`);
+            console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
 
-            // Step 1: Wait for article page to be built and accessible
-            await this.waitForArticlePage(articleUrl);
+            // 1. Wait for page visibility
+            await this.waitForArticlePage(articleUrl, 3);
 
-            // Step 2: Fetch thumbnail with retries
+            // 2. Prepare preview
             let jpegThumbnail: Buffer | undefined;
             if (article.imageUrl) {
                 const fullImageUrl = article.imageUrl.startsWith('http')
                     ? article.imageUrl
                     : `${this.platformUrl}${article.imageUrl}`;
-                jpegThumbnail = await this.fetchThumbnail(fullImageUrl, 3);
+                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
             }
 
+            // 3. Send with rich preview if possible
             if (jpegThumbnail) {
-                // Send with clean large preview using ExtendedTextMessage (no icons/attribution)
                 try {
-                    // @ts-ignore
                     const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
-
                     const msg = generateWAMessageFromContent(
-                        this.channelJid,
+                        this.channelJid!,
                         proto.Message.fromObject({
                             extendedTextMessage: {
                                 text,
@@ -323,25 +318,27 @@ class WhatsAppService {
                         { userJid: this.sock.user?.id || '' }
                     );
 
-                    await this.sock.relayMessage(this.channelJid, msg.message!, {
+                    await this.sock.relayMessage(this.channelJid!, msg.message!, {
                         messageId: msg.key.id!
                     });
-
-                    console.log(`[WhatsApp] ✅ Sent article with large preview "${article.title}".`);
-                    return;
-                } catch (previewErr: any) {
-                    console.warn(`[WhatsApp] ⚠️ Preview failed (${previewErr.message}), falling back to text.`);
+                    
+                    console.log(`[WhatsApp] ✅ Sent successfully with rich preview: ${article.title}`);
+                    return true;
+                } catch (err: any) {
+                    console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
                 }
             }
 
-            // Fallback: plain text (no preview)
-            await this.sock.sendMessage(this.channelJid, { text });
-            console.log(`[WhatsApp] ✅ Sent article (text only) "${article.title}".`);
+            // 4. Fallback: plain text
+            await this.sock.sendMessage(this.channelJid!, { text });
+            console.log(`[WhatsApp] ✅ Sent successfully (text only): ${article.title}`);
+            return true;
+
         } catch (error: any) {
-            console.error('[WhatsApp] Failed to send article:', error.message);
+            console.error(`[WhatsApp] ❌ Send attempt failed: ${error.message}`);
+            return false;
         }
     }
 }
 
-// Export singleton
 export const whatsappService = new WhatsAppService();
