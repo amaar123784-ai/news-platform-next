@@ -5,6 +5,7 @@
 import cron from 'node-cron';
 import { fetchAllActiveFeeds, cleanupOldArticles, expireOldArticles } from './rss.service.js';
 import { processScrapeQueue } from './scraper.service.js';
+import { automationService } from './automation.service.js';
 let isSchedulerInitialized = false;
 /**
  * Initialize all scheduled background jobs
@@ -20,7 +21,7 @@ export function initializeScheduler() {
         console.log('[Scheduler] Starting RSS feed fetch...');
         try {
             const result = await fetchAllActiveFeeds();
-            console.log(`[Scheduler] RSS fetch complete: ${result.sourcesChecked} sources, ${result.totalNewArticles} new articles`);
+            console.log(`[Scheduler] RSS fetch complete: ${result.feedsChecked} feeds, ${result.totalNewArticles} new articles`);
         }
         catch (error) {
             console.error('[Scheduler] RSS fetch error:', error);
@@ -59,10 +60,70 @@ export function initializeScheduler() {
             console.error('[Scheduler] Scrape queue error:', error);
         }
     });
+    // Process social media queue every 2 minutes
+    cron.schedule('*/2 * * * *', async () => {
+        try {
+            const pendingPosts = await automationService.getPendingSocialPosts();
+            if (pendingPosts.length > 0) {
+                console.log(`[Scheduler] Processing ${pendingPosts.length} social media posts...`);
+                for (const post of pendingPosts) {
+                    try {
+                        // WhatsApp & Telegram are sent inline during publishToPlatform,
+                        // so we just mark these as completed
+                        await automationService.markSocialPosted(post.id, 'auto-completed');
+                    }
+                    catch (err) {
+                        await automationService.markSocialFailed(post.id, err.message);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error('[Scheduler] Social media worker error:', error);
+        }
+    });
+    // Expire stale breaking news every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
+        try {
+            const { expireBreakingNews } = await import('./news-curation.service.js');
+            await expireBreakingNews(6); // 6 hours
+        }
+        catch (error) {
+            console.error('[Scheduler] Breaking news expiry error:', error);
+        }
+    });
+    // Refresh featured articles every hour (at minute 5)
+    cron.schedule('5 * * * *', async () => {
+        try {
+            const { refreshFeaturedArticles } = await import('./news-curation.service.js');
+            const result = await refreshFeaturedArticles();
+            console.log(`[Scheduler] Featured refresh: ${result.featured} articles featured`);
+        }
+        catch (error) {
+            console.error('[Scheduler] Featured refresh error:', error);
+        }
+    });
+    // Flush view counts from Redis to DB every 5 minutes
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            const { cache } = await import('./cache.service.js');
+            const { prisma } = await import('../index.js');
+            const flushed = await cache.flushViewCounts(prisma);
+            if (flushed > 0) {
+                console.log(`[Scheduler] Flushed ${flushed} article view counts to DB`);
+            }
+        }
+        catch (error) {
+            console.error('[Scheduler] View count flush error:', error);
+        }
+    });
     isSchedulerInitialized = true;
     console.log('[Scheduler] Background jobs initialized successfully');
     console.log('[Scheduler] - RSS fetch: every 15 minutes');
     console.log('[Scheduler] - Scrape queue: every 5 minutes');
+    console.log('[Scheduler] - Social media: every 2 minutes');
+    console.log('[Scheduler] - Breaking news expiry: every 30 minutes');
+    console.log('[Scheduler] - Featured refresh: every hour');
     console.log('[Scheduler] - Article expiry: daily at 2 AM');
     console.log('[Scheduler] - Cleanup: daily at 3 AM');
 }

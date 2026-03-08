@@ -1,7 +1,8 @@
 /**
  * RSS Management Routes
- * Admin endpoints for managing RSS sources and moderation queue
- * Public endpoint for fetching aggregated news
+ *
+ * Thin controller layer — delegates all business logic to rssAdmin.service.ts
+ * and rss.service.ts. Validation schemas remain here as part of request parsing.
  */
 declare const router: import("express-serve-static-core").Router;
 export default router;

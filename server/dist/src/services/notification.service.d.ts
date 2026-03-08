@@ -22,11 +22,19 @@ export declare class NotificationService {
         perPage?: number;
         unreadOnly?: boolean;
     }): Promise<{
-        data: any;
+        data: {
+            message: string;
+            type: string;
+            title: string;
+            id: string;
+            createdAt: Date;
+            data: import("@prisma/client/runtime/library").JsonValue | null;
+            isRead: boolean;
+        }[];
         meta: {
             currentPage: number;
             totalPages: number;
-            totalItems: any;
+            totalItems: number;
             perPage: number;
         };
     }>;

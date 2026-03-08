@@ -15,5 +15,6 @@ export declare const env: {
     GEMINI_API_KEY?: string | undefined;
     GOOGLE_CLIENT_ID?: string | undefined;
     GOOGLE_CLIENT_SECRET?: string | undefined;
+    COOKIE_DOMAIN?: string | undefined;
 };
 //# sourceMappingURL=env.d.ts.map

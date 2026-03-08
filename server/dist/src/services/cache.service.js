@@ -130,10 +130,25 @@ export const cache = {
         try {
             const client = getRedis();
             if (client && !useMemoryFallback) {
-                const keys = await client.keys(pattern);
-                if (keys.length > 0) {
-                    await client.del(...keys);
-                }
+                // Use SCAN instead of KEYS to avoid blocking Redis
+                const stream = client.scanStream({ match: pattern, count: 100 });
+                const pipeline = client.pipeline();
+                let keyCount = 0;
+                await new Promise((resolve, reject) => {
+                    stream.on('data', (keys) => {
+                        if (keys.length > 0) {
+                            keys.forEach((key) => pipeline.del(key));
+                            keyCount += keys.length;
+                        }
+                    });
+                    stream.on('end', async () => {
+                        if (keyCount > 0) {
+                            await pipeline.exec();
+                        }
+                        resolve();
+                    });
+                    stream.on('error', reject);
+                });
                 return;
             }
             // Memory fallback - simple prefix match
@@ -153,6 +168,77 @@ export const cache = {
      */
     isUsingRedis() {
         return !useMemoryFallback && redis !== null;
+    },
+    /**
+     * Increment article view count in Redis (batched flush to DB)
+     */
+    async incrementViewCount(articleId) {
+        try {
+            const client = getRedis();
+            if (client && !useMemoryFallback) {
+                await client.incr(`views:${articleId}`);
+                return;
+            }
+            // Memory fallback
+            const key = `views:${articleId}`;
+            const current = memoryCache.get(key);
+            const count = current ? parseInt(current.data) + 1 : 1;
+            memoryCache.set(key, { data: String(count), expiry: Date.now() + 86400000 });
+        }
+        catch (error) {
+            console.warn('[Cache] View increment error:', error);
+        }
+    },
+    /**
+     * Flush accumulated view counts from Redis to the database
+     */
+    async flushViewCounts(prisma) {
+        let flushed = 0;
+        try {
+            const client = getRedis();
+            if (client && !useMemoryFallback) {
+                const stream = client.scanStream({ match: 'views:*', count: 100 });
+                const keys = [];
+                await new Promise((resolve, reject) => {
+                    stream.on('data', (batch) => keys.push(...batch));
+                    stream.on('end', resolve);
+                    stream.on('error', reject);
+                });
+                for (const key of keys) {
+                    // Use GET + DEL instead of GETDEL for Redis < 6.2 compatibility
+                    const [[, count]] = await client.pipeline().get(key).del(key).exec();
+                    if (count && parseInt(count) > 0) {
+                        const articleId = key.replace('views:', '');
+                        await prisma.article.update({
+                            where: { id: articleId },
+                            data: { views: { increment: parseInt(count) } },
+                        }).catch(() => { });
+                        flushed++;
+                    }
+                }
+            }
+            else {
+                // Memory fallback
+                for (const [key, value] of memoryCache.entries()) {
+                    if (key.startsWith('views:')) {
+                        const articleId = key.replace('views:', '');
+                        const count = parseInt(value.data);
+                        if (count > 0) {
+                            await prisma.article.update({
+                                where: { id: articleId },
+                                data: { views: { increment: count } },
+                            }).catch(() => { });
+                            flushed++;
+                        }
+                        memoryCache.delete(key);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.warn('[Cache] Flush view counts error:', error);
+        }
+        return flushed;
     },
 };
 // Cache key builders for consistent naming

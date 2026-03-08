@@ -2,12 +2,13 @@
  * Automation Service - Full Content Automation Pipeline
  * Handles AI rewriting, platform publishing, and social media posting
  */
-import { PrismaClient, AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
+import { AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
+import { prisma } from '../index.js';
 import { rewriteArticle as rewriteWithAI } from './ai.service.js';
 import { notificationService } from './notification.service.js';
+// @ts-ignore
 import slugify from 'slugify';
 import crypto from 'crypto';
-const prisma = new PrismaClient();
 // Configuration
 const SOCIAL_DELAY_MINUTES = 5; // Delay before posting to social media
 export class AutomationService {
@@ -25,22 +26,21 @@ export class AutomationService {
     async startAutomation(rssArticleId) {
         console.log(`[Automation] Starting pipeline for RSS article: ${rssArticleId}`);
         try {
-            // Check if already in queue
-            const existing = await prisma.automationQueue.findUnique({
-                where: { rssArticleId }
-            });
-            if (existing) {
-                console.log(`[Automation] Article already in queue with status: ${existing.status}`);
-                return;
-            }
-            // Create queue entry
-            const queueItem = await prisma.automationQueue.create({
-                data: {
+            // Upsert: create only if not already queued, skip if it exists
+            const queueItem = await prisma.automationQueue.upsert({
+                where: { rssArticleId },
+                create: {
                     rssArticleId,
                     status: AutomationStatus.PENDING,
                     socialPlatform: SocialPlatform.FACEBOOK
-                }
+                },
+                update: {} // no-op on duplicate
             });
+            // Only launch the pipeline if this is a genuinely new (PENDING) entry
+            if (queueItem.status !== AutomationStatus.PENDING) {
+                console.log(`[Automation] Article already in queue with status: ${queueItem.status}`);
+                return;
+            }
             // Start processing immediately (async)
             this.processQueue(queueItem.id).catch(err => {
                 console.error(`[Automation] Pipeline error:`, err);
@@ -83,7 +83,7 @@ export class AutomationService {
         const queueItem = await prisma.automationQueue.update({
             where: { id: queueId },
             data: { status: AutomationStatus.AI_PROCESSING },
-            include: { rssArticle: { include: { source: { include: { category: true } } } } }
+            include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
         const article = queueItem.rssArticle;
         // Use existing rewritten content or original
@@ -123,10 +123,19 @@ export class AutomationService {
         const queueItem = await prisma.automationQueue.update({
             where: { id: queueId },
             data: { status: AutomationStatus.PUBLISHING },
-            include: { rssArticle: { include: { source: { include: { category: true } } } } }
+            include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
+        // Step guard: skip if we already created an article (e.g. retry after partial failure)
+        if (queueItem.createdArticleId) {
+            console.log(`[Automation] Step 2: Article already created (${queueItem.createdArticleId}), skipping.`);
+            await prisma.automationQueue.update({
+                where: { id: queueId },
+                data: { status: AutomationStatus.PUBLISHED }
+            });
+            return;
+        }
         const article = queueItem.rssArticle;
-        const category = article.source.category;
+        const category = article.feed.category;
         // Generate unique slug
         const baseSlug = slugify(queueItem.aiRewrittenTitle || article.title, {
             lower: true,
@@ -172,6 +181,30 @@ export class AutomationService {
             }
         });
         console.log(`[Automation] Created platform article: ${newArticle.slug}`);
+        // Auto-detect breaking news from title
+        const breakingKeywords = ['عاجل', 'خبر عاجل', 'عاجل:', 'عاجل |', 'breaking'];
+        const titleTrimmed = newArticle.title.trim();
+        const isBreaking = breakingKeywords.some(kw => titleTrimmed.startsWith(kw));
+        if (isBreaking) {
+            await prisma.article.update({
+                where: { id: newArticle.id },
+                data: { isBreaking: true }
+            });
+            console.log(`[Automation] 🔴 Marked as BREAKING: "${newArticle.title.substring(0, 40)}..."`);
+        }
+        // Publish to social channels and persist per-platform delivery status
+        try {
+            const { publishToSocialChannels } = await import('./socialPublisher.service.js');
+            const platformResults = await publishToSocialChannels(newArticle);
+            const allSucceeded = platformResults.every(r => r.success);
+            if (!allSucceeded) {
+                const failed = platformResults.filter(r => !r.success).map(r => r.platform).join(', ');
+                console.warn(`[Automation] Some social platforms failed for article ${newArticle.id}: ${failed}`);
+            }
+        }
+        catch (err) {
+            console.error('[Automation] Social publishing failed:', err.message);
+        }
     }
     /**
      * Step 3: Queue for Social Media Posting
@@ -203,7 +236,7 @@ export class AutomationService {
             include: {
                 rssArticle: {
                     include: {
-                        source: { include: { category: true } }
+                        feed: { include: { source: true, category: true } }
                     }
                 }
             },
@@ -236,6 +269,10 @@ export class AutomationService {
             return;
         const newRetryCount = queueItem.retryCount + 1;
         const shouldRetry = newRetryCount < 3;
+        // Exponential backoff: 5 min × 2^(attempt-1)  →  5 m, 10 m, 20 m …
+        const backoffMs = shouldRetry
+            ? 5 * 60 * 1000 * Math.pow(2, newRetryCount - 1)
+            : undefined;
         await prisma.automationQueue.update({
             where: { id: queueId },
             data: {
@@ -243,7 +280,7 @@ export class AutomationService {
                 socialStatus: shouldRetry ? SocialPostStatus.PENDING : SocialPostStatus.FAILED,
                 errorMessage,
                 retryCount: newRetryCount,
-                socialScheduledAt: shouldRetry ? new Date(Date.now() + 5 * 60 * 1000) : undefined
+                socialScheduledAt: backoffMs ? new Date(Date.now() + backoffMs) : undefined
             }
         });
         if (!shouldRetry) {
@@ -299,7 +336,7 @@ export class AutomationService {
                 include: {
                     rssArticle: {
                         include: {
-                            source: { include: { category: true } }
+                            feed: { include: { source: true, category: true } }
                         }
                     }
                 },

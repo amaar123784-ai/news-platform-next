@@ -27,6 +27,14 @@ export declare const cache: {
      * Check if cache is using Redis or memory fallback
      */
     isUsingRedis(): boolean;
+    /**
+     * Increment article view count in Redis (batched flush to DB)
+     */
+    incrementViewCount(articleId: string): Promise<void>;
+    /**
+     * Flush accumulated view counts from Redis to the database
+     */
+    flushViewCounts(prisma: any): Promise<number>;
 };
 export declare const cacheKeys: {
     featuredArticles: (limit: number) => string;

@@ -23,15 +23,16 @@ export declare function verifyFacebookToken(token: string): Promise<SocialProfil
 export declare function findOrCreateSocialUser(profile: SocialProfile): Promise<{
     name: string;
     id: string;
-    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    isActive: boolean;
     email: string;
-    googleId: string | null;
-    facebookId: string | null;
     password: string | null;
     role: import(".prisma/client").$Enums.Role;
     avatar: string | null;
     bio: string | null;
+    googleId: string | null;
+    facebookId: string | null;
+    deletedAt: Date | null;
 }>;
 //# sourceMappingURL=oauth.service.d.ts.map

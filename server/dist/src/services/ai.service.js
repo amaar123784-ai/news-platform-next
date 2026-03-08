@@ -14,6 +14,47 @@ import { Ollama } from 'ollama';
 const ollama = new Ollama({
     host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434'
 });
+// ============= TIMEOUT & RETRY HELPERS =============
+/** Default Ollama request timeout in milliseconds (override with OLLAMA_TIMEOUT_MS env) */
+const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
+/**
+ * Wraps a promise-producing function with an AbortController-based timeout.
+ * Throws a DOMException with name 'AbortError' when the timeout fires.
+ */
+async function withTimeout(fn, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fn(controller.signal);
+    }
+    finally {
+        clearTimeout(timer);
+    }
+}
+/**
+ * Runs `fn` up to `maxAttempts` times with exponential backoff between retries.
+ * Returns the result of the first successful attempt, or throws the last error.
+ */
+async function withRetry(fn, maxAttempts) {
+    let lastError;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await fn();
+        }
+        catch (err) {
+            lastError = err;
+            // Do not retry on abort — the caller set a deliberate timeout
+            if (err?.name === 'AbortError')
+                throw err;
+            if (attempt < maxAttempts) {
+                const delayMs = 1000 * Math.pow(2, attempt - 1); // 1 s, 2 s, …
+                console.warn(`[AI] Attempt ${attempt} failed, retrying in ${delayMs}ms:`, err.message);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+    }
+    throw lastError;
+}
 // ============= PROFESSIONAL PROMPTS =============
 /**
  * System prompt for journalistic rewriting
@@ -106,7 +147,7 @@ ${content}
 export async function rewriteArticle(title, excerpt) {
     try {
         const model = process.env.OLLAMA_MODEL || 'gemma2';
-        const response = await ollama.generate({
+        const response = await withRetry(() => withTimeout((signal) => ollama.generate({
             model: model,
             system: JOURNALIST_SYSTEM_PROMPT,
             prompt: TITLE_EXCERPT_PROMPT(title, excerpt),
@@ -117,7 +158,8 @@ export async function rewriteArticle(title, excerpt) {
                 top_p: 0.9,
                 num_predict: 500 // Limit response length
             }
-        });
+        }), OLLAMA_TIMEOUT_MS), 2 // up to 2 attempts
+        );
         const text = response.response;
         console.log('[AI] Ollama raw response:', text);
         let jsonResponse;
@@ -155,7 +197,7 @@ export async function rewriteArticle(title, excerpt) {
 export async function rewriteAsJournalist(article) {
     try {
         const model = process.env.OLLAMA_MODEL || 'gemma2';
-        const response = await ollama.generate({
+        const response = await withRetry(() => withTimeout((signal) => ollama.generate({
             model: model,
             system: JOURNALIST_SYSTEM_PROMPT,
             prompt: FULL_ARTICLE_PROMPT(article.title, article.content, article.category),
@@ -166,7 +208,8 @@ export async function rewriteAsJournalist(article) {
                 top_p: 0.9,
                 num_predict: 2000 // Allow longer content
             }
-        });
+        }), OLLAMA_TIMEOUT_MS), 2 // up to 2 attempts
+        );
         const text = response.response;
         console.log('[AI] Full rewrite response length:', text.length);
         let jsonResponse;

@@ -30,7 +30,87 @@ export declare class AutomationService {
     /**
      * Get posts ready for social media (called by n8n)
      */
-    getPendingSocialPosts(): Promise<any>;
+    getPendingSocialPosts(): Promise<({
+        rssArticle: {
+            feed: {
+                category: {
+                    name: string;
+                    description: string | null;
+                    id: string;
+                    slug: string;
+                    color: string;
+                    icon: string | null;
+                    isActive: boolean;
+                    sortOrder: number;
+                };
+                source: {
+                    name: string;
+                    description: string | null;
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    isActive: boolean;
+                    websiteUrl: string | null;
+                    logoUrl: string | null;
+                };
+            } & {
+                status: import(".prisma/client").$Enums.RSSSourceStatus;
+                id: string;
+                feedUrl: string;
+                fetchInterval: number;
+                lastFetchedAt: Date | null;
+                lastError: string | null;
+                errorCount: number;
+                applyFilter: boolean;
+                categoryId: string;
+                sourceId: string;
+                createdAt: Date;
+                updatedAt: Date;
+            };
+        } & {
+            status: import(".prisma/client").$Enums.RSSArticleStatus;
+            title: string;
+            guid: string;
+            imageUrl: string | null;
+            id: string;
+            categoryId: string | null;
+            excerpt: string | null;
+            sourceUrl: string;
+            publishedAt: Date;
+            fetchedAt: Date;
+            approvedAt: Date | null;
+            approvedById: string | null;
+            feedId: string;
+            titleHash: string | null;
+            rewrittenTitle: string | null;
+            rewrittenExcerpt: string | null;
+            isRewritten: boolean;
+            rewrittenAt: Date | null;
+            fullContent: string | null;
+            contentScraped: boolean;
+            scrapeError: string | null;
+            scrapedAt: Date | null;
+        };
+    } & {
+        status: import(".prisma/client").$Enums.AutomationStatus;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        publishedAt: Date | null;
+        rssArticleId: string;
+        aiRewrittenTitle: string | null;
+        aiRewrittenContent: string | null;
+        aiRewrittenExcerpt: string | null;
+        aiProcessedAt: Date | null;
+        createdArticleId: string | null;
+        socialPlatform: import(".prisma/client").$Enums.SocialPlatform | null;
+        socialStatus: import(".prisma/client").$Enums.SocialPostStatus | null;
+        socialScheduledAt: Date | null;
+        socialPostedAt: Date | null;
+        socialPostId: string | null;
+        errorMessage: string | null;
+        retryCount: number;
+    })[]>;
     /**
      * Mark a post as successfully posted to social media
      */
@@ -59,11 +139,91 @@ export declare class AutomationService {
         perPage?: number;
         status?: AutomationStatus;
     }): Promise<{
-        data: any;
+        data: ({
+            rssArticle: {
+                feed: {
+                    category: {
+                        name: string;
+                        description: string | null;
+                        id: string;
+                        slug: string;
+                        color: string;
+                        icon: string | null;
+                        isActive: boolean;
+                        sortOrder: number;
+                    };
+                    source: {
+                        name: string;
+                        description: string | null;
+                        id: string;
+                        createdAt: Date;
+                        updatedAt: Date;
+                        isActive: boolean;
+                        websiteUrl: string | null;
+                        logoUrl: string | null;
+                    };
+                } & {
+                    status: import(".prisma/client").$Enums.RSSSourceStatus;
+                    id: string;
+                    feedUrl: string;
+                    fetchInterval: number;
+                    lastFetchedAt: Date | null;
+                    lastError: string | null;
+                    errorCount: number;
+                    applyFilter: boolean;
+                    categoryId: string;
+                    sourceId: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                };
+            } & {
+                status: import(".prisma/client").$Enums.RSSArticleStatus;
+                title: string;
+                guid: string;
+                imageUrl: string | null;
+                id: string;
+                categoryId: string | null;
+                excerpt: string | null;
+                sourceUrl: string;
+                publishedAt: Date;
+                fetchedAt: Date;
+                approvedAt: Date | null;
+                approvedById: string | null;
+                feedId: string;
+                titleHash: string | null;
+                rewrittenTitle: string | null;
+                rewrittenExcerpt: string | null;
+                isRewritten: boolean;
+                rewrittenAt: Date | null;
+                fullContent: string | null;
+                contentScraped: boolean;
+                scrapeError: string | null;
+                scrapedAt: Date | null;
+            };
+        } & {
+            status: import(".prisma/client").$Enums.AutomationStatus;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            publishedAt: Date | null;
+            rssArticleId: string;
+            aiRewrittenTitle: string | null;
+            aiRewrittenContent: string | null;
+            aiRewrittenExcerpt: string | null;
+            aiProcessedAt: Date | null;
+            createdArticleId: string | null;
+            socialPlatform: import(".prisma/client").$Enums.SocialPlatform | null;
+            socialStatus: import(".prisma/client").$Enums.SocialPostStatus | null;
+            socialScheduledAt: Date | null;
+            socialPostedAt: Date | null;
+            socialPostId: string | null;
+            errorMessage: string | null;
+            retryCount: number;
+        })[];
         meta: {
             currentPage: number;
             totalPages: number;
-            totalItems: any;
+            totalItems: number;
             perPage: number;
         };
     }>;

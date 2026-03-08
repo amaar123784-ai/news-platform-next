@@ -18,6 +18,8 @@ const envSchema = z.object({
     GEMINI_API_KEY: z.string().optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+    /** When set (e.g. voiceoftihama.com), cookies are set for this domain so auth works behind a reverse proxy. */
+    COOKIE_DOMAIN: z.string().optional(),
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {

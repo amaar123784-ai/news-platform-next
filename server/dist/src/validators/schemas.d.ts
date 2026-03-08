@@ -67,11 +67,11 @@ export declare const createArticleSchema: z.ZodObject<{
     content: string;
     isBreaking: boolean;
     isFeatured: boolean;
-    status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
+    status?: "PUBLISHED" | "DRAFT" | "REVIEW" | "ARCHIVED" | undefined;
     imageUrl?: string | null | undefined;
-    tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
+    tags?: string[] | undefined;
 }, {
     title: string;
     categoryId: string;
@@ -79,11 +79,11 @@ export declare const createArticleSchema: z.ZodObject<{
     content: string;
     status?: string | undefined;
     imageUrl?: string | null | undefined;
-    tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
     isBreaking?: boolean | undefined;
     isFeatured?: boolean | undefined;
+    tags?: string[] | undefined;
 }>;
 export declare const updateArticleSchema: z.ZodObject<{
     title: z.ZodOptional<z.ZodString>;
@@ -98,17 +98,17 @@ export declare const updateArticleSchema: z.ZodObject<{
     isBreaking: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
     isFeatured: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
 }, "strip", z.ZodTypeAny, {
-    status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
+    status?: "PUBLISHED" | "DRAFT" | "REVIEW" | "ARCHIVED" | undefined;
     title?: string | undefined;
     imageUrl?: string | null | undefined;
     categoryId?: string | undefined;
     excerpt?: string | undefined;
     content?: string | undefined;
-    tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
     isBreaking?: boolean | undefined;
     isFeatured?: boolean | undefined;
+    tags?: string[] | undefined;
 }, {
     status?: string | undefined;
     title?: string | undefined;
@@ -116,11 +116,11 @@ export declare const updateArticleSchema: z.ZodObject<{
     categoryId?: string | undefined;
     excerpt?: string | undefined;
     content?: string | undefined;
-    tags?: string[] | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
     isBreaking?: boolean | undefined;
     isFeatured?: boolean | undefined;
+    tags?: string[] | undefined;
 }>;
 export declare const articleQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
@@ -131,14 +131,18 @@ export declare const articleQuerySchema: z.ZodObject<{
     search: z.ZodOptional<z.ZodString>;
     sortBy: z.ZodDefault<z.ZodEnum<["createdAt", "views", "title", "publishedAt"]>>;
     sortOrder: z.ZodDefault<z.ZodEnum<["asc", "desc"]>>;
+    isBreaking: z.ZodOptional<z.ZodEffects<z.ZodBoolean, boolean, unknown>>;
+    isFeatured: z.ZodOptional<z.ZodEffects<z.ZodBoolean, boolean, unknown>>;
 }, "strip", z.ZodTypeAny, {
     sortOrder: "asc" | "desc";
     page: number;
     perPage: number;
     sortBy: "title" | "createdAt" | "publishedAt" | "views";
-    status?: "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED" | undefined;
+    status?: "PUBLISHED" | "DRAFT" | "REVIEW" | "ARCHIVED" | undefined;
     category?: string | undefined;
     search?: string | undefined;
+    isBreaking?: boolean | undefined;
+    isFeatured?: boolean | undefined;
     authorId?: string | undefined;
 }, {
     status?: string | undefined;
@@ -147,6 +151,8 @@ export declare const articleQuerySchema: z.ZodObject<{
     sortOrder?: "asc" | "desc" | undefined;
     page?: number | undefined;
     perPage?: number | undefined;
+    isBreaking?: unknown;
+    isFeatured?: unknown;
     authorId?: string | undefined;
     sortBy?: "title" | "createdAt" | "publishedAt" | "views" | undefined;
 }>;
@@ -201,18 +207,18 @@ export declare const createCategorySchema: z.ZodObject<{
     isActive: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    isActive: boolean;
     slug: string;
     color: string;
+    isActive: boolean;
     description?: string | undefined;
     icon?: string | undefined;
 }, {
     name: string;
     slug: string;
     description?: string | undefined;
-    isActive?: boolean | undefined;
     color?: string | undefined;
     icon?: string | undefined;
+    isActive?: boolean | undefined;
 }>;
 export declare const updateCategorySchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -224,17 +230,17 @@ export declare const updateCategorySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
     description?: string | undefined;
-    isActive?: boolean | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
+    isActive?: boolean | undefined;
 }, {
     name?: string | undefined;
     description?: string | undefined;
-    isActive?: boolean | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
+    isActive?: boolean | undefined;
 }>;
 export declare const createCommentSchema: z.ZodObject<{
     content: z.ZodString;

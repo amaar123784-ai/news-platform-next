@@ -1,5 +1,8 @@
 /**
  * Authentication Middleware
+ *
+ * Reads the JWT from the `access_token` HttpOnly cookie (set by auth routes).
+ * Falls back to the Authorization: Bearer header for non-browser clients.
  */
 import { Request, Response, NextFunction } from 'express';
 export interface JwtPayload {
@@ -23,7 +26,7 @@ export declare function authenticate(req: Request, res: Response, next: NextFunc
  */
 export declare function requireRole(...allowedRoles: string[]): (req: Request, res: Response, next: NextFunction) => void;
 /**
- * Optional auth - attach user if token exists, continue otherwise
+ * Optional auth - attach user if token exists (cookie or header), continue otherwise
  */
 export declare function optionalAuth(req: Request, res: Response, next: NextFunction): Promise<void>;
 //# sourceMappingURL=auth.d.ts.map

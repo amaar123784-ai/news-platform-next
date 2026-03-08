@@ -5,22 +5,38 @@
 import Parser from 'rss-parser';
 import crypto from 'crypto';
 import path from 'path';
+import pLimit from 'p-limit';
+import axios from 'axios';
+import * as iconv from 'iconv-lite';
 import { prisma } from '../index.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
+/** Maximum number of feeds fetched simultaneously to protect DB and network */
+const FEED_CONCURRENCY = 5;
 /**
  * Fallback parser for non-standard XML feeds (sitemap-style, custom formats)
  * Handles: <urlset>, <channel><item>, <feed><entry>, and other variations
  */
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 async function parseNonStandardFeed(feedUrl) {
     const response = await axios.get(feedUrl, {
         timeout: 30000,
         headers: {
-            'User-Agent': 'YemenNewsBot/1.0',
+            'User-Agent': BROWSER_UA,
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
         },
-        responseType: 'text',
+        responseType: 'arraybuffer',
     });
-    const xml = response.data;
+    let xml = '';
+    const buffer = Buffer.from(response.data);
+    // Auto-detect encoding from Content-Type header or XML declaration
+    const contentType = response.headers['content-type']?.toLowerCase() || '';
+    const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
+    if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
+        xml = iconv.decode(buffer, 'windows-1256');
+    }
+    else {
+        xml = buffer.toString('utf8');
+    }
     const items = [];
     // Extract feed title
     const titleMatch = xml.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -113,7 +129,7 @@ function extractItemFromXml(xml, isAtom = false) {
 const parser = new Parser({
     timeout: 30000,
     headers: {
-        'User-Agent': 'YemenNewsBot/1.0',
+        'User-Agent': BROWSER_UA,
         'Accept': 'application/rss+xml, application/xml, text/xml',
     },
     customFields: {
@@ -137,7 +153,6 @@ function hashTitle(title) {
     return crypto.createHash('sha256').update(normalized).digest('hex');
 }
 import { imageProcessor } from './imageProcessor.js';
-import axios from 'axios';
 /**
  * Download and process external image
  */
@@ -309,44 +324,67 @@ function truncateExcerpt(text, maxLength = 200) {
     return truncated + '...';
 }
 /**
- * Fetch and parse a single RSS feed source
+ * Fetch and parse a single RSS feed
+ * Now works with RSSFeed model instead of RSSSource
  */
-export async function fetchRSSFeed(sourceId) {
+export async function fetchRSSFeed(feedId) {
     const errors = [];
     let newArticles = 0;
     try {
-        const source = await prisma.rSSSource.findUnique({
-            where: { id: sourceId },
+        const feed = await prisma.rSSFeed.findUnique({
+            where: { id: feedId },
             include: {
                 category: { select: { slug: true } },
+                source: { select: { id: true, name: true, websiteUrl: true } },
             },
         });
-        if (!source) {
-            return { success: false, newArticles: 0, errors: ['المصدر غير موجود'] };
+        if (!feed) {
+            return { success: false, newArticles: 0, errors: ['الرابط غير موجود'] };
         }
-        if (source.status !== 'ACTIVE') {
-            return { success: false, newArticles: 0, errors: ['المصدر متوقف أو به خطأ'] };
+        if (feed.status !== 'ACTIVE') {
+            return { success: false, newArticles: 0, errors: ['الرابط متوقف أو به خطأ'] };
         }
-        console.log(`[RSS] Fetching feed: ${source.name} (${source.feedUrl})`);
+        console.log(`[RSS] Fetching feed: ${feed.source.name} (${feed.feedUrl})`);
         // Try standard RSS parser first, fallback to custom parser if it fails
         let feedItems = [];
         let usedFallback = false;
         try {
-            const feed = await parser.parseURL(source.feedUrl);
-            feedItems = feed.items;
-            console.log(`[RSS] Parsed ${feedItems.length} items from ${source.name}`);
+            // First we fetch the raw XML using axios to handle encodings like windows-1256
+            const response = await axios.get(feed.feedUrl, {
+                timeout: 30000,
+                headers: {
+                    'User-Agent': BROWSER_UA,
+                    'Accept': 'application/rss+xml, application/xml, text/xml',
+                },
+                responseType: 'arraybuffer'
+            });
+            const buffer = Buffer.from(response.data);
+            const contentType = response.headers['content-type']?.toLowerCase() || '';
+            const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
+            let xmlString = '';
+            // Check for Windows-1256 encoding (common in some Arabic RSS feeds causing  characters)
+            if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
+                xmlString = iconv.decode(buffer, 'windows-1256');
+                console.log(`[RSS] Detected Windows-1256 encoding for ${feed.source.name}`);
+            }
+            else {
+                xmlString = buffer.toString('utf8');
+            }
+            const parsedFeed = await parser.parseString(xmlString);
+            feedItems = parsedFeed.items;
+            console.log(`[RSS] Parsed ${feedItems.length} items from ${feed.source.name}`);
         }
         catch (parseError) {
-            console.log(`[RSS] Standard parser failed for ${source.name}: ${parseError.message}`);
+            console.log(`[RSS] Standard parser failed for ${feed.source.name}: ${parseError.message}`);
             console.log(`[RSS] Trying fallback parser...`);
             try {
-                const fallbackFeed = await parseNonStandardFeed(source.feedUrl);
+                const fallbackFeed = await parseNonStandardFeed(feed.feedUrl);
                 feedItems = fallbackFeed.items;
                 usedFallback = true;
-                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${source.name}`);
+                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${feed.source.name}`);
             }
             catch (fallbackError) {
-                console.error(`[RSS] Both parsers failed for ${source.name}`);
+                console.error(`[RSS] Both parsers failed for ${feed.source.name}`);
                 errors.push(`فشل تحليل الخلاصة: ${parseError.message}`);
                 return { success: false, newArticles: 0, errors };
             }
@@ -367,11 +405,11 @@ export async function fetchRSSFeed(sourceId) {
             if (existingByGuid) {
                 continue; // Already have this article
             }
-            // Check for duplicates by similar title (same source)
+            // Check for duplicates by similar title (same feed)
             const existingByTitle = await prisma.rSSArticle.findFirst({
                 where: {
                     titleHash,
-                    sourceId: source.id,
+                    feedId: feed.id,
                 },
             });
             if (existingByTitle) {
@@ -379,7 +417,7 @@ export async function fetchRSSFeed(sourceId) {
             }
             // ========== 1. CLASSIFICATION & CATEGORY DETERMINATION ==========
             let articleCategoryId = null;
-            let targetCategorySlug = source.category?.slug || '';
+            let targetCategorySlug = feed.category?.slug || '';
             const excerpt = item.contentSnippet || item.content || item.description || '';
             // If source is Mixed, try to auto-classify first
             if (isMixedCategory(targetCategorySlug)) {
@@ -397,8 +435,8 @@ export async function fetchRSSFeed(sourceId) {
                 }
             }
             else {
-                // Non-mixed source: inherit source category ID
-                articleCategoryId = source.categoryId;
+                // Non-mixed feed: inherit feed category ID
+                articleCategoryId = feed.categoryId;
             }
             // ========== 2. FILTER GATE (DISABLED) ==========
             // Yemen filter is globally disabled - accepting all articles
@@ -416,7 +454,7 @@ export async function fetchRSSFeed(sourceId) {
             }
             try {
                 // Extract image from RSS feed first
-                const baseFeedUrl = source.websiteUrl || source.feedUrl;
+                const baseFeedUrl = feed.source.websiteUrl || feed.feedUrl;
                 let rawImageUrl = extractImage(item);
                 let articleContent = item.content || item['content:encoded'] || item.description || '';
                 // If no image in RSS or content is too short, scrape the article page
@@ -433,8 +471,9 @@ export async function fetchRSSFeed(sourceId) {
                         articleContent = scraped.fullContent;
                     }
                 }
-                // Download and process image locally
-                const localImageUrl = await downloadAndProcessImage(rawImageUrl, baseFeedUrl);
+                // OPTIMIZATION: Save remote image URL only - download will happen when article is approved
+                // This saves storage by not downloading images for articles that may never be approved
+                const remoteImageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl, baseFeedUrl) : null;
                 // Determine status based on filter result
                 // Note: FLAGGED articles go to PENDING but are logged for attention
                 const articleStatus = 'PENDING';
@@ -444,10 +483,10 @@ export async function fetchRSSFeed(sourceId) {
                         title,
                         excerpt: truncateExcerpt(articleContent),
                         sourceUrl: articleLink,
-                        imageUrl: localImageUrl,
+                        imageUrl: remoteImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
-                        sourceId: source.id,
+                        feedId: feed.id,
                         status: articleStatus,
                         approvedAt: null,
                         categoryId: articleCategoryId,
@@ -469,9 +508,9 @@ export async function fetchRSSFeed(sourceId) {
                 console.error(`[RSS] ${errorMsg}:`, err.message);
             }
         }
-        // Update source with successful fetch
-        await prisma.rSSSource.update({
-            where: { id: sourceId },
+        // Update feed with successful fetch
+        await prisma.rSSFeed.update({
+            where: { id: feedId },
             data: {
                 lastFetchedAt: new Date(),
                 errorCount: 0,
@@ -479,15 +518,15 @@ export async function fetchRSSFeed(sourceId) {
                 status: 'ACTIVE',
             },
         });
-        console.log(`[RSS] Completed ${source.name}: ${newArticles} new articles`);
+        console.log(`[RSS] Completed ${feed.source.name}: ${newArticles} new articles`);
         return { success: true, newArticles, errors };
     }
     catch (error) {
-        console.error(`[RSS] Error fetching source ${sourceId}:`, error.message);
-        // Update source with error information
+        console.error(`[RSS] Error fetching feed ${feedId}:`, error.message);
+        // Update feed with error information
         try {
-            await prisma.rSSSource.update({
-                where: { id: sourceId },
+            await prisma.rSSFeed.update({
+                where: { id: feedId },
                 data: {
                     lastError: error.message,
                     errorCount: { increment: 1 },
@@ -496,40 +535,44 @@ export async function fetchRSSFeed(sourceId) {
             });
         }
         catch (updateError) {
-            console.error('[RSS] Failed to update source error status');
+            console.error('[RSS] Failed to update feed error status');
         }
         return { success: false, newArticles: 0, errors: [error.message] };
     }
 }
 /**
  * Fetch all active RSS feeds that are due for update
- * Uses Promise.allSettled for graceful error handling per source
+ * Uses Promise.allSettled for graceful error handling per feed
  */
 export async function fetchAllActiveFeeds() {
     console.log('[RSS] Starting scheduled feed fetch...');
-    const sources = await prisma.rSSSource.findMany({
+    const feeds = await prisma.rSSFeed.findMany({
         where: {
             status: 'ACTIVE',
-            isActive: true,
+            source: {
+                isActive: true,
+            },
+        },
+        include: {
+            source: { select: { name: true } },
         },
     });
-    // Filter sources that are due for fetching
-    const dueSources = sources.filter(source => {
-        if (!source.lastFetchedAt)
+    // Filter feeds that are due for fetching
+    const dueFeeds = feeds.filter(feed => {
+        if (!feed.lastFetchedAt)
             return true;
-        const minutesSinceLastFetch = (Date.now() - source.lastFetchedAt.getTime()) / 60000;
-        return minutesSinceLastFetch >= source.fetchInterval;
+        const minutesSinceLastFetch = (Date.now() - feed.lastFetchedAt.getTime()) / 60000;
+        return minutesSinceLastFetch >= feed.fetchInterval;
     });
-    if (dueSources.length === 0) {
-        console.log('[RSS] No sources due for fetching');
-        return { sourcesChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
+    if (dueFeeds.length === 0) {
+        console.log('[RSS] No feeds due for fetching');
+        return { feedsChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
     }
-    // Fetch all sources in parallel with error isolation
-    const results = await Promise.allSettled(dueSources.map(async (source, index) => {
-        // Stagger requests to avoid thundering herd
-        await new Promise(resolve => setTimeout(resolve, index * 500));
-        return fetchRSSFeed(source.id);
-    }));
+    // Fetch feeds with bounded concurrency — at most FEED_CONCURRENCY in-flight at once.
+    // This prevents DB connection pool exhaustion and excessive outbound HTTP traffic
+    // when many feeds are due simultaneously.
+    const limit = pLimit(FEED_CONCURRENCY);
+    const results = await Promise.allSettled(dueFeeds.map(feed => limit(() => fetchRSSFeed(feed.id))));
     // Count results
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
@@ -537,8 +580,8 @@ export async function fetchAllActiveFeeds() {
         .filter(r => r.status === 'fulfilled')
         .map(r => r.value.newArticles)
         .reduce((sum, count) => sum + count, 0);
-    console.log(`[RSS] Fetch complete: ${dueSources.length} sources (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
-    return { sourcesChecked: dueSources.length, totalNewArticles, successful, failed };
+    console.log(`[RSS] Fetch complete: ${dueFeeds.length} feeds (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
+    return { feedsChecked: dueFeeds.length, totalNewArticles, successful, failed };
 }
 /**
  * Clean up old RSS articles
@@ -578,21 +621,37 @@ export async function expireOldArticles(daysOld = 60) {
  * Get feed statistics for monitoring
  */
 export async function getRSSStats() {
-    const [totalSources, activeSources, errorSources, totalArticles, pendingArticles, approvedArticles,] = await Promise.all([
+    const [totalSources, totalFeeds, activeFeeds, errorFeeds, totalArticles, pendingArticles, approvedArticles,] = await Promise.all([
         prisma.rSSSource.count(),
-        prisma.rSSSource.count({ where: { status: 'ACTIVE' } }),
-        prisma.rSSSource.count({ where: { status: 'ERROR' } }),
+        prisma.rSSFeed.count(),
+        prisma.rSSFeed.count({ where: { status: 'ACTIVE' } }),
+        prisma.rSSFeed.count({ where: { status: 'ERROR' } }),
         prisma.rSSArticle.count(),
         prisma.rSSArticle.count({ where: { status: 'PENDING' } }),
         prisma.rSSArticle.count({ where: { status: 'APPROVED' } }),
     ]);
     return {
         totalSources,
-        activeSources,
-        errorSources,
+        totalFeeds,
+        activeFeeds,
+        errorFeeds,
         totalArticles,
         pendingArticles,
         approvedArticles,
     };
+}
+/**
+ * Download and store image locally for an RSS article
+ * Called when article is approved to save storage space
+ */
+export async function downloadRSSImage(imageUrl) {
+    if (!imageUrl)
+        return null;
+    // Already a local URL, no need to download
+    if (imageUrl.startsWith('/uploads/')) {
+        return imageUrl;
+    }
+    // Use the existing download function
+    return await downloadAndProcessImage(imageUrl, imageUrl);
 }
 //# sourceMappingURL=rss.service.js.map
