@@ -7,6 +7,8 @@ import Parser from 'rss-parser';
 import crypto from 'crypto';
 import path from 'path';
 import pLimit from 'p-limit';
+import axios from 'axios';
+import * as iconv from 'iconv-lite';
 import { prisma } from '../index.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
 
@@ -53,10 +55,22 @@ async function parseNonStandardFeed(feedUrl: string): Promise<ParsedFeed> {
             'User-Agent': BROWSER_UA,
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
         },
-        responseType: 'text',
+        responseType: 'arraybuffer',
     });
 
-    const xml = response.data;
+    let xml = '';
+    const buffer = Buffer.from(response.data);
+    
+    // Auto-detect encoding from Content-Type header or XML declaration
+    const contentType = response.headers['content-type']?.toLowerCase() || '';
+    const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
+    
+    if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
+        xml = iconv.decode(buffer, 'windows-1256');
+    } else {
+        xml = buffer.toString('utf8');
+    }
+
     const items: ParsedFeedItem[] = [];
 
     // Extract feed title
@@ -184,7 +198,6 @@ function hashTitle(title: string): string {
 }
 
 import { imageProcessor } from './imageProcessor.js';
-import axios from 'axios';
 
 /**
  * Download and process external image
@@ -419,7 +432,31 @@ export async function fetchRSSFeed(feedId: string): Promise<{
         let usedFallback = false;
 
         try {
-            const parsedFeed = await parser.parseURL(feed.feedUrl);
+            // First we fetch the raw XML using axios to handle encodings like windows-1256
+            const response = await axios.get(feed.feedUrl, {
+                timeout: 30000,
+                headers: {
+                    'User-Agent': BROWSER_UA,
+                    'Accept': 'application/rss+xml, application/xml, text/xml',
+                },
+                responseType: 'arraybuffer'
+            });
+
+            const buffer = Buffer.from(response.data);
+            const contentType = response.headers['content-type']?.toLowerCase() || '';
+            const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
+            
+            let xmlString = '';
+            
+            // Check for Windows-1256 encoding (common in some Arabic RSS feeds causing  characters)
+            if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
+                xmlString = iconv.decode(buffer, 'windows-1256');
+                console.log(`[RSS] Detected Windows-1256 encoding for ${feed.source.name}`);
+            } else {
+                xmlString = buffer.toString('utf8');
+            }
+
+            const parsedFeed = await parser.parseString(xmlString);
             feedItems = parsedFeed.items;
             console.log(`[RSS] Parsed ${feedItems.length} items from ${feed.source.name}`);
         } catch (parseError: any) {
