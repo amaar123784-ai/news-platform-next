@@ -26,8 +26,12 @@ const router = Router();
 
 // ---------------------------------------------------------------------------
 // Cookie configuration
+// When behind a reverse proxy (e.g. Nginx), the backend may see Host as 127.0.0.1,
+// so cookies would be set for that host and the browser would not send them to
+// the public domain. Set COOKIE_DOMAIN (e.g. voiceoftihama.com) so cookies work.
 // ---------------------------------------------------------------------------
 const IS_PROD = env.NODE_ENV === 'production';
+const cookieDomain = env.COOKIE_DOMAIN || undefined;
 
 const ACCESS_COOKIE_OPTIONS: CookieOptions = {
     httpOnly: true,
@@ -35,6 +39,7 @@ const ACCESS_COOKIE_OPTIONS: CookieOptions = {
     sameSite: 'strict',       // CSRF protection
     path: '/',
     maxAge: 15 * 60 * 1000,  // 15 minutes (matches access token lifetime)
+    ...(cookieDomain && { domain: cookieDomain }),
 };
 
 const REFRESH_COOKIE_OPTIONS: CookieOptions = {
@@ -43,6 +48,7 @@ const REFRESH_COOKIE_OPTIONS: CookieOptions = {
     sameSite: 'strict',
     path: '/api/auth',        // Scoped to auth endpoints only
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    ...(cookieDomain && { domain: cookieDomain }),
 };
 
 // ---------------------------------------------------------------------------
@@ -75,10 +81,11 @@ function setAuthCookies(res: Response, accessToken: string, refreshToken: string
     res.cookie('refresh_token', refreshToken, REFRESH_COOKIE_OPTIONS);
 }
 
-/** Clear both auth cookies (used by logout) */
+/** Clear both auth cookies (used by logout). Must match domain/path used when setting. */
 function clearAuthCookies(res: Response) {
-    res.clearCookie('access_token', { path: '/' });
-    res.clearCookie('refresh_token', { path: '/api/auth' });
+    const domainOpt = cookieDomain ? { domain: cookieDomain } : {};
+    res.clearCookie('access_token', { path: '/', ...domainOpt });
+    res.clearCookie('refresh_token', { path: '/api/auth', ...domainOpt });
 }
 
 // ---------------------------------------------------------------------------
