@@ -12,6 +12,7 @@ import { Button, Icon } from '@/components/atoms';
 import { TableSkeleton, ConfirmModal, FullContentModal } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
 import { rssService, type RSSArticle } from '@/services/rss';
+import { categoryService } from '@/services';
 
 // Helper component for rendering rows (prevents code duplication)
 const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrite, onConvert, onViewContent, isProcessing, currentStatus }: any) => (
@@ -189,16 +190,12 @@ export default function RSSModerationPage() {
 
     const uniqueSources = sourcesData?.data || [];
 
-    // Extract unique categories from sources
-    const categories = React.useMemo(() => {
-        const cats = new Map();
-        uniqueSources.forEach((source: any) => {
-            if (source.category) {
-                cats.set(source.category.id, source.category);
-            }
-        });
-        return Array.from(cats.values());
-    }, [uniqueSources]);
+    // Fetch categories for filter
+    const { data: categoriesData } = useQuery({
+        queryKey: ['categories'],
+        queryFn: () => categoryService.getCategories(),
+    });
+    const categories = categoriesData || [];
 
     // Filter sources tabs based on search and category
     const displayedSources = uniqueSources.filter((source: any) => {

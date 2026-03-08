@@ -232,7 +232,7 @@ export default function ArticleListPage() {
                 >
                     <option value="">جميع الأقسام</option>
                     {categories.map((cat: any) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.slug}>{cat.name}</option>
                     ))}
                 </select>
 
