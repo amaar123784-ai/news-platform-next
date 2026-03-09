@@ -23,9 +23,9 @@ export function LoginContent() {
 
             // Check role to redirect appropriately
             if (['admin', 'editor', 'journalist'].includes(response.user.role)) {
-                router.push("/admin");
+                window.location.href = "/admin";
             } else {
-                router.push("/");
+                window.location.href = "/";
             }
         } catch (err: any) {
             console.error(err);
