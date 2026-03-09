@@ -93,9 +93,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
 
     const handleUploadFiles = async (files: File[]) => {
         try {
-            for (const file of files) {
-                await uploadMutation.mutateAsync(file);
-            }
+            await Promise.all(files.map(file => uploadMutation.mutateAsync(file)));
             success('تم رفع الملفات بنجاح');
             queryClient.invalidateQueries({ queryKey: ['media'] });
             setUploadOpen(false);

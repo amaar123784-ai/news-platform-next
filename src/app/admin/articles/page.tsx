@@ -77,10 +77,8 @@ export default function ArticleListPage() {
     // Bulk delete mutation
     const bulkDeleteMutation = useMutation({
         mutationFn: async (ids: string[]) => {
-            // Delete articles one by one
-            for (const id of ids) {
-                await articleService.deleteArticle(id);
-            }
+            // Delete articles in parallel
+            await Promise.all(ids.map(id => articleService.deleteArticle(id)));
             return { deletedCount: ids.length };
         },
         onSuccess: (data) => {
@@ -97,9 +95,8 @@ export default function ArticleListPage() {
     // Bulk status update mutation
     const bulkStatusMutation = useMutation({
         mutationFn: async ({ ids, status }: { ids: string[], status: string }) => {
-            for (const id of ids) {
-                await articleService.updateArticle({ id, status } as any);
-            }
+            // Update articles in parallel
+            await Promise.all(ids.map(id => articleService.updateArticle({ id, status } as any)));
             return { updatedCount: ids.length };
         },
         onSuccess: (data, variables) => {

@@ -70,8 +70,8 @@ export const DataTable = <T extends { id: string | number }>({
                                 </td>
                             </tr>
                         ) : (
-                            data.map((row, index) => (
-                                <tr key={index} className="hover:bg-gray-50 transition-colors">
+                            data.map((row) => (
+                                <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                                     {columns.map((col) => (
                                         <td key={col.key.toString()} className="px-6 py-4 text-sm whitespace-nowrap">
                                             {col.render ? col.render(row) : (row[col.key] as React.ReactNode)}

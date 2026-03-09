@@ -7,7 +7,7 @@
  * Delegates actual upload to parent component.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button, Icon } from '@/components/atoms';
 
 export interface MediaUploaderProps {
@@ -42,6 +42,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         }
         return null;
     };
+
+    // Cleanup object URLs on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            previews.forEach(p => URL.revokeObjectURL(p.url));
+        };
+    }, [previews]);
 
     const processFiles = useCallback((fileList: FileList | File[]) => {
         const validFiles: File[] = [];

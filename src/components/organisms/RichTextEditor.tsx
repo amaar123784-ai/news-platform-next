@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 import { Icon } from '@/components/atoms';
 
 interface RichTextEditorProps {
@@ -11,6 +15,85 @@ interface RichTextEditorProps {
     onImageRequest?: (callback: (url: string) => void) => void;
 }
 
+const MenuBar = ({ editor, onImageRequest }: { editor: any, onImageRequest?: (callback: (url: string) => void) => void }) => {
+    if (!editor) {
+        return null;
+    }
+
+    const handleImageClick = () => {
+        if (onImageRequest) {
+            onImageRequest((url) => {
+                editor.chain().focus().setImage({ src: url }).run();
+            });
+        }
+    };
+
+    const handleLinkClick = () => {
+        const previousUrl = editor.getAttributes('link').href;
+        const url = window.prompt('أدخل الرابط:', previousUrl);
+        
+        // cancelled
+        if (url === null) {
+            return;
+        }
+
+        // empty
+        if (url === '') {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+            return;
+        }
+
+        // update link
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    };
+
+    const ToolbarButton = ({ icon, isActive, onClick, title }: any) => (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            className={`p-2 rounded-lg transition-colors ${
+                isActive ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-200 hover:text-primary'
+            }`}
+        >
+            <Icon name={icon} />
+        </button>
+    );
+
+    return (
+        <div className="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1">
+            <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
+                <ToolbarButton icon="ri-bold" onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="غامق" />
+                <ToolbarButton icon="ri-italic" onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} title="مائل" />
+                <ToolbarButton icon="ri-strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="يتوسطه خط" />
+            </div>
+
+            <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
+                <ToolbarButton icon="ri-h-1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} title="عنوان 1" />
+                <ToolbarButton icon="ri-h-2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} title="عنوان 2" />
+                <ToolbarButton icon="ri-h-3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} title="عنوان 3" />
+                <ToolbarButton icon="ri-paragraph" onClick={() => editor.chain().focus().setParagraph().run()} isActive={editor.isActive('paragraph')} title="فقرة" />
+            </div>
+
+            <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
+                <ToolbarButton icon="ri-list-unordered" onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} title="قائمة نقطية" />
+                <ToolbarButton icon="ri-list-ordered" onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} title="قائمة رقمية" />
+            </div>
+
+            <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
+                <ToolbarButton icon="ri-double-quotes-l" onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} title="اقتباس" />
+                <ToolbarButton icon="ri-link" onClick={handleLinkClick} isActive={editor.isActive('link')} title="رابط" />
+                <ToolbarButton icon="ri-image-add-line" onClick={handleImageClick} title="صورة" />
+            </div>
+
+            <div className="flex gap-1 pr-2 mr-auto">
+                <ToolbarButton icon="ri-arrow-go-back-line" onClick={() => editor.chain().focus().undo().run()} title="تراجع" />
+                <ToolbarButton icon="ri-arrow-go-forward-line" onClick={() => editor.chain().focus().redo().run()} title="إعادة" />
+            </div>
+        </div>
+    );
+};
+
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     value,
     onChange,
@@ -18,120 +101,48 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     className = '',
     onImageRequest,
 }) => {
-    const contentRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
 
-    // Sync external value changes to internal contentEditable
-    // Only if not focused to avoid cursor jumping
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Image.configure({
+                HTMLAttributes: {
+                    class: 'rounded-lg max-w-full my-4 shadow-sm',
+                },
+            }),
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    class: 'text-primary underline cursor-pointer',
+                },
+            }),
+        ],
+        content: value,
+        onUpdate: ({ editor }) => {
+            onChange(editor.getHTML());
+        },
+        onFocus: () => setIsFocused(true),
+        onBlur: () => setIsFocused(false),
+        editorProps: {
+            attributes: {
+                class: 'prose prose-lg max-w-none p-4 min-h-[400px] outline-none text-right font-body',
+                dir: 'rtl',
+            },
+        },
+    });
+
+    // Sync external value changes (like when loading initial data)
     useEffect(() => {
-        if (contentRef.current && !isFocused && value !== contentRef.current.innerHTML) {
-            contentRef.current.innerHTML = value;
+        if (editor && value && editor.getHTML() !== value) {
+            editor.commands.setContent(value, { emitUpdate: false });
         }
-    }, [value, isFocused]);
-
-    const execCommand = (command: string, value: string | undefined = undefined) => {
-        document.execCommand(command, false, value);
-        if (contentRef.current) {
-            onChange(contentRef.current.innerHTML);
-            contentRef.current.focus();
-        }
-    };
-
-    const handleInput = () => {
-        if (contentRef.current) {
-            onChange(contentRef.current.innerHTML);
-        }
-    };
-
-    const ToolbarButton = ({
-        icon,
-        command,
-        arg,
-        title,
-        onClick
-    }: {
-        icon: string,
-        command?: string,
-        arg?: string,
-        title: string,
-        onClick?: () => void
-    }) => (
-        <button
-            type="button"
-            onClick={onClick ? onClick : () => command && execCommand(command, arg)}
-            className="p-2 text-gray-600 hover:bg-gray-100 hover:text-primary rounded-lg transition-colors"
-            title={title}
-        >
-            <Icon name={icon} />
-        </button>
-    );
-
-    const handleImageClick = () => {
-        if (onImageRequest) {
-            onImageRequest((url) => execCommand('insertImage', url));
-        } else {
-            const url = prompt('أدخل رابط الصورة:', 'https://');
-            if (url) execCommand('insertImage', url);
-        }
-    };
+    }, [value, editor]);
 
     return (
         <div className={`border border-gray-300 rounded-lg overflow-hidden bg-white ${className} ${isFocused ? 'ring-2 ring-primary/20 border-primary' : ''}`}>
-            {/* Toolbar */}
-            <div className="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1">
-                <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
-                    <ToolbarButton icon="ri-bold" command="bold" title="غامق" />
-                    <ToolbarButton icon="ri-italic" command="italic" title="مائل" />
-                    <ToolbarButton icon="ri-underline" command="underline" title="تسطير" />
-                    <ToolbarButton icon="ri-strikethrough" command="strikeThrough" title="يتوسطه خط" />
-                </div>
-
-                <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
-                    <ToolbarButton icon="ri-h-1" command="formatBlock" arg="<h1>" title="عنوان 1" />
-                    <ToolbarButton icon="ri-h-2" command="formatBlock" arg="<h2>" title="عنوان 2" />
-                    <ToolbarButton icon="ri-h-3" command="formatBlock" arg="<h3>" title="عنوان 3" />
-                    <ToolbarButton icon="ri-paragraph" command="formatBlock" arg="<p>" title="فقرة" />
-                </div>
-
-                <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
-                    <ToolbarButton icon="ri-list-unordered" command="insertUnorderedList" title="قائمة نقطية" />
-                    <ToolbarButton icon="ri-list-ordered" command="insertOrderedList" title="قائمة رقمية" />
-                </div>
-
-                <div className="flex gap-1 border-l pl-2 ml-2 border-gray-300">
-                    <ToolbarButton icon="ri-double-quotes-l" command="formatBlock" arg="<blockquote>" title="اقتباس" />
-                    <ToolbarButton
-                        icon="ri-link"
-                        onClick={() => {
-                            const url = prompt('أدخل الرابط:', 'https://');
-                            if (url) execCommand('createLink', url);
-                        }}
-                        title="رابط"
-                    />
-                    <ToolbarButton
-                        icon="ri-image-add-line"
-                        onClick={handleImageClick}
-                        title="صورة"
-                    />
-                </div>
-
-                <div className="flex gap-1 pr-2 mr-auto">
-                    <ToolbarButton icon="ri-arrow-go-back-line" command="undo" title="تراجع" />
-                    <ToolbarButton icon="ri-arrow-go-forward-line" command="redo" title="إعادة" />
-                </div>
-            </div>
-
-            {/* Editor Area */}
-            <div
-                ref={contentRef}
-                contentEditable
-                onInput={handleInput}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                className="prose prose-lg max-w-none p-4 min-h-[400px] outline-none text-right font-body empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-                dir="rtl"
-                data-placeholder={placeholder}
-            />
+            <MenuBar editor={editor} onImageRequest={onImageRequest} />
+            <EditorContent editor={editor} />
         </div>
     );
 };

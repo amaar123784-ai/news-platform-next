@@ -27,13 +27,22 @@ export default function UserManagementPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
 
+    // Custom debounce hook inline for simplicity without adding dependencies
+    const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+    React.useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
     // Fetch users from API
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['users', { page, search: searchQuery }],
+        queryKey: ['users', { page, search: debouncedSearch }],
         queryFn: () => userService.getUsers({
             page,
             perPage: 20,
-            search: searchQuery || undefined,
+            search: debouncedSearch || undefined,
         }),
     });
 

@@ -19,23 +19,30 @@ export default function CommentsPage() {
 
     const [viewComment, setViewComment] = useState<Comment | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
+    // State
     const [page, setPage] = useState(1);
-
-    // Status filter
+    const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
 
-    // Create a temporary service wrapper if real one doesn't exist yet, 
-    // but better to assume I need to create the service too. 
-    // For now, I'll assume I need to create src/services/comment.service.ts
+    // Debounce search
+    const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+    React.useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
 
     // Fetch comments
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['comments', { page, status: statusFilter }],
+        queryKey: ['comments', { page, status: statusFilter, search: debouncedSearch }],
         queryFn: () => commentService.getComments({
             page,
             perPage: 20,
-            status: statusFilter === 'all' ? undefined : statusFilter
-        }),
+            status: statusFilter === 'all' ? undefined : statusFilter,
+            // Assuming the API supports search
+            search: debouncedSearch || undefined,
+        } as any),
     });
 
     // Update status mutation

@@ -83,6 +83,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         user && item.roles.includes(user.role?.toLowerCase() || '')
     );
 
+    // Apply Route-level RBAC
+    const currentItem = menuItems.find(item => isActive(item.path, item.exact));
+    const isAuthorized = user && (!currentItem || currentItem.roles.includes(user.role?.toLowerCase() || ''));
+
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans">
+                <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center max-w-md w-full mx-4">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Icon name="ri-lock-line" size="2xl" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">غير مصرح لك بالوصول</h2>
+                    <p className="text-gray-500 mb-6">عذراً، لا تملك الصلاحيات الكافية لعرض هذه الصفحة.</p>
+                    <Button variant="primary" onClick={() => router.push('/admin')}>
+                        العودة للوحة القيادة
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-100 flex font-sans relative overflow-hidden">
             {/* Mobile Backdrop */}

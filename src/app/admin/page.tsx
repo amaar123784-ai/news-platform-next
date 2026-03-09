@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Icon, Button } from '@/components/atoms';
 import { StatCard } from '@/components/molecules';
-import { ViewsChart, TrafficChart, GrowthChart } from '@/components/organisms/analytics';
+import dynamic from 'next/dynamic';
+
+const ViewsChart = dynamic(() => import('@/components/organisms/analytics').then(mod => mod.ViewsChart), { ssr: false, loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" /> });
+const TrafficChart = dynamic(() => import('@/components/organisms/analytics').then(mod => mod.TrafficChart), { ssr: false, loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" /> });
+const GrowthChart = dynamic(() => import('@/components/organisms/analytics').then(mod => mod.GrowthChart), { ssr: false, loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" /> });
 import { analyticsService } from '@/services';
 
 export default function AdminDashboardPage() {

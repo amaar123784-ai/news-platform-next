@@ -231,32 +231,38 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                                     </div>
                                 )}
 
-                                <div className="border-t pt-4 mt-4 space-y-3">
-                                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-red-50 transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isBreaking}
-                                            onChange={(e) => setFormData({ ...formData, isBreaking: e.target.checked })}
-                                            className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                                        />
+                                <div className="border-t pt-4 mt-4 space-y-4">
+                                    <div className="flex items-center justify-between p-3 bg-red-50/50 rounded-lg border border-red-100 hover:bg-red-50 transition-colors">
                                         <div>
-                                            <span className="font-medium text-gray-900">خبر عاجل</span>
-                                            <p className="text-xs text-gray-500">سيظهر في شريط الأخبار العاجلة</p>
+                                            <span className="font-medium text-red-900 block">خبر عاجل</span>
+                                            <span className="text-xs text-red-700">سيظهر في شريط الأخبار العاجلة</span>
                                         </div>
-                                    </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, isBreaking: !formData.isBreaking })}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${formData.isBreaking ? 'bg-red-600' : 'bg-gray-200'}`}
+                                            role="switch"
+                                            aria-checked={formData.isBreaking}
+                                        >
+                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.isBreaking ? '-translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
 
-                                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-yellow-50 transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isFeatured}
-                                            onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
-                                            className="w-5 h-5 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-                                        />
+                                    <div className="flex items-center justify-between p-3 bg-yellow-50/50 rounded-lg border border-yellow-100 hover:bg-yellow-50 transition-colors">
                                         <div>
-                                            <span className="font-medium text-gray-900">خبر مميز</span>
-                                            <p className="text-xs text-gray-500">سيظهر في الرئيسية</p>
+                                            <span className="font-medium text-yellow-900 block">خبر مميز</span>
+                                            <span className="text-xs text-yellow-700">سيظهر في الرئيسية بحجم أكبر</span>
                                         </div>
-                                    </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, isFeatured: !formData.isFeatured })}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${formData.isFeatured ? 'bg-yellow-500' : 'bg-gray-200'}`}
+                                            role="switch"
+                                            aria-checked={formData.isFeatured}
+                                        >
+                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.isFeatured ? '-translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -278,12 +284,58 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                                         ))}
                                     </select>
                                 </div>
-                                <FormField
-                                    label="الوسوم"
-                                    value={formData.tagsString}
-                                    onChange={(e) => setFormData({ ...formData, tagsString: e.target.value })}
-                                    placeholder="سياسة, اليمن, ..."
-                                />
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">الوسوم (Tags)</label>
+                                    <div className="w-full min-h-[42px] px-3 py-1.5 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-white flex flex-wrap gap-2 items-center">
+                                        {formData.tagsString.split(',').map(tag => tag.trim()).filter(Boolean).map((tag, index) => (
+                                            <span key={index} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
+                                                {tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const tags = formData.tagsString.split(',').map(t => t.trim()).filter(Boolean);
+                                                        tags.splice(index, 1);
+                                                        setFormData({ ...formData, tagsString: tags.join(', ') });
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-500 hover:bg-gray-200 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
+                                                >
+                                                    &times;
+                                                </button>
+                                            </span>
+                                        ))}
+                                        <input
+                                            type="text"
+                                            placeholder={formData.tagsString ? "" : "اضغط Enter لإضافة وسم..."}
+                                            className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ',') {
+                                                    e.preventDefault();
+                                                    const value = e.currentTarget.value.trim();
+                                                    if (value) {
+                                                        const currentTags = formData.tagsString.split(',').map(t => t.trim()).filter(Boolean);
+                                                        // Prevent duplicates
+                                                        if (!currentTags.includes(value)) {
+                                                            setFormData({ ...formData, tagsString: [...currentTags, value].join(', ') });
+                                                        }
+                                                        e.currentTarget.value = '';
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.currentTarget.value.trim();
+                                                if (value) {
+                                                    const currentTags = formData.tagsString.split(',').map(t => t.trim()).filter(Boolean);
+                                                    if (!currentTags.includes(value)) {
+                                                        setFormData({ ...formData, tagsString: [...currentTags, value].join(', ') });
+                                                    }
+                                                    e.currentTarget.value = '';
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">اضغط Enter أو فاصلة (,) لإضافة وسم جديد</p>
+                                </div>
                             </div>
                         </div>
 
@@ -323,7 +375,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
             </form>
 
             <Modal isOpen={isMediaOpen} onClose={() => setIsMediaOpen(false)} title="مكتبة الصور" width="max-w-4xl">
-                <div className="h-[600px] overflow-y-auto p-1">
+                <div className="max-h-[80vh] overflow-y-auto p-1">
                     <MediaPicker onSelect={handleImageSelect} />
                 </div>
             </Modal>
