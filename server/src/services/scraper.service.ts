@@ -8,6 +8,7 @@ import * as cheerio from 'cheerio';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import pLimit from 'p-limit';
+import * as iconv from 'iconv-lite';
 import { prisma } from '../index.js';
 
 // User agents for rotation to avoid blocking
@@ -122,10 +123,26 @@ async function fetchPageHTML(url: string, retries = 3): Promise<string | null> {
                     'Referer': 'https://www.google.com/',
                 },
                 maxRedirects: 5,
+                responseType: 'arraybuffer', // Get raw bytes to decode manually
             });
 
             if (response.status === 200 && response.data) {
-                return response.data;
+                const buffer = Buffer.from(response.data);
+                
+                // Read a chunk of the start to guess the encoding
+                const firstChunk = buffer.subarray(0, 1024).toString('ascii').toLowerCase();
+                const contentType = (response.headers['content-type'] || '').toLowerCase();
+                
+                if (contentType.includes('windows-1256') || firstChunk.includes('windows-1256') || firstChunk.includes('cp1256')) {
+                    console.log(`[Scraper] Detected windows-1256 encoding for ${url}`);
+                    return iconv.decode(buffer, 'windows-1256');
+                } else if (contentType.includes('iso-8859-6') || firstChunk.includes('iso-8859-6')) {
+                    console.log(`[Scraper] Detected iso-8859-6 encoding for ${url}`);
+                    return iconv.decode(buffer, 'iso-8859-6');
+                } else {
+                    // Default to utf-8
+                    return buffer.toString('utf8');
+                }
             }
         } catch (error: any) {
             console.warn(`[Scraper] Attempt ${attempt}/${retries} failed for ${url}: ${error.message}`);

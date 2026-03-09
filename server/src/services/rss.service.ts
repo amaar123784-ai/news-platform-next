@@ -265,10 +265,23 @@ async function scrapeArticlePage(articleUrl: string): Promise<ScrapedPageData> {
                 'Accept': 'text/html,application/xhtml+xml',
                 'Accept-Language': 'ar,en;q=0.9',
             },
+            responseType: 'arraybuffer',
             maxContentLength: 5 * 1024 * 1024, // 5MB limit
         });
 
-        const html = response.data as string;
+        const buffer = Buffer.from(response.data);
+        const firstChunk = buffer.subarray(0, 1024).toString('ascii').toLowerCase();
+        const contentType = (response.headers['content-type'] || '').toLowerCase();
+        
+        let html = '';
+        if (contentType.includes('windows-1256') || firstChunk.includes('windows-1256') || firstChunk.includes('cp1256')) {
+            console.log(`[RSS] Detected windows-1256 encoding for page ${articleUrl}`);
+            html = iconv.decode(buffer, 'windows-1256');
+        } else if (contentType.includes('iso-8859-6') || firstChunk.includes('iso-8859-6')) {
+            html = iconv.decode(buffer, 'iso-8859-6');
+        } else {
+             html = buffer.toString('utf8');
+        }
 
         // Extract image using multiple fallback patterns
         const imagePatterns = [
