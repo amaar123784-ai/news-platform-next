@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * NewsCard Component — Redesigned
  * 
@@ -16,6 +14,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Badge, Icon } from '@/components/atoms';
 import { categoryBadges, type CategoryType } from '@/design-system/tokens';
+import { getImageUrl } from '@/lib/api';
 
 export interface NewsCardProps {
     id?: string;
@@ -48,9 +47,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
 }) => {
     const categoryInfo = categoryBadges[category] || categoryBadges.politics || { bg: 'bg-gray-100', text: 'text-gray-600', label: 'عام' };
     const articleLink = id ? `/article/${id}` : href || '#';
-
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
-    const displayImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
+    const displayImageUrl = getImageUrl(imageUrl);
 
     return (
         <article

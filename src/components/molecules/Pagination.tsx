@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import Link from 'next/link';
 import { Icon, Button } from '@/components/atoms';
 
 export interface PaginationProps {
@@ -21,8 +22,10 @@ export interface PaginationProps {
     currentPage: number;
     /** Total number of pages */
     totalPages: number;
-    /** Page change handler */
-    onPageChange: (page: number) => void;
+    /** Page change handler (optional if getPageUrl is used) */
+    onPageChange?: (page: number) => void;
+    /** Function to get URL for SEO-friendly links */
+    getPageUrl?: (page: number) => string;
     /** Number of page buttons to show */
     maxVisible?: number;
     /** Additional CSS classes */
@@ -33,6 +36,7 @@ export const Pagination: React.FC<PaginationProps> = ({
     currentPage,
     totalPages,
     onPageChange,
+    getPageUrl,
     maxVisible = 5,
     className = '',
 }) => {
@@ -60,29 +64,69 @@ export const Pagination: React.FC<PaginationProps> = ({
     const showFirstEllipsis = visiblePages[0] > 2;
     const showLastEllipsis = visiblePages[visiblePages.length - 1] < totalPages - 1;
 
+    const renderPageElement = (
+        targetPage: number, 
+        content: React.ReactNode, 
+        baseClass: string, 
+        ariaLabel?: string, 
+        ariaCurrent?: "page",
+        disabled?: boolean
+    ) => {
+        const defaultClass = `${baseClass} transition-colors flex items-center justify-center`;
+        
+        if (disabled) {
+            return (
+                <span className={`${defaultClass} opacity-50 cursor-not-allowed`} aria-label={ariaLabel}>
+                    {content}
+                </span>
+            );
+        }
+
+        if (getPageUrl) {
+            return (
+                <Link
+                    href={getPageUrl(targetPage)}
+                    className={defaultClass}
+                    aria-label={ariaLabel}
+                    aria-current={ariaCurrent}
+                >
+                    {content}
+                </Link>
+            );
+        }
+
+        return (
+            <button
+                onClick={() => onPageChange?.(targetPage)}
+                className={defaultClass}
+                aria-label={ariaLabel}
+                aria-current={ariaCurrent}
+            >
+                {content}
+            </button>
+        );
+    };
+
     return (
         <nav
             className={`flex flex-wrap items-center justify-center gap-1 ${className}`}
             aria-label="التنقل بين الصفحات"
         >
             {/* Previous Button */}
-            <button
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="الصفحة السابقة"
-            >
-                <Icon name="ri-arrow-right-s-line" />
-            </button>
+            {renderPageElement(
+                currentPage - 1,
+                <Icon name="ri-arrow-right-s-line" />,
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border border-gray-300 hover:bg-gray-50",
+                "الصفحة السابقة",
+                undefined,
+                currentPage === 1
+            )}
 
             {/* First Page */}
-            {visiblePages[0] > 1 && (
-                <button
-                    onClick={() => onPageChange(1)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm sm:text-base"
-                >
-                    1
-                </button>
+            {visiblePages[0] > 1 && renderPageElement(
+                1,
+                "1",
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm sm:text-base"
             )}
 
             {/* First Ellipsis */}
@@ -91,21 +135,16 @@ export const Pagination: React.FC<PaginationProps> = ({
             )}
 
             {/* Page Numbers */}
-            {visiblePages.map((page) => (
-                <button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`
-            w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg transition-colors text-sm sm:text-base
-            ${page === currentPage
-                            ? 'bg-primary text-white'
-                            : 'border border-gray-300 hover:bg-gray-50'
-                        }
-          `}
-                    aria-current={page === currentPage ? 'page' : undefined}
-                >
-                    {page.toLocaleString('ar-YE')}
-                </button>
+            {visiblePages.map((page) => renderPageElement(
+                page,
+                page.toLocaleString('ar-YE'),
+                `w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm sm:text-base ${
+                    page === currentPage
+                        ? 'bg-primary text-white'
+                        : 'border border-gray-300 hover:bg-gray-50'
+                }`,
+                undefined,
+                page === currentPage ? 'page' : undefined
             ))}
 
             {/* Last Ellipsis */}
@@ -114,24 +153,21 @@ export const Pagination: React.FC<PaginationProps> = ({
             )}
 
             {/* Last Page */}
-            {visiblePages[visiblePages.length - 1] < totalPages && (
-                <button
-                    onClick={() => onPageChange(totalPages)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm sm:text-base"
-                >
-                    {totalPages.toLocaleString('ar-YE')}
-                </button>
+            {visiblePages[visiblePages.length - 1] < totalPages && renderPageElement(
+                totalPages,
+                totalPages.toLocaleString('ar-YE'),
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm sm:text-base"
             )}
 
             {/* Next Button */}
-            <button
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="الصفحة التالية"
-            >
-                <Icon name="ri-arrow-left-s-line" />
-            </button>
+            {renderPageElement(
+                currentPage + 1,
+                <Icon name="ri-arrow-left-s-line" />,
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-lg border border-gray-300 hover:bg-gray-50",
+                "الصفحة التالية",
+                undefined,
+                currentPage === totalPages
+            )}
         </nav>
     );
 };

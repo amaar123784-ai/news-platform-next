@@ -39,6 +39,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         alternates: {
             canonical: `${siteUrl}/article/${slug}`,
         },
+        robots: {
+            index: true,
+            follow: true,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+            'max-video-preview': -1,
+        },
         openGraph: {
             title: article.title,
             description: article.excerpt,
@@ -96,17 +103,27 @@ export default async function ArticlePage({ params }: Props) {
 
     // JSON-LD structured data for SEO
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+    const absoluteImageUrl = displayImageUrl?.startsWith('http') ? displayImageUrl : `${siteUrl}${displayImageUrl}`;
+
     const articleSchema = {
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
         headline: article.title,
         description: article.excerpt,
-        image: displayImageUrl ? [displayImageUrl] : undefined,
-        datePublished: article.publishedAt || article.createdAt,
-        dateModified: article.updatedAt,
+        image: absoluteImageUrl ? [
+            {
+                '@type': 'ImageObject',
+                url: absoluteImageUrl,
+                width: 1200,
+                height: 630
+            }
+        ] : undefined,
+        datePublished: new Date(article.publishedAt || article.createdAt).toISOString(),
+        dateModified: new Date(article.updatedAt).toISOString(),
         author: {
             '@type': 'Person',
             name: article.author?.name || 'المحرر',
+            url: article.author?.id ? `${siteUrl}/author/${article.author.id}` : undefined,
         },
         publisher: {
             '@type': 'NewsMediaOrganization',
@@ -114,6 +131,8 @@ export default async function ArticlePage({ params }: Props) {
             logo: {
                 '@type': 'ImageObject',
                 url: `${siteUrl}/images/logo.webp`,
+                width: 600,
+                height: 60
             },
         },
         mainEntityOfPage: {
@@ -124,12 +143,41 @@ export default async function ArticlePage({ params }: Props) {
         wordCount: article.content?.split(/\s+/).length || 0,
     };
 
+    const breadcrumbSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'الرئيسية',
+                item: siteUrl,
+            },
+            {
+                '@type': 'ListItem',
+                position: 2,
+                name: article.category?.name || 'أخبار',
+                item: `${siteUrl}/category/${categorySlug}`,
+            },
+            {
+                '@type': 'ListItem',
+                position: 3,
+                name: article.title,
+                item: `${siteUrl}/article/${slug}`,
+            },
+        ],
+    };
+
     return (
         <>
             {/* JSON-LD Schema for SEO */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
             />
             <div className="bg-gray-50 min-h-screen py-8">
                 <main className="container mx-auto px-4">
@@ -181,7 +229,12 @@ export default async function ArticlePage({ params }: Props) {
                                                         <Icon name="ri-user-line" size="sm" />
                                                     </div>
                                                 )}
-                                                <span className="font-medium text-gray-900">{article.author?.name || 'المحرر'}</span>
+                                                <Link 
+                                                    href={`/author/${article.author?.id || 'editor'}`}
+                                                    className="font-medium text-gray-900 hover:text-primary transition-colors"
+                                                >
+                                                    {article.author?.name || 'المحرر'}
+                                                </Link>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Icon name="ri-calendar-line" />

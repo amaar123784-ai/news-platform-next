@@ -14,7 +14,7 @@ export async function generateSitemaps() {
     let totalArticles = 0;
     try {
         const res = await fetch(`${API_URL}/articles?status=PUBLISHED&perPage=1`, {
-            next: { revalidate: 3600 },
+            next: { revalidate: 600 }, // 10 minutes freshness for news
         });
         if (res.ok) {
             const data = await res.json();
@@ -39,7 +39,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
             {
                 url: SITE_URL,
                 lastModified: new Date(),
-                changeFrequency: 'hourly',
+                changeFrequency: 'always',
                 priority: 1,
             },
             {
@@ -89,7 +89,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
             entries.push({
                 url: `${SITE_URL}/category/${cat}`,
                 lastModified: new Date(),
-                changeFrequency: 'hourly',
+                changeFrequency: 'always',
                 priority: 0.8,
             });
         }
@@ -100,18 +100,30 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     try {
         const res = await fetch(
             `${API_URL}/articles?status=PUBLISHED&perPage=${ARTICLES_PER_SITEMAP}&page=${page}`,
-            { next: { revalidate: 3600 } },
+            { next: { revalidate: 600 } }, // 10 minutes freshness for articles
         );
 
         if (res.ok) {
             const data = await res.json();
             for (const article of (data.data || [])) {
-                entries.push({
+                
+                const sitemapEntry: any = {
                     url: `${SITE_URL}/article/${article.slug || article.id}`,
                     lastModified: new Date(article.updatedAt || article.createdAt),
                     changeFrequency: 'daily',
                     priority: 0.7,
-                });
+                };
+                
+                // Add image metadata if available
+                if (article.imageUrl) {
+                    const imgUrl = article.imageUrl.startsWith('http') 
+                        ? article.imageUrl 
+                        : `${SITE_URL}${article.imageUrl}`;
+                        
+                    sitemapEntry.images = [imgUrl];
+                }
+                
+                entries.push(sitemapEntry);
             }
         }
     } catch (error) {

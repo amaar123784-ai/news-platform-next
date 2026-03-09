@@ -1,5 +1,6 @@
-import { getFeaturedArticles, getArticles, getCategories } from "@/lib/api";
-import { HomeContent } from "@/components/HomeContent";
+import { getFeaturedArticles, getArticles, formatTimeAgo, getImageUrl } from "@/lib/api";
+import { FeaturedNewsGrid, PublicSidebar } from "@/components/organisms";
+import { CategoryNewsFilter } from "@/components/CategoryNewsFilter";
 
 export const revalidate = 60; // ISR every 60 seconds
 
@@ -52,6 +53,20 @@ export default async function HomePage() {
     getArticles({ perPage: 6, status: "PUBLISHED" }),
   ]);
 
+  const articles = articlesResponse.data;
+
+  // Map to FeaturedNewsGrid format
+  const featuredGridArticles = featured.map(article => ({
+    id: article.id,
+    title: article.title,
+    excerpt: article.excerpt,
+    category: (article.category?.slug || "politics") as any,
+    imageUrl: getImageUrl(article.imageUrl),
+    timeAgo: formatTimeAgo(article.publishedAt || article.createdAt),
+    views: article.views,
+    isBreaking: (article as any).isBreaking || false,
+  }));
+
   return (
     <>
       {/* Organization JSON-LD Schema */}
@@ -67,11 +82,24 @@ export default async function HomePage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 min-h-screen">
-        <HomeContent
-          featuredArticles={featured}
-          articles={articlesResponse.data}
-          topArticles={featured.slice(1, 5)}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
+          {/* Main Content Column */}
+          <div className="lg:col-span-3">
+            {/* Featured Articles Grid — Server Rendered for LCP speed */}
+            <FeaturedNewsGrid articles={featuredGridArticles} />
+
+            {/* News Grid with Category Filtering — Client Component for interactivity */}
+            <CategoryNewsFilter initialArticles={articles} />
+          </div>
+
+          {/* Sidebar — Server Rendered */}
+          <div className="lg:col-span-1">
+            <PublicSidebar
+              urgentNews={articles.slice(0, 5)}
+              mostReadNews={featured.slice(1, 5)}
+            />
+          </div>
+        </div>
       </main>
     </>
   );

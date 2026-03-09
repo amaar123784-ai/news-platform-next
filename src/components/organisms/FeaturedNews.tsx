@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * FeaturedNews Component — Redesigned
  * 
@@ -11,8 +9,10 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Icon, Badge } from '@/components/atoms';
 import { categoryBadges, type CategoryType } from '@/design-system/tokens';
+import { getImageUrl } from '@/lib/api';
 
 export interface FeaturedNewsProps {
     id?: string;
@@ -33,13 +33,12 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
 }) => {
     const categoryInfo = categoryBadges[category] || categoryBadges.politics || { bg: 'bg-gray-100', text: 'text-gray-600', label: 'عام' };
     const link = id ? `/article/${id}` : href || '#';
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
-    const displayImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
+    const displayImageUrl = getImageUrl(imageUrl);
 
     if (variant === 'large') {
         return (
             <article className="relative h-full min-h-[420px] lg:min-h-[500px] rounded-2xl overflow-hidden group">
-                <a href={link} className="block h-full">
+                <Link href={link} className="block h-full">
                     <Image
                         src={displayImageUrl}
                         alt={title}
@@ -81,7 +80,7 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
                             )}
                         </div>
                     </div>
-                </a>
+                </Link>
             </article>
         );
     }
@@ -89,7 +88,7 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
     // Small variant
     return (
         <article className="relative h-full min-h-[200px] lg:min-h-[240px] rounded-2xl overflow-hidden group">
-            <a href={link} className="block h-full">
+            <Link href={link} className="block h-full">
                 <Image
                     src={displayImageUrl}
                     alt={title}
@@ -122,7 +121,7 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
                         )}
                     </div>
                 </div>
-            </a>
+            </Link>
         </article>
     );
 };

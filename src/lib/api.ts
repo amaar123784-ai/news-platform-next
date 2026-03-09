@@ -73,6 +73,7 @@ export async function getArticles(params?: {
     perPage?: number;
     status?: string;
     search?: string;
+    authorId?: string;
 }): Promise<PaginatedResponse<Article>> {
     const searchParams = new URLSearchParams();
     if (params?.category) searchParams.set("category", params.category);
@@ -80,6 +81,7 @@ export async function getArticles(params?: {
     if (params?.perPage) searchParams.set("perPage", String(params.perPage));
     if (params?.status) searchParams.set("status", params.status);
     if (params?.search) searchParams.set("search", params.search);
+    if (params?.authorId) searchParams.set("authorId", params.authorId);
 
     const res = await fetch(`${API_URL}/articles?${searchParams}`, {
         next: { revalidate: REVALIDATE.ARTICLE_LIST },
