@@ -16,6 +16,16 @@ const MAX_SEND_RETRIES = 3;
 /** Interval between processing messages in the queue (ms) to avoid rate limiting */
 const QUEUE_PROCESS_INTERVAL = 5000;
 
+/**
+ * Utility to enforce timeouts on promises
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+    ]);
+};
+
 class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
@@ -89,7 +99,7 @@ class WhatsAppService {
                     console.log('[WhatsApp] ✅ Connected successfully!');
                     this.isReady = true;
                     await this.listChannels();
-                    
+
                     // Start processing queue if items exist
                     if (this.messageQueue.length > 0) {
                         this.processQueue();
@@ -150,14 +160,14 @@ class WhatsAppService {
         const title = article.title || '';
         const excerpt = article.excerpt || '';
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-        
+
         const message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
-        
+
         if (message.length <= MESSAGE_MAX_LENGTH) return message;
-        
+
         const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
         const excerptTrimmed = this.truncateText(this.stripHtml(excerpt), Math.max(50, excerptMax));
-        
+
         return `*${title}*\n\n${excerptTrimmed}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
     }
 
@@ -166,22 +176,22 @@ class WhatsAppService {
      */
     private async fetchThumbnail(imageUrl: string, retries: number = 3): Promise<Buffer | undefined> {
         if (!imageUrl) return undefined;
-        
+
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
                 const response = await fetch(imageUrl, {
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
                     signal: AbortSignal.timeout(15000),
                 });
-                
+
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
+
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                
+
                 // Ensure it's not too large for a thumbnail
                 if (buffer.length > 1024 * 1024) return undefined;
-                
+
                 return buffer;
             } catch (err: any) {
                 console.log(`[WhatsApp] ⚠️ Thumbnail fetch attempt ${attempt}/${retries} failed: ${err.message}`);
@@ -205,7 +215,7 @@ class WhatsAppService {
                     headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
                     signal: AbortSignal.timeout(10000),
                 });
-                
+
                 if (response.ok) return true;
                 console.log(`[WhatsApp] ⏳ Article page not ready (HTTP ${response.status}), attempt ${attempt}/${maxAttempts}`);
             } catch (err: any) {
@@ -232,8 +242,9 @@ class WhatsAppService {
 
         console.log(`[WhatsApp] 📝 Article queued: ${article.title}`);
         this.messageQueue.push({ article, retries: 0 });
-        
+
         if (!this.isProcessingQueue) {
+
             this.processQueue();
         }
     }
@@ -245,33 +256,37 @@ class WhatsAppService {
         if (this.isProcessingQueue || this.messageQueue.length === 0) return;
         this.isProcessingQueue = true;
 
-        while (this.messageQueue.length > 0) {
-            if (!this.isReady || !this.sock) {
-                console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
-                this.isProcessingQueue = false;
-                return;
-            }
+        try {
+            while (this.messageQueue.length > 0) {
+                if (!this.isReady || !this.sock) {
+                    console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
+                    return; // Will exit and trigger finally block
+                }
 
-            const item = this.messageQueue[0];
-            const success = await this.attemptSend(item.article);
+                const item = this.messageQueue[0];
+                const success = await this.attemptSend(item.article);
 
-            if (success) {
-                this.messageQueue.shift(); // Remove from queue
-                // Cooldown between messages
-                await new Promise(r => setTimeout(r, QUEUE_PROCESS_INTERVAL));
-            } else {
-                item.retries++;
-                if (item.retries >= MAX_SEND_RETRIES) {
-                    console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
-                    this.messageQueue.shift();
+                if (success) {
+                    this.messageQueue.shift(); // Remove from queue
+                    // Cooldown between messages
+                    await new Promise(r => setTimeout(r, QUEUE_PROCESS_INTERVAL));
                 } else {
-                    console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
-                    await new Promise(r => setTimeout(r, 30000)); // Wait longer before retry
+                    item.retries++;
+                    if (item.retries >= MAX_SEND_RETRIES) {
+                        console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
+                        this.messageQueue.shift();
+                    } else {
+                        console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
+                        await new Promise(r => setTimeout(r, 30000)); // Wait longer before retry
+                    }
                 }
             }
+        } catch (error: any) {
+             console.error(`[WhatsApp] ⚠️ Unexpected error in queue processing: ${error.message}`);
+        } finally {
+            // Guarantee the queue is unlocked regardless of errors
+            this.isProcessingQueue = false;
         }
-
-        this.isProcessingQueue = false;
     }
 
     /**
@@ -318,9 +333,13 @@ class WhatsAppService {
                         { userJid: this.sock.user?.id || '' }
                     );
 
-                    await this.sock.relayMessage(this.channelJid!, msg.message!, {
-                        messageId: msg.key.id!
-                    });
+                    await withTimeout(
+                        this.sock.relayMessage(this.channelJid!, msg.message!, {
+                            messageId: msg.key.id!
+                        }),
+                        20000,
+                        "WhatsApp API timeout (relayMessage)"
+                    );
                     
                     console.log(`[WhatsApp] ✅ Sent successfully with rich preview: ${article.title}`);
                     return true;
@@ -330,7 +349,11 @@ class WhatsAppService {
             }
 
             // 4. Fallback: plain text
-            await this.sock.sendMessage(this.channelJid!, { text });
+            await withTimeout(
+                this.sock.sendMessage(this.channelJid!, { text }),
+                20000,
+                "WhatsApp API timeout (sendMessage)"
+            );
             console.log(`[WhatsApp] ✅ Sent successfully (text only): ${article.title}`);
             return true;
 
