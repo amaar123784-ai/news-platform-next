@@ -90,9 +90,11 @@ api.interceptors.response.use(
                 isRefreshing = false;
                 onRefreshFailure();
 
-                // Refresh failed — redirect to login
+                // Refresh failed — clear pending requests
                 if (typeof window !== 'undefined') {
-                    window.location.href = '/login';
+                    // console.warn('[API] Token refresh failed');
+                    // We let the application layout or AuthContext handle the redirection,
+                    // rather than forcing a redirect on every failed API call (such as background checks).
                 }
             }
         }
