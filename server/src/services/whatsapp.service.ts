@@ -312,7 +312,7 @@ class WhatsAppService {
             }
 
             // 3. Send with rich preview if possible
-            if (jpegThumbnail) {
+            if (jpegThumbnail && this.sock?.user?.id) {
                 try {
                     const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
                     const msg = generateWAMessageFromContent(
@@ -330,7 +330,7 @@ class WhatsAppService {
                                 previewType: 0,
                             }
                         }),
-                        { userJid: this.sock.user?.id || '' }
+                        { userJid: this.sock.user.id }
                     );
 
                     await withTimeout(
