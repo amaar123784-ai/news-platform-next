@@ -1,5 +1,4 @@
-import baileys from '@whiskeysockets/baileys';
-const { default: makeWASocket, useMultiFileAuthState } = baileys;
+import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
 
 async function run() {
     const { state } = await useMultiFileAuthState('./whatsapp-auth');
