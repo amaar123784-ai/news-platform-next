@@ -23,7 +23,7 @@ interface GrowthChartProps {
 }
 
 // Design System Colors
-const PRIMARY_COLOR = '#2563EB';
+const PRIMARY_COLOR = '#38BDF8';
 const SECONDARY_COLOR = '#94A3B8'; // gray-400
 
 export const GrowthChart: React.FC<GrowthChartProps> = ({ className = '', data = [] }) => {

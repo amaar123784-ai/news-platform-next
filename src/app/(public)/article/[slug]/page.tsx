@@ -264,12 +264,18 @@ export default async function ArticlePage({ params }: Props) {
                                                     <Icon name="ri-price-tag-3-line" />
                                                     الوسوم:
                                                 </span>
-                                                {article.tags.map((tagItem: any) => (
-                                                    <Tag key={tagItem.tag?.id || tagItem.name}
-                                                        className="hover:bg-primary hover:text-white transition-colors cursor-pointer px-4 py-1.5 text-sm bg-gray-50 border-transparent">
-                                                        {tagItem.tag?.name || tagItem}
-                                                    </Tag>
-                                                ))}
+                                                {article.tags.map((tagItem: any) => {
+                                                    const tagSlug = tagItem.tag?.slug || tagItem.slug || tagItem;
+                                                    const tagName = tagItem.tag?.name || tagItem.name || tagItem;
+                                                    return (
+                                                        <Link key={tagItem.tag?.id || tagItem.id || tagSlug} href={`/tag/${tagSlug}`}>
+                                                            <Tag
+                                                                className="hover:bg-primary hover:text-white transition-colors cursor-pointer px-4 py-1.5 text-sm bg-gray-50 border-transparent">
+                                                                {tagName}
+                                                            </Tag>
+                                                        </Link>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}

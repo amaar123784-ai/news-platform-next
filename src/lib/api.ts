@@ -69,6 +69,7 @@ export interface PaginatedResponse<T> {
 
 export async function getArticles(params?: {
     category?: string;
+    tag?: string;
     page?: number;
     perPage?: number;
     status?: string;
@@ -77,6 +78,7 @@ export async function getArticles(params?: {
 }): Promise<PaginatedResponse<Article>> {
     const searchParams = new URLSearchParams();
     if (params?.category) searchParams.set("category", params.category);
+    if (params?.tag) searchParams.set("tag", params.tag);
     if (params?.page) searchParams.set("page", String(params.page));
     if (params?.perPage) searchParams.set("perPage", String(params.perPage));
     if (params?.status) searchParams.set("status", params.status);

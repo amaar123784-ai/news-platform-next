@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import Image from 'next/image';
 
 export interface AvatarProps {
     /** Avatar size from design system */
@@ -35,6 +36,13 @@ const sizeClasses = {
     lg: 'w-16 h-16 text-lg',
 };
 
+// Numeric dimensions for next/image
+const sizeDimensions = {
+    sm: 32,
+    md: 40,
+    lg: 64,
+};
+
 const getInitials = (name: string): string => {
     const words = name.trim().split(' ');
     if (words.length >= 2) {
@@ -55,11 +63,12 @@ export const Avatar: React.FC<AvatarProps> = ({
 
     if (src && !placeholder) {
         return (
-            <img
+            <Image
                 src={src}
                 alt={alt || name || 'User avatar'}
+                width={sizeDimensions[size]}
+                height={sizeDimensions[size]}
                 className={`${baseClasses} object-cover ${className}`}
-                loading="lazy"
             />
         );
     }

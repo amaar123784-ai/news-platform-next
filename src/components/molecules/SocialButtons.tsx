@@ -95,6 +95,7 @@ export const SocialButtons: React.FC<SocialButtonsProps> = ({ onSuccess, isLoadi
                     onClick={handleGoogleLogin}
                     disabled={isLoading}
                     className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    aria-label="تسجيل الدخول باستخدام جوجل"
                 >
                     <Icon name="ri-google-fill" className="text-red-500" />
                     <span className="text-sm font-medium text-gray-700">جوجل</span>
@@ -106,6 +107,7 @@ export const SocialButtons: React.FC<SocialButtonsProps> = ({ onSuccess, isLoadi
                     onClick={handleFacebookLogin}
                     disabled={isLoading}
                     className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    aria-label="تسجيل الدخول باستخدام فيسبوك"
                 >
                     <Icon name="ri-facebook-box-fill" className="text-blue-600" />
                     <span className="text-sm font-medium text-gray-700">فيسبوك</span>

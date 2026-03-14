@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { automationService, AutomationQueueItem } from '@/services/automation.service';
 import {
@@ -118,11 +119,15 @@ function QueueItem({ item, onRetry }: { item: AutomationQueueItem; onRetry: (id:
 
                 <div className="flex-shrink-0">
                     {item.rssArticle.imageUrl && (
-                        <img
-                            src={item.rssArticle.imageUrl}
-                            alt=""
-                            className="w-20 h-14 object-cover rounded"
-                        />
+                        <div className="relative w-20 h-14">
+                            <Image
+                                src={item.rssArticle.imageUrl}
+                                alt=""
+                                fill
+                                sizes="80px"
+                                className="object-cover rounded"
+                            />
+                        </div>
                     )}
                 </div>
             </div>

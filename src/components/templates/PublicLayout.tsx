@@ -54,10 +54,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
             {/* Header */}
             <Header />
 
-            {/* Breaking News */}
-            {showBreakingNews && (
-                <BreakingNewsTicker items={finalBreakingNews} />
-            )}
+            {/* Breaking News - Reserved height to prevent CLS */}
+            <div className="min-h-[40px] bg-gray-50">
+                {showBreakingNews && (
+                    <BreakingNewsTicker items={finalBreakingNews} />
+                )}
+            </div>
 
             {/* Main Content */}
             <main className="flex-1">

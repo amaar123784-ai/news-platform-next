@@ -52,7 +52,7 @@ body {
    WCAG 2.4.7 compliant
    ============================================ */
 :focus-visible {
-  outline: 2px solid #38BDF8;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -62,8 +62,8 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
-  border-color: #38BDF8;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  border-color: var(--color-primary);
 }
 
 /* ============================================
@@ -86,12 +86,14 @@ textarea:focus-visible {
   min-width: 100%;
 }
 
-.animate-marquee-continuous:hover {
-  animation-play-state: paused;
-}
+@media (hover: hover) {
+  .animate-marquee-continuous:hover {
+    animation-play-state: paused;
+  }
 
-.marquee:hover {
-  animation-play-state: paused;
+  .marquee:hover {
+    animation-play-state: paused;
+  }
 }
 
 /* Paused state for ticker (keyboard accessible) */
@@ -102,37 +104,39 @@ textarea:focus-visible {
 /* ============================================
    CARD EFFECTS
    ============================================ */
-.news-card:hover {
-  transform: translateY(-2px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
+@media (hover: hover) {
+  .news-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  .stat-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .card-elevated:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
 }
 
 .card-elevated {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-.card-elevated:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
 /* ============================================
    MISC UI
    ============================================ */
 .breaking-news-bg {
-  background: linear-gradient(90deg, #38BDF8 0%, #0284c7 100%);
+  background: linear-gradient(90deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary), black 20%) 100%);
 }
 
 /* Custom checkbox */
 .custom-checkbox {
   appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 2px solid #d1d5db;
+  width: 1.5rem; /* Increased for touch target compliance (WCAG 2.5.8) */
+  height: 1.5rem;
+  border: 2px solid #d1d5db; /* gray-300 is standard for borders */
   border-radius: 4px;
   background-color: white;
   position: relative;
@@ -141,8 +145,8 @@ textarea:focus-visible {
 }
 
 .custom-checkbox:checked {
-  background-color: #38BDF8;
-  border-color: #38BDF8;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .custom-checkbox:checked::after {
@@ -152,18 +156,18 @@ textarea:focus-visible {
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: bold;
 }
 
 .custom-checkbox:focus-visible {
-  outline: 2px solid #38BDF8;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 /* Category tab active state */
 .category-tab.active {
-  background-color: #38BDF8;
+  background-color: var(--color-primary);
   color: white;
 }
 
@@ -203,8 +207,10 @@ a {
 }
 
 /* Table row hover */
-tr:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+@media (hover: hover) {
+  tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
 }
 
 /* RTL-specific */

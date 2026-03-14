@@ -138,15 +138,33 @@ export default function ContactPage() {
                                 <h3 className="font-bold text-blue-900 mb-2">تابعنا</h3>
                                 <p className="text-sm text-blue-800 mb-4">كن على اطلاع دائم بآخر الأخبار</p>
                                 <div className="flex justify-center gap-3">
-                                    {['ri-facebook-fill', 'ri-twitter-x-fill', 'ri-telegram-fill'].map((icon) => (
-                                        <a
-                                            key={icon}
-                                            href="#"
-                                            className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
-                                        >
-                                            <Icon name={icon} />
-                                        </a>
-                                    ))}
+                                    <a
+                                        href="https://facebook.com/voiceoftihama"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
+                                        aria-label="تابعنا على فيسبوك"
+                                    >
+                                        <Icon name="ri-facebook-fill" />
+                                    </a>
+                                    <a
+                                        href="https://twitter.com/voiceoftihama"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
+                                        aria-label="تابعنا على تويتر"
+                                    >
+                                        <Icon name="ri-twitter-x-fill" />
+                                    </a>
+                                    <a
+                                        href="https://telegram.me/voiceoftihama"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
+                                        aria-label="تابعنا على تيليجرام"
+                                    >
+                                        <Icon name="ri-telegram-fill" />
+                                    </a>
                                 </div>
                             </div>
                         </div>

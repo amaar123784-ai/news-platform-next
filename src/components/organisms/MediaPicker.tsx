@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon, Modal } from '@/components/atoms';
 import { ConfirmModal } from '@/components/molecules';
@@ -133,6 +134,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
                         onClick={() => setViewMode('grid')}
                         className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow text-primary' : 'text-gray-500 hover:text-gray-700'
                             }`}
+                        aria-label="عرض الشبكة"
                     >
                         <Icon name="ri-grid-line" />
                     </button>
@@ -140,6 +142,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
                         onClick={() => setViewMode('list')}
                         className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow text-primary' : 'text-gray-500 hover:text-gray-700'
                             }`}
+                        aria-label="عرض القائمة"
                     >
                         <Icon name="ri-list-check" />
                     </button>
@@ -167,12 +170,13 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
                                 className="relative group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md cursor-pointer"
                                 onClick={() => handleFileClick(file)}
                             >
-                                <div className="aspect-square">
-                                    <img
+                                <div className="aspect-square relative">
+                                    <Image
                                         src={getMediaUrl(file.url)}
                                         alt={file.alt || file.filename}
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
+                                        fill
+                                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                                        className="object-cover"
                                     />
                                 </div>
 
@@ -216,7 +220,15 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
                                 className="flex items-center p-2 bg-white border rounded-lg hover:bg-gray-50 cursor-pointer gap-3"
                                 onClick={() => handleFileClick(file)}
                             >
-                                <img src={getMediaUrl(file.url)} className="w-10 h-10 rounded object-cover" />
+                                <div className="relative w-10 h-10 shrink-0">
+                                    <Image
+                                        src={getMediaUrl(file.url)}
+                                        alt={file.alt || file.filename}
+                                        fill
+                                        sizes="40px"
+                                        className="rounded object-cover"
+                                    />
+                                </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">{file.filename}</p>
                                     <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
@@ -283,11 +295,14 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
             >
                 {previewFile && (
                     <div className="space-y-4">
-                        <img
-                            src={getMediaUrl(previewFile.url)}
-                            alt={previewFile.filename}
-                            className="w-full rounded-lg"
-                        />
+                        <div className="relative w-full h-[60vh]">
+                            <Image
+                                src={getMediaUrl(previewFile.url)}
+                                alt={previewFile.filename}
+                                fill
+                                className="rounded-lg object-contain"
+                            />
+                        </div>
                         <div className="flex gap-3 pt-4 border-t">
                             {onSelect ? (
                                 <Button variant="primary" onClick={() => { onSelect(previewFile); setPreviewFile(null); }}>

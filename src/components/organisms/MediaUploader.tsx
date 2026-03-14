@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import Image from 'next/image';
 import { Button, Icon } from '@/components/atoms';
 
 export interface MediaUploaderProps {
@@ -202,10 +203,12 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                             key={index}
                             className="relative group rounded-lg overflow-hidden bg-gray-100 aspect-square"
                         >
-                            <img
+                            <Image
                                 src={preview.url}
                                 alt={preview.file.name}
-                                className="w-full h-full object-cover"
+                                fill
+                                unoptimized
+                                className="object-cover"
                             />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button

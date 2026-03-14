@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon } from '@/components/atoms';
@@ -26,12 +27,15 @@ const ArticleRow = ({ article, selected, onToggle, onApprove, onReject, onRewrit
             />
 
             {article.imageUrl && (
-                <img
-                    src={article.imageUrl}
-                    alt=""
-                    className="w-24 h-16 object-cover rounded flex-shrink-0"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
+                <div className="w-24 h-16 relative flex-shrink-0">
+                    <Image
+                        src={article.imageUrl}
+                        alt={`صورة مقال: ${article.rewrittenTitle || article.title}`}
+                        fill
+                        sizes="96px"
+                        className="object-cover rounded"
+                    />
+                </div>
             )}
 
             <div className="flex-1 min-w-0">
@@ -496,7 +500,15 @@ export default function RSSModerationPage() {
                                     `}
                                 >
                                     {source.logoUrl ? (
-                                        <img src={source.logoUrl} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />
+                                        <div className="relative w-4 h-4 shrink-0">
+                                            <Image
+                                                src={source.logoUrl}
+                                                alt=""
+                                                fill
+                                                sizes="16px"
+                                                className="rounded object-cover"
+                                            />
+                                        </div>
                                     ) : (
                                         <Icon name="ri-rss-line" size="sm" className="flex-shrink-0" />
                                     )}
@@ -587,7 +599,15 @@ export default function RSSModerationPage() {
                                         <div className="px-4 py-3 bg-gray-50 border-y border-gray-100 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 {group.source.logoUrl ? (
-                                                    <img src={group.source.logoUrl} alt="" className="w-6 h-6 object-contain rounded" />
+                                                    <div className="relative w-6 h-6 shrink-0">
+                                                        <Image
+                                                            src={group.source.logoUrl}
+                                                            alt=""
+                                                            fill
+                                                            sizes="24px"
+                                                            className="object-contain rounded"
+                                                        />
+                                                    </div>
                                                 ) : <Icon name="ri-rss-line" className="text-gray-400" />}
                                                 <h3 className="font-bold text-gray-800">{group.source.name}</h3>
                                                 <span className="text-xs bg-white border px-2 py-0.5 rounded text-gray-500">

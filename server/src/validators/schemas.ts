@@ -48,6 +48,7 @@ export const articleQuerySchema = z.object({
     page: z.coerce.number().min(1).default(1),
     perPage: z.coerce.number().min(1).max(50).default(10),
     category: z.string().optional(),
+    tag: z.string().optional(),
     status: z.string().transform(v => v?.toUpperCase()).pipe(z.enum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'])).optional(),
     authorId: z.string().uuid().optional(),
     search: z.string().optional(),

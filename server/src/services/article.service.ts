@@ -17,6 +17,7 @@ interface ArticleQuery {
     page: number;
     perPage: number;
     category?: string;
+    tag?: string;
     status?: string;
     authorId?: string;
     search?: string;
@@ -38,6 +39,7 @@ interface CreateArticleData {
     categoryId: string;
     status?: string;
     imageUrl?: string | null;
+    tags?: string[];
     seoTitle?: string;
     seoDesc?: string;
     isBreaking?: boolean;
@@ -48,7 +50,7 @@ interface UpdateArticleData {
     excerpt?: string;
     content?: string;
     categoryId?: string;
-    tags?: any;
+    tags?: string[];
     status?: string;
     imageUrl?: string | null;
     seoTitle?: string;
@@ -76,6 +78,7 @@ export function generateSlug(title: string): string {
 const ARTICLE_LIST_INCLUDE = {
     author: { select: { id: true, name: true, avatar: true } },
     category: { select: { id: true, name: true, slug: true, color: true } },
+    tags: { include: { tag: true } },
     _count: { select: { comments: true } },
 };
 
@@ -108,7 +111,7 @@ const ARTICLE_BASIC_INCLUDE = {
  * List articles with filtering, pagination, and search
  */
 export async function listArticles(query: ArticleQuery, user?: ArticleUser | null) {
-    const { page, perPage, category, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
+    const { page, perPage, category, tag, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
 
     // Build where clause
     const where: any = {};
@@ -121,6 +124,15 @@ export async function listArticles(query: ArticleQuery, user?: ArticleUser | nul
     }
 
     if (category) where.category = { slug: category };
+    if (tag) {
+        where.tags = {
+            some: {
+                tag: {
+                    slug: tag
+                }
+            }
+        };
+    }
     if (authorId) where.authorId = authorId;
 
     // Filter by isBreaking or isFeatured

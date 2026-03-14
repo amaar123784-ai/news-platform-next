@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon, Modal } from '@/components/atoms';
 import { ConfirmModal } from '@/components/molecules';
@@ -203,14 +204,15 @@ export default function MediaLibraryPage() {
                                 </div>
 
                                 <div
-                                    className="aspect-square cursor-pointer"
+                                    className="aspect-square cursor-pointer relative"
                                     onClick={() => setPreviewFile(file)}
                                 >
-                                    <img
+                                    <Image
                                         src={getMediaUrl(file.url)}
                                         alt={file.alt || file.filename}
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
+                                        fill
+                                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                                        className="object-cover"
                                     />
                                 </div>
 
@@ -261,11 +263,15 @@ export default function MediaLibraryPage() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
-                                                <img
-                                                    src={getMediaUrl(file.url)}
-                                                    alt={file.filename}
-                                                    className="w-12 h-12 rounded object-cover"
-                                                />
+                                                <div className="relative w-12 h-12 shrink-0">
+                                                    <Image
+                                                        src={getMediaUrl(file.url)}
+                                                        alt={file.filename}
+                                                        fill
+                                                        sizes="48px"
+                                                        className="rounded object-cover"
+                                                    />
+                                                </div>
                                                 <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
                                                     {file.filename}
                                                 </span>
@@ -350,11 +356,14 @@ export default function MediaLibraryPage() {
             <Modal isOpen={!!previewFile} onClose={() => setPreviewFile(null)} title={previewFile?.filename || 'معاينة'} width="max-w-4xl">
                 {previewFile && (
                     <div className="space-y-4">
-                        <img
-                            src={getMediaUrl(previewFile.url)}
-                            alt={previewFile.filename}
-                            className="w-full rounded-lg"
-                        />
+                        <div className="relative w-full h-[60vh]">
+                            <Image
+                                src={getMediaUrl(previewFile.url)}
+                                alt={previewFile.filename}
+                                fill
+                                className="rounded-lg object-contain"
+                            />
+                        </div>
                         <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                             <div><span className="font-medium">الحجم:</span> {formatFileSize(previewFile.size)}</div>
                             <div><span className="font-medium">النوع:</span> {previewFile.type}</div>
@@ -378,15 +387,15 @@ export default function MediaLibraryPage() {
                 )}
             </Modal>
 
+            {/* Delete Confirmation */}
             <ConfirmModal
                 isOpen={!!deleteTarget}
                 onClose={() => setDeleteTarget(null)}
                 onConfirm={handleDelete}
                 title="حذف الملف"
                 message={`هل أنت متأكد من حذف "${deleteTarget?.filename}"؟ لا يمكن التراجع عن هذا الإجراء.`}
-                confirmLabel="حذف"
-                cancelLabel="إلغاء"
-                isDestructive
+                confirmText="حذف"
+                confirmVariant="danger"
             />
         </div>
     );

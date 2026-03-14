@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Button, Icon } from '@/components/atoms';
 import { DataTable } from '@/components/organisms';
 import { TableSkeleton } from '@/components/molecules';
@@ -62,15 +63,14 @@ export function SourceTable({
                     header: 'المصدر',
                     render: (source: RSSSource) => (
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                                 {source.logoUrl ? (
-                                    <img
+                                    <Image
                                         src={source.logoUrl}
-                                        alt=""
-                                        className="w-full h-full object-contain"
-                                        onError={(e) => {
-                                            e.currentTarget.style.display = 'none';
-                                        }}
+                                        alt={source.name}
+                                        fill
+                                        sizes="32px"
+                                        className="object-contain"
                                     />
                                 ) : (
                                     <Icon name="ri-rss-line" className="text-gray-400" />

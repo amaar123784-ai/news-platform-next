@@ -7,6 +7,7 @@
  */
 
 import { RSSArticle } from '@/services/rss';
+import Image from 'next/image';
 
 interface AggregatedNewsCardProps {
     article: RSSArticle;
@@ -35,12 +36,13 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
             >
                 {/* Compact Image */}
                 {article.imageUrl && (
-                    <div className="flex-shrink-0 w-20 h-16 overflow-hidden rounded-md">
-                        <img
+                    <div className="flex-shrink-0 w-20 h-16 overflow-hidden rounded-md relative">
+                        <Image
                             src={article.imageUrl}
                             alt={article.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
+                            fill
+                            sizes="80px"
+                            className="object-cover"
                         />
                     </div>
                 )}
@@ -75,11 +77,13 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
                 {/* Featured Image */}
                 {article.imageUrl && (
                     <div className="relative h-56 overflow-hidden">
-                        <img
+                        <Image
                             src={article.imageUrl}
                             alt={article.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            loading="lazy"
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            priority={true}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
@@ -147,11 +151,12 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
             {/* Image */}
             {article.imageUrl && (
                 <div className="relative h-40 overflow-hidden">
-                    <img
+                    <Image
                         src={article.imageUrl}
                         alt={article.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                 </div>
             )}

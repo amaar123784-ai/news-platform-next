@@ -93,6 +93,17 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
                 priority: 0.8,
             });
         }
+
+        // Tag/Topic pages (Hubs)
+        const activeTags = ['tihama-issue', 'tihama-movement', 'tihama-oppression', 'yemen-news'];
+        for (const tag of activeTags) {
+            entries.push({
+                url: `${SITE_URL}/tag/${tag}`,
+                lastModified: new Date(),
+                changeFrequency: 'always',
+                priority: 0.9, // Higher priority for topic hubs
+            });
+        }
     }
 
     // Fetch paginated articles for this sitemap segment

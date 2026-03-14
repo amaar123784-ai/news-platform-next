@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon, StatusBadge, Modal } from '@/components/atoms';
@@ -346,17 +347,20 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                             >
                                 {formData.imageUrl ? (
                                     <>
-                                        <img
-                                            src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${formData.imageUrl}`}
-                                            alt="Featured"
-                                            className="w-full h-40 object-cover rounded-md"
-                                        />
+                                        <div className="relative w-full h-40">
+                                            <Image
+                                                src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${formData.imageUrl}`}
+                                                alt="Featured"
+                                                fill
+                                                className="object-cover rounded-md"
+                                            />
+                                        </div>
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                                             <div className="flex gap-2">
-                                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsMediaOpen(true); }} className="bg-primary text-white p-2 rounded-full">
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsMediaOpen(true); }} className="bg-primary text-white p-2 rounded-full relative z-10">
                                                     <Icon name="ri-pencil-line" />
                                                 </button>
-                                                <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({ ...formData, imageUrl: '' }); }} className="bg-red-600 text-white p-2 rounded-full">
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({ ...formData, imageUrl: '' }); }} className="bg-red-600 text-white p-2 rounded-full relative z-10">
                                                     <Icon name="ri-delete-bin-line" />
                                                 </button>
                                             </div>
@@ -388,8 +392,13 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                         <p className="text-xl text-gray-600">{formData.excerpt}</p>
                     </div>
                     {formData.imageUrl && (
-                        <div className="aspect-video w-full rounded-xl overflow-hidden mb-8 bg-gray-100">
-                            <img src={formData.imageUrl} alt={formData.title} className="w-full h-full object-cover" />
+                        <div className="aspect-video w-full rounded-xl overflow-hidden mb-8 bg-gray-100 relative">
+                            <Image
+                                src={formData.imageUrl}
+                                alt={formData.title}
+                                fill
+                                className="object-cover"
+                            />
                         </div>
                     )}
                     <ArticleContent content={formData.content} />

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from "next/navigation";
 import { getArticles } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
@@ -59,15 +60,42 @@ export default async function AuthorPage({ params, searchParams }: AuthorPagePro
     const author = articles[0]?.author;
     const authorName = author?.name || 'محرر';
 
+    // JSON-LD for E-E-A-T
+    const profileSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'ProfilePage',
+        'mainEntity': {
+            '@type': 'Person',
+            'name': authorName,
+            'description': author?.bio || `الكاتب والمحرر في منصة صوت تهامة`,
+            'jobTitle': 'صحفي',
+            'url': `${siteUrl}/author/${slug}`,
+            'image': author?.avatar ? author.avatar : undefined,
+            'knowsAbout': ['القضية التهامية', 'أخبار اليمن', 'الحراك التهامي']
+        }
+    };
+
     return (
-        <main className="min-h-screen bg-gray-50 py-6 sm:py-8">
+        <>
+            {/* ProfilePage JSON-LD for E-E-A-T */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(profileSchema) }}
+            />
+            <main className="min-h-screen bg-gray-50 py-6 sm:py-8">
             <Container>
                 {/* Author Header */}
                 <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 shrink-0 overflow-hidden">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 shrink-0 overflow-hidden relative">
                             {author?.avatar ? (
-                                <img src={author.avatar} alt={authorName} className="w-full h-full object-cover" />
+                                <Image
+                                    src={author.avatar}
+                                    alt={authorName}
+                                    fill
+                                    sizes="(max-width: 640px) 64px, 80px"
+                                    className="object-cover"
+                                />
                             ) : (
                                 <Icon name="ri-user-line" size="2xl" />
                             )}
