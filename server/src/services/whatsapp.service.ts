@@ -119,18 +119,30 @@ class WhatsAppService {
      */
     private async listChannels(): Promise<void> {
         try {
-            if (this.sock?.newsletterSubscriptions) {
-                const newsletters = await this.sock.newsletterSubscriptions();
-                console.log('\n--- WhatsApp Channels (Newsletters) ---');
-                if (newsletters && newsletters.length > 0) {
-                    newsletters.forEach((nl: any) => {
-                        console.log(`  - ${nl.name || 'Unnamed'}: ${nl.id}`);
-                    });
-                } else {
-                    console.log('  No subscribed channels found.');
-                }
-                console.log('---------------------------------------\n');
+            console.log('[WhatsApp] Attempting to fetch channels...');
+            
+            // Log available methods to see what Baileys version supports
+            const newsletterMethods = Object.keys(this.sock || {}).filter(k => k.toLowerCase().includes('newsletter'));
+            console.log('[WhatsApp] Available newsletter methods:', newsletterMethods);
+
+            let newsletters = [];
+            
+            if (typeof this.sock?.newsletterSubscribed === 'function') {
+                newsletters = await this.sock.newsletterSubscribed();
+            } else if (typeof this.sock?.newsletterSubscriptions === 'function') {
+                newsletters = await this.sock.newsletterSubscriptions();
             }
+
+            console.log('\n--- WhatsApp Channels (Newsletters) ---');
+            if (newsletters && newsletters.length > 0) {
+                newsletters.forEach((nl: any) => {
+                    console.log(`  - ${nl.name || 'Unnamed'}: ${nl.id}`);
+                });
+            } else {
+                console.log('  No subscribed channels found (or could not fetch).');
+            }
+            console.log('---------------------------------------\n');
+            
         } catch (error: any) {
             console.log('[WhatsApp] Could not list channels:', error.message);
         }
