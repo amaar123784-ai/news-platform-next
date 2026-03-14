@@ -146,6 +146,7 @@ export default async function AuthorPage({ params, searchParams }: AuthorPagePro
                     </div>
                 )}
             </Container>
-        </main>
+            </main>
+        </>
     );
 }
