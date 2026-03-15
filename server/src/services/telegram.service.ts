@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 
@@ -51,51 +52,12 @@ class TelegramService {
         }
     }
 
-    /**
-     * Robust HTML stripper to prevent Telegram parsing errors
-     */
-    private stripAllHtml(html: string): string {
-        if (!html) return '';
-        return html
-            .replace(/<[^>]*>?/gm, '') // Remove all tags
-            .replace(/&nbsp;/g, ' ')   // Replace entities
-            .trim();
-    }
-
-    private truncateText(text: string, maxLen: number): string {
-        if (text.length <= maxLen) return text;
-        return text.slice(0, maxLen).trim() + '…';
-    }
-
-    private escapeHtml(text: string): string {
-        if (!text) return '';
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
-    private buildMessage(article: any): string {
-        // STRIP ALL HTML before re-wrapping in Telegram safe tags
-        const title = this.escapeHtml(this.stripAllHtml(article.title || ''));
-        const excerpt = this.escapeHtml(this.stripAllHtml(article.excerpt || ''));
-        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-
-        const message = `<b>${title}</b>\n\n${excerpt}\n\n🔗 <a href="${articleUrl}">اقرأ المزيد على منصة صوت تهامة</a>`;
-
-        if (message.length <= MESSAGE_MAX_LENGTH) return message;
-
-        const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 100);
-        const excerptTrimmed = this.truncateText(excerpt, Math.max(50, excerptMax));
-        return `<b>${title}</b>\n\n${excerptTrimmed}\n\n🔗 <a href="${articleUrl}">اقرأ المزيد على منصة صوت تهامة</a>`;
-    }
-
     public async sendArticleToTelegram(article: any): Promise<TelegramResult> {
         if (!this.isEnabled || !this.botToken || !this.channelId) {
             return { success: false, error: 'Telegram service disabled or missing credentials' };
         }
 
-        const text = this.buildMessage(article);
+        const text = buildUnifiedMessage(article, 'TELEGRAM', this.platformUrl);
         
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -147,9 +109,9 @@ class TelegramService {
             return this.sendArticleToTelegram(article);
         }
 
-        const caption = this.buildMessage(article);
+        const text = buildUnifiedMessage(article, 'TELEGRAM', this.platformUrl);
         // Telegram caption limit is shorter than message limit
-        const safeCaption = caption.length > 1024 ? caption.substring(0, 1020) + '…' : caption;
+        const safeCaption = text.length > 1024 ? text.substring(0, 1020) + '…' : text;
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {

@@ -1,4 +1,8 @@
-import { SocialPlatform } from '@prisma/client';
+/**
+ * Unified Social Media Message Builder
+ * 
+ * Standardizes the "Voice of Tihama" brand voice across all distribution channels.
+ */
 
 /**
  * Strips all HTML tags from a string
@@ -20,9 +24,9 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Standard Footer with Voice of Tihama social links
+ * Returns the standardized footer with social links
  */
-const getFooter = () => {
+const getFooter = (isHtml: boolean) => {
     const links = {
         facebook: process.env.FACEBOOK_URL || 'https://facebook.com/voiceoftihama',
         telegram: process.env.TELEGRAM_URL || 'https://t.me/voiceoftihama',
@@ -30,7 +34,17 @@ const getFooter = () => {
         x: process.env.X_URL || 'https://x.com/voiceoftihama'
     };
 
-    return `\n\n---\n📱 تابعوا "صوت تهامة" عبر منصاتنا:\n` +
+    const header = '\n\n---\n📱 تابعوا "صوت تهامة" عبر منصاتنا:\n';
+    
+    if (isHtml) {
+        return `${header}` +
+               `🔵 <a href="${links.facebook}">فيسبوك</a> | ` +
+               `✈️ <a href="${links.telegram}">تيليجرام</a>\n` +
+               `🟢 <a href="${links.whatsapp}">واتساب</a> | ` +
+               `𝕏 <a href="${links.x}">تويتر</a>`;
+    }
+
+    return `${header}` +
            `🔵 فيسبوك: ${links.facebook}\n` +
            `✈️ تيليجرام: ${links.telegram}\n` +
            `🟢 واتساب: ${links.whatsapp}\n` +
@@ -38,30 +52,34 @@ const getFooter = () => {
 };
 
 /**
- * Unified Message Builder for Social Platforms
+ * Build a unified message for social platforms
  */
-export function buildUnifiedMessage(article: any, platform: SocialPlatform, siteUrl: string): string {
-    const rawTitle = article.aiRewrittenTitle || article.title || '';
+export function buildUnifiedMessage(
+    article: any, 
+    platform: 'TELEGRAM' | 'WHATSAPP' | 'WEBHOOK', 
+    siteUrl: string
+): string {
+    const rawTitle = article.aiRewrittenTitle || article.title || 'صوت تهامة';
     const rawExcerpt = article.aiRewrittenExcerpt || article.excerpt || '';
     const articleUrl = `${siteUrl}/article/${article.slug || article.id}`;
 
-    // Clean data
-    const title = stripHtml(rawTitle);
-    const excerpt = stripHtml(rawExcerpt);
+    // 1. Clean and Prepare Data
+    const cleanTitle = stripHtml(rawTitle);
+    const cleanExcerpt = stripHtml(rawExcerpt);
 
-    if (platform === SocialPlatform.TELEGRAM) {
-        // HTML Formatting for Telegram
-        const head = `🔴 <b>${escapeHtml(title)}</b>`;
-        const body = `📝 ${escapeHtml(excerpt)}`;
+    // 2. Platform Specific Formatting
+    if (platform === 'TELEGRAM') {
+        const head = `🔴 <b>${escapeHtml(cleanTitle)}</b>`;
+        const body = `📝 ${escapeHtml(cleanExcerpt)}`;
         const cta = `🔗 <b>التفاصيل كاملة:</b> <a href="${articleUrl}">اضغط هنا</a>`;
         
-        return `${head}\n\n${body}\n\n${cta}${getFooter()}`;
-    } else {
-        // Plain Text Formatting for WhatsApp and Facebook
-        const head = `🔴 *${title}*`;
-        const body = `📝 ${excerpt}`;
-        const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
+        return `${head}\n\n${body}\n\n${cta}${getFooter(true)}`;
+    } 
+    
+    // Default for WhatsApp and Webhook
+    const head = `🔴 *${cleanTitle}*`;
+    const body = `📝 ${cleanExcerpt}`;
+    const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
 
-        return `${head}\n\n${body}\n\n${cta}${getFooter()}`;
-    }
+    return `${head}\n\n${body}\n\n${cta}${getFooter(false)}`;
 }

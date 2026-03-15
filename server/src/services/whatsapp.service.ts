@@ -201,7 +201,7 @@ class WhatsAppService {
     private async attemptSend(article: any): Promise<boolean> {
         try {
             // UNIFIED MESSAGE BUILDER
-            const text = buildUnifiedMessage(article, SocialPlatform.WHATSAPP, this.platformUrl);
+            const text = buildUnifiedMessage(article, 'WHATSAPP', this.platformUrl);
             const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
 
             console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
