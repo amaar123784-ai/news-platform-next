@@ -28,9 +28,9 @@ function escapeHtml(text: string): string {
  */
 const getFooter = (isHtml: boolean) => {
     const links = {
-        facebook: process.env.FACEBOOK_URL || 'https://facebook.com/voiceoftihama',
-        telegram: process.env.TELEGRAM_URL || 'https://t.me/voiceoftihama',
-        whatsapp: process.env.WHATSAPP_CHANNEL_URL || 'https://whatsapp.com/channel/voiceoftihama',
+        facebook: process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61586335597792',
+        telegram: process.env.TELEGRAM_URL || 'https://t.me/voiceoftihama6',
+        whatsapp: process.env.WHATSAPP_CHANNEL_URL || 'https://chat.whatsapp.com/Jtk05k0G8O81d861NJhSHU?mode=gi_t',
         x: process.env.X_URL || 'https://x.com/voiceoftihama'
     };
 
