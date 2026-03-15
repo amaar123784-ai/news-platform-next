@@ -15,10 +15,10 @@ class FacebookService {
 
     constructor() {
         this.pageId = process.env.FACEBOOK_PAGE_ID || null;
-        const token = process.env.FACEBOOK_PAGE_TOKEN || null;
+        this.pageToken = process.env.FACEBOOK_PAGE_TOKEN || null;
         this.isEnabled = process.env.FACEBOOK_ENABLE === 'true';
 
-        if (this.isEnabled && this.pageId && token) {
+        if (this.isEnabled && this.pageId && this.pageToken) {
             console.log('[Facebook] ✅ Service enabled. Page ID:', this.pageId);
             this.initialize();
         } else if (this.isEnabled) {
@@ -93,6 +93,11 @@ class FacebookService {
 
         const message = this.buildMessage(article);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+        
+        // Use full image URL for Facebook metadata
+        const fullImageUrl = article.imageUrl 
+            ? (article.imageUrl.startsWith('http') ? article.imageUrl : `${this.platformUrl}${article.imageUrl}`)
+            : null;
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -104,6 +109,7 @@ class FacebookService {
                     body: JSON.stringify({
                         message,
                         link: articleUrl,
+                        picture: fullImageUrl, // Explicitly include image
                         access_token: this.pageToken,
                     }),
                 });

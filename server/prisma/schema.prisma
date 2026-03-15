@@ -288,6 +288,9 @@ model RSSArticle {
   // Duplicate detection helpers
   titleHash      String?          @db.VarChar(64)           // SHA-256 of normalized title
   
+  // Category metadata from feed
+  rawCategories  String?          @db.Text                  // Raw category tags from RSS
+  
   // AI Rewriting fields
   rewrittenTitle    String?          @db.VarChar(500)
   rewrittenExcerpt  String?          @db.Text
@@ -318,6 +321,7 @@ model RSSArticle {
 
 enum AutomationStatus {
   PENDING         // Waiting for processing
+  SCRAPING        // Fetching full content
   AI_PROCESSING   // AI is rewriting
   AI_COMPLETED    // AI rewrite done
   PUBLISHING      // Creating platform article
@@ -326,6 +330,7 @@ enum AutomationStatus {
   SOCIAL_POSTING  // Currently posting to social
   COMPLETED       // All done
   FAILED          // Error occurred
+  FAILED_SCRAPE   // Scraper or validation failed
 }
 
 enum SocialPostStatus {

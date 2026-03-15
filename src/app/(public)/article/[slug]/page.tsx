@@ -29,6 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const imageUrl = getImageUrl(article.imageUrl);
     const absoluteImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${siteUrl}${imageUrl}`;
 
+    // Dynamic OG Image URL
+    const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent(article.title)}&category=${encodeURIComponent(article.category?.name || 'أخبار')}${absoluteImageUrl ? `&imageUrl=${encodeURIComponent(absoluteImageUrl)}` : ''}`;
+
     // Extract keywords from tags
     const keywords = article.tags?.map((t: any) => t.tag?.name || t).filter(Boolean) || [];
 
@@ -55,20 +58,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             publishedTime: article.publishedAt || article.createdAt,
             modifiedTime: article.updatedAt,
             authors: [article.author?.name || 'صوت تهامة'],
-            images: absoluteImageUrl ? [
+            images: [
                 {
-                    url: absoluteImageUrl,
+                    url: ogImageUrl,
                     width: 1200,
                     height: 630,
                     alt: article.title,
                 }
-            ] : [],
+            ],
         },
         twitter: {
             card: 'summary_large_image',
             title: article.title,
             description: article.excerpt,
-            images: absoluteImageUrl ? [absoluteImageUrl] : [],
+            images: [ogImageUrl],
             creator: '@voiceoftihama',
             site: '@voiceoftihama',
         },
@@ -213,29 +216,8 @@ export default async function ArticlePage({ params }: Props) {
                                             {article.title}
                                         </h1>
 
-                                        {/* Author & Meta */}
+                                        {/* Meta */}
                                         <div className="flex flex-wrap items-center gap-6 text-gray-500 text-sm pb-6 border-b border-gray-100">
-                                            <div className="flex items-center gap-2">
-                                                {article.author?.avatar ? (
-                                                    <Image
-                                                        src={getImageUrl(article.author.avatar)}
-                                                        alt={article.author.name}
-                                                        width={32}
-                                                        height={32}
-                                                        className="rounded-full"
-                                                    />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                                        <Icon name="ri-user-line" size="sm" />
-                                                    </div>
-                                                )}
-                                                <Link 
-                                                    href={`/author/${article.author?.id || 'editor'}`}
-                                                    className="font-medium text-gray-900 hover:text-primary transition-colors"
-                                                >
-                                                    {article.author?.name || 'المحرر'}
-                                                </Link>
-                                            </div>
                                             <div className="flex items-center gap-1">
                                                 <Icon name="ri-calendar-line" />
                                                 <time>{formatArticleDate(article.publishedAt || article.createdAt)}</time>

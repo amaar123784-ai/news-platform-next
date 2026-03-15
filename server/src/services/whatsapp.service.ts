@@ -1,5 +1,8 @@
 // @ts-ignore
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { PrismaClient, SocialPlatform, SocialPostStatus } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /** WhatsApp message limit */
 const MESSAGE_MAX_LENGTH = 1024;
@@ -13,8 +16,12 @@ const READY_WAIT_INTERVAL = 8000;
 const MAX_PENDING_QUEUE = 50;
 /** Max retries for sending a single message */
 const MAX_SEND_RETRIES = 3;
-/** Interval between processing messages in the queue (ms) to avoid rate limiting */
-const QUEUE_PROCESS_INTERVAL = 5000;
+/** Interval between processing messages in the queue (ms) to avoid rate limiting. Default base: 5s */
+const QUEUE_PROCESS_BASE_INTERVAL = 5000;
+/** Max delay for jitter (ms). Will add random value up to this to base interval */
+const QUEUE_PROCESS_JITTER_MAX = 7000;
+/** Max reconnection delay (ms) - 2 minutes */
+const MAX_RECONNECT_DELAY = 120000;
 
 /**
  * Utility to enforce timeouts on promises
@@ -33,6 +40,7 @@ class WhatsAppService {
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
     private messageQueue: any[] = [];
     private isProcessingQueue: boolean = false;
+    private reconnectAttempts: number = 0;
 
     constructor() {
         this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
@@ -55,7 +63,7 @@ class WhatsAppService {
                 version,
                 auth: state,
                 browser: ['VoiceOfTihama', 'Chrome', '120.0'],
-                printQRInTerminal: false, // We handle it manually
+                printQRInTerminal: false,
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
                 keepAliveIntervalMs: 30000,
@@ -88,16 +96,21 @@ class WhatsAppService {
                     this.isReady = false;
 
                     if (shouldReconnect) {
-                        // Wait a bit before reconnecting with exponential backoff feel
-                        setTimeout(() => this.initializeClient(), 5000);
+                        this.reconnectAttempts++;
+                        // Exponential backoff: 5s, 10s, 20s, 40s... up to 2m
+                        const delay = Math.min(5000 * Math.pow(2, this.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+                        console.log(`[WhatsApp] Reconnecting in ${delay / 1000}s (Attempt ${this.reconnectAttempts})...`);
+                        setTimeout(() => this.initializeClient(), delay);
                     } else {
                         console.error('[WhatsApp] Logged out or critical error. Please check whatsapp-auth folder.');
+                        this.reconnectAttempts = 0;
                     }
                 }
 
                 if (connection === 'open') {
                     console.log('[WhatsApp] ✅ Connected successfully!');
                     this.isReady = true;
+                    this.reconnectAttempts = 0; // Reset counter on success
                     await this.listChannels();
                     await this.listGroups();
 
@@ -110,9 +123,17 @@ class WhatsAppService {
 
         } catch (error: any) {
             console.error('[WhatsApp] Failed to initialize:', error.message);
-            // Retry initialization after a delay
-            setTimeout(() => this.initializeClient(), 10000);
+            this.reconnectAttempts++;
+            const delay = Math.min(10000 * this.reconnectAttempts, MAX_RECONNECT_DELAY);
+            setTimeout(() => this.initializeClient(), delay);
         }
+    }
+
+    /**
+     * Get a random human-like delay to avoid bot detection
+     */
+    private getJitterDelay(): number {
+        return QUEUE_PROCESS_BASE_INTERVAL + Math.floor(Math.random() * QUEUE_PROCESS_JITTER_MAX);
     }
 
     /**
@@ -296,21 +317,34 @@ class WhatsAppService {
             while (this.messageQueue.length > 0) {
                 if (!this.isReady || !this.sock) {
                     console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
-                    return; // Will exit and trigger finally block
+                    return; 
                 }
 
                 const item = this.messageQueue[0];
+                
+                // Track start of processing
+                await this.updatePostStatus(item.article.id, SocialPostStatus.PROCESSING);
+
                 const success = await this.attemptSend(item.article);
 
                 if (success) {
                     this.messageQueue.shift(); // Remove from queue
-                    // Cooldown between messages
-                    await new Promise(r => setTimeout(r, QUEUE_PROCESS_INTERVAL));
+                    
+                    // Real success update
+                    await this.updatePostStatus(item.article.id, SocialPostStatus.POSTED);
+
+                    // ANTI-BAN: Dynamic human-like delay
+                    const delay = this.getJitterDelay();
+                    console.log(`[WhatsApp] ⏳ Waiting ${delay / 1000}s before next message...`);
+                    await new Promise(r => setTimeout(r, delay));
                 } else {
                     item.retries++;
                     if (item.retries >= MAX_SEND_RETRIES) {
                         console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
                         this.messageQueue.shift();
+                        
+                        // Real failure update
+                        await this.updatePostStatus(item.article.id, SocialPostStatus.FAILED, `Failed after ${MAX_SEND_RETRIES} retries`);
                     } else {
                         console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
                         await new Promise(r => setTimeout(r, 30000)); // Wait longer before retry
@@ -329,73 +363,36 @@ class WhatsAppService {
      * Single send attempt
      */
     private async attemptSend(article: any): Promise<boolean> {
+        // ... (rest of attemptSend)
+    }
+
+    /**
+     * Update SocialPost record in Database
+     */
+    private async updatePostStatus(articleId: string, status: SocialPostStatus, error?: string): Promise<void> {
         try {
-            const text = this.buildMessage(article);
-            const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-
-            console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
-
-            // 1. Wait for page visibility
-            await this.waitForArticlePage(articleUrl, 3);
-
-            // 2. Prepare preview
-            let jpegThumbnail: Buffer | undefined;
-            if (article.imageUrl) {
-                const fullImageUrl = article.imageUrl.startsWith('http')
-                    ? article.imageUrl
-                    : `${this.platformUrl}${article.imageUrl}`;
-                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
-            }
-
-            // 3. Send with rich preview if possible
-            if (jpegThumbnail && this.sock?.user?.id) {
-                try {
-                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
-                    const msg = generateWAMessageFromContent(
-                        this.channelJid!,
-                        proto.Message.fromObject({
-                            extendedTextMessage: {
-                                text,
-                                matchedText: articleUrl,
-                                canonicalUrl: articleUrl,
-                                title: article.title || '',
-                                description: this.stripHtml(article.excerpt || '').substring(0, 200),
-                                jpegThumbnail,
-                                thumbnailWidth: 960,
-                                thumbnailHeight: 540,
-                                previewType: 0,
-                            }
-                        }),
-                        { userJid: this.sock.user.id }
-                    );
-
-                    await withTimeout(
-                        this.sock.relayMessage(this.channelJid!, msg.message!, {
-                            messageId: msg.key.id!
-                        }),
-                        20000,
-                        "WhatsApp API timeout (relayMessage)"
-                    );
-                    
-                    console.log(`[WhatsApp] ✅ Sent successfully with rich preview: ${article.title}`);
-                    return true;
-                } catch (err: any) {
-                    console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
+            await prisma.socialPost.upsert({
+                where: {
+                    articleId_platform: {
+                        articleId,
+                        platform: SocialPlatform.WHATSAPP
+                    }
+                },
+                update: {
+                    status,
+                    errorMessage: error || null,
+                    postedAt: status === SocialPostStatus.POSTED ? new Date() : undefined,
+                    retryCount: { increment: status === SocialPostStatus.FAILED ? 1 : 0 }
+                },
+                create: {
+                    articleId,
+                    platform: SocialPlatform.WHATSAPP,
+                    status,
+                    errorMessage: error || null
                 }
-            }
-
-            // 4. Fallback: plain text
-            await withTimeout(
-                this.sock.sendMessage(this.channelJid!, { text }),
-                20000,
-                "WhatsApp API timeout (sendMessage)"
-            );
-            console.log(`[WhatsApp] ✅ Sent successfully (text only): ${article.title}`);
-            return true;
-
-        } catch (error: any) {
-            console.error(`[WhatsApp] ❌ Send attempt failed: ${error.message}`);
-            return false;
+            });
+        } catch (err: any) {
+            console.error(`[WhatsApp] ❌ Failed to update SocialPost DB: ${err.message}`);
         }
     }
 }
