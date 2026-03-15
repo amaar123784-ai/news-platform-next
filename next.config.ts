@@ -27,10 +27,14 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
       {
-        // Allow external RSS article images (HTTPS only)
+        // Allow ALL external RSS article images (HTTPS only)
         protocol: "https",
         hostname: "**",
-        pathname: "/**",
+      },
+      {
+        // Allow ALL external RSS article images (HTTP only just in case)
+        protocol: "http",
+        hostname: "**",
       },
     ],
     // Enable modern image formats for better compression
