@@ -80,13 +80,13 @@ export async function publishToSocialChannels(article: ArticlePayload): Promise<
     try {
         await updateStatus(article.id, SocialPlatform.TELEGRAM, SocialPostStatus.PROCESSING);
         const { telegramService } = await import('./telegram.service.js');
-        const success = await telegramService.sendArticleWithPhoto(article);
+        const result = await telegramService.sendArticleWithPhoto(article);
         
-        const status = success ? SocialPostStatus.POSTED : SocialPostStatus.FAILED;
-        const error = success ? undefined : 'Service returned false (check logs)';
+        const status = result.success ? SocialPostStatus.POSTED : SocialPostStatus.FAILED;
+        const error = result.success ? undefined : result.error;
         
         await updateStatus(article.id, SocialPlatform.TELEGRAM, status, error);
-        results.push({ platform: 'Telegram', success, error });
+        results.push({ platform: 'Telegram', success: result.success, error });
     } catch (err: any) {
         console.error(`[Social] Telegram failed:`, err.message);
         await updateStatus(article.id, SocialPlatform.TELEGRAM, SocialPostStatus.FAILED, err.message);
