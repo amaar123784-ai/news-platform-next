@@ -20,7 +20,7 @@ class FacebookService {
 
         if (this.isEnabled && this.pageId && token) {
             console.log('[Facebook] ✅ Service enabled. Page ID:', this.pageId);
-            this.initialize(token);
+            this.initialize();
         } else if (this.isEnabled) {
             console.warn('[Facebook] ⚠️ Enabled but missing FACEBOOK_PAGE_ID or FACEBOOK_PAGE_TOKEN.');
         } else {
@@ -28,10 +28,13 @@ class FacebookService {
         }
     }
 
-    private async initialize(token: string): Promise<void> {
+    public async initialize(): Promise<void> {
+        if (!this.isEnabled || !this.pageId || !this.pageToken) return;
+        if (this.isReady) return;
+        
         try {
             console.log('[Facebook] Fetching Page Access Token via /me/accounts...');
-            const res = await fetch(`${GRAPH_API}/me/accounts?access_token=${token}`);
+            const res = await fetch(`${GRAPH_API}/me/accounts?access_token=${this.pageToken}`);
             const data = await res.json();
 
             if (data.data && data.data.length > 0) {
@@ -44,11 +47,10 @@ class FacebookService {
             }
 
             console.log('[Facebook] /me/accounts returned no pages, trying token directly...');
-            const pageRes = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${token}`);
+            const pageRes = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${this.pageToken}`);
             const pageData = await pageRes.json();
 
             if (pageData.name) {
-                this.pageToken = token;
                 this.isReady = true;
                 console.log(`[Facebook] ✅ Page verified (direct): ${pageData.name} (${pageData.id})`);
             } else {
@@ -73,7 +75,11 @@ class FacebookService {
     }
 
     public async postArticleToFacebook(article: any): Promise<boolean> {
-        if (!this.isEnabled || !this.isReady || !this.pageId || !this.pageToken) return false;
+        if (!this.isEnabled || !this.pageId || !this.pageToken) return false;
+        
+        await this.initialize();
+
+        if (!this.isReady) return false;
 
         const message = this.buildMessage(article);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
