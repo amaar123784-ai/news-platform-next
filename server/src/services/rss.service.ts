@@ -448,7 +448,6 @@ export async function fetchRSSFeed(feedId: string): Promise<{
                         status: 'PENDING',
                         approvedAt: null,
                         categoryId: articleCategoryId,
-                        rawCategories // New field
                     },
                 });
 

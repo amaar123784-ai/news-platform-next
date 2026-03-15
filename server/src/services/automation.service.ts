@@ -18,7 +18,7 @@ const SOCIAL_DELAY_MINUTES = 5; // Delay before posting to social media
 
 // DEAD WORDS for anti-bot detection
 const DEAD_WORDS = [
-    'access denied', 'cloudflare', 'enable javascript', '403 forbidden', 
+    'access denied', 'cloudflare', 'enable javascript', '403 forbidden',
     'captcha', 'security check', 'robot', 'automated request'
 ];
 
@@ -89,7 +89,7 @@ export class AutomationService {
         try {
             // Step 1: Scrape Full Content (On-Demand)
             const scrapedContent = await this.processScraping(queueId);
-            
+
             // Step 2: AI Rewriting (Only if validation passes)
             await this.processAIRewrite(queueId, scrapedContent);
 
@@ -103,13 +103,13 @@ export class AutomationService {
 
         } catch (error: any) {
             console.error(`[Automation] Pipeline failed:`, error.message);
-            
+
             const isScrapeError = error.message.includes('SCRAPE_VALIDATION');
-            
+
             await prisma.automationQueue.update({
                 where: { id: queueId },
                 data: {
-                    status: isScrapeError ? AutomationStatus.FAILED_SCRAPE : AutomationStatus.FAILED,
+                    status: AutomationStatus.FAILED,
                     errorMessage: error.message.replace('SCRAPE_VALIDATION: ', '')
                 }
             });
@@ -124,7 +124,7 @@ export class AutomationService {
 
         await prisma.automationQueue.update({
             where: { id: queueId },
-            data: { status: AutomationStatus.SCRAPING }
+            data: { status: AutomationStatus.AI_PROCESSING }
         });
 
         const queueItem = await prisma.automationQueue.findUnique({
@@ -137,7 +137,7 @@ export class AutomationService {
 
         // Execute Scraper
         const scrapeResult = await scrapeArticle(rssArticle.id);
-        
+
         if (!scrapeResult.success || !scrapeResult.content) {
             throw new Error(`SCRAPE_VALIDATION: Scraper failed - ${scrapeResult.error || 'Empty content'}`);
         }
@@ -245,12 +245,15 @@ export class AutomationService {
         const article = queueItem.rssArticle!;
         const category = article.feed.category;
 
-        // Generate unique slug
+        // Generate unique slug with random hash to prevent Article_slug_key unique constraint error
         const baseSlug = (slugify as any)(queueItem.aiRewrittenTitle || article.title, {
             lower: true,
-            strict: true
-        });
-        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(3).toString('hex')}`;
+            strict: false,
+            remove: /[*+~.()'"!:@]/g
+        }) || 'article';
+        
+        const uniqueHash = crypto.randomBytes(3).toString('hex');
+        const finalSlug = `${baseSlug}-${uniqueHash}`;
 
         const imageUrl = article.imageUrl || this.getDefaultImage(category?.slug || 'default');
 
@@ -272,7 +275,7 @@ export class AutomationService {
         const newArticle = await prisma.article.create({
             data: {
                 title: queueItem.aiRewrittenTitle || article.title,
-                slug: uniqueSlug,
+                slug: finalSlug,
                 excerpt: queueItem.aiRewrittenExcerpt || article.excerpt || '',
                 content: queueItem.aiRewrittenContent || article.fullContent || '',
                 imageUrl,
@@ -365,13 +368,25 @@ export class AutomationService {
     public async retryAutomation(queueId: string): Promise<void> {
         const queueItem = await prisma.automationQueue.findUnique({ where: { id: queueId } });
         if (!queueItem) throw new Error('Queue item not found');
-        if (queueItem.status === AutomationStatus.FAILED || queueItem.status === AutomationStatus.FAILED_SCRAPE) {
+        if (queueItem.status === AutomationStatus.FAILED) { // Fixed FAILED_SCRAPE ref
             await prisma.automationQueue.update({
                 where: { id: queueId },
                 data: { status: AutomationStatus.PENDING, errorMessage: null, retryCount: 0 }
             });
             this.startAutomation(queueItem.rssArticleId).catch(console.error);
         }
+    }
+
+    public async getPendingSocialPosts() {
+        return prisma.automationQueue.findMany({ where: { status: AutomationStatus.SOCIAL_PENDING } });
+    }
+
+    public async markSocialPosted(id: string, postId: string) {
+        return prisma.automationQueue.update({ where: { id }, data: { status: AutomationStatus.COMPLETED } });
+    }
+
+    public async markSocialFailed(id: string, error: string) {
+        return prisma.automationQueue.update({ where: { id }, data: { status: AutomationStatus.FAILED } });
     }
 }
 

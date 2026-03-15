@@ -74,6 +74,7 @@ class WhatsAppService {
                 if (qr) {
                     console.log('[WhatsApp] Scan this QR Code with your phone:');
                     try {
+                        // @ts-ignore
                         const qrcode = await import('qrcode-terminal');
                         (qrcode.default || qrcode).generate(qr, { small: true });
                     } catch (err) {

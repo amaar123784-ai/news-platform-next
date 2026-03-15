@@ -29,7 +29,13 @@ class FacebookService {
     }
 
     public async initialize(): Promise<void> {
-        if (!this.isEnabled || !this.pageId || !this.pageToken) return;
+        if (!this.isEnabled) return;
+        
+        if (!this.pageId || !this.pageToken) {
+            console.log('[Facebook] Direct Graph API missing credentials. Relying on Webhook (n8n) for publishing.');
+            return;
+        }
+
         if (this.isReady) return;
         
         try {
@@ -80,8 +86,8 @@ class FacebookService {
             return false;
         }
         if (!this.pageId || !this.pageToken) {
-            console.log(`[Facebook] Missing credentials - pageId: ${!!this.pageId}, pageToken: ${!!this.pageToken}`);
-            return false;
+            console.log('[Facebook] Direct API disabled or missing token. Relying on Webhook.');
+            return true; // Graceful exit, relying on n8n Webhook
         }
         
         await this.initialize();

@@ -62,6 +62,7 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number): Promise<
 export interface RewriteResult {
     rewrittenTitle: string;
     rewrittenExcerpt: string;
+    rewrittenContent?: string;
 }
 
 export interface FullRewriteResult {
