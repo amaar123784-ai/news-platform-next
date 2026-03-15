@@ -8,6 +8,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/atoms';
+import { getImageUrl } from '@/lib/api';
 
 export interface NewsCardSmallProps {
     title: string;
@@ -29,10 +30,7 @@ export const NewsCardSmall: React.FC<NewsCardSmallProps> = ({
     className = '',
 }) => {
     // Handle image URL
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000';
-    const displayImageUrl = imageUrl
-        ? imageUrl.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`
-        : null;
+    const displayImageUrl = imageUrl ? getImageUrl(imageUrl) : null;
 
     return (
         <article

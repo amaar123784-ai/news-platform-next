@@ -9,6 +9,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { automationService, AutomationQueueItem } from '@/services/automation.service';
+import { getImageUrl } from '@/lib/api';
 import {
     FiRefreshCw,
     FiClock,
@@ -121,7 +122,7 @@ function QueueItem({ item, onRetry }: { item: AutomationQueueItem; onRetry: (id:
                     {item.rssArticle.imageUrl && (
                         <div className="relative w-20 h-14">
                             <Image
-                                src={item.rssArticle.imageUrl}
+                                src={getImageUrl(item.rssArticle.imageUrl)}
                                 alt=""
                                 fill
                                 sizes="80px"
