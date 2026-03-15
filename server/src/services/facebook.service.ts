@@ -112,7 +112,6 @@ class FacebookService {
                     body: JSON.stringify({
                         message,
                         link: articleUrl,
-                        picture: fullImageUrl, // Explicitly include image
                         access_token: this.pageToken,
                     }),
                 });

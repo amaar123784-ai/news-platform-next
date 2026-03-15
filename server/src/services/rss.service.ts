@@ -391,7 +391,10 @@ export async function fetchRSSFeed(feedId: string): Promise<{
         for (const item of feedItems) {
             if (!item.guid && !item.link) continue;
 
-            const guid = item.guid || item.link!;
+            // Enforce max length of 500 characters for GUID to prevent DB constraint errors
+            const rawGuid = item.guid || item.link!;
+            const guid = rawGuid.length > 500 ? rawGuid.substring(0, 500) : rawGuid;
+            
             const title = item.title || 'بدون عنوان';
             const titleHash = hashTitle(title);
 
