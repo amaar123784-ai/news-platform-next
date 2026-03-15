@@ -8,6 +8,7 @@
 
 import { RSSArticle } from '@/services/rss';
 import Image from 'next/image';
+import { getImageUrl } from '@/lib/api';
 
 interface AggregatedNewsCardProps {
     article: RSSArticle;
@@ -38,7 +39,7 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
                 {article.imageUrl && (
                     <div className="flex-shrink-0 w-20 h-16 overflow-hidden rounded-md relative">
                         <Image
-                            src={article.imageUrl}
+                            src={getImageUrl(article.imageUrl)}
                             alt={article.title}
                             fill
                             sizes="80px"
@@ -78,7 +79,7 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
                 {article.imageUrl && (
                     <div className="relative h-56 overflow-hidden">
                         <Image
-                            src={article.imageUrl}
+                            src={getImageUrl(article.imageUrl)}
                             alt={article.title}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -152,7 +153,7 @@ export function AggregatedNewsCard({ article, variant = 'default' }: AggregatedN
             {article.imageUrl && (
                 <div className="relative h-40 overflow-hidden">
                     <Image
-                        src={article.imageUrl}
+                        src={getImageUrl(article.imageUrl)}
                         alt={article.title}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

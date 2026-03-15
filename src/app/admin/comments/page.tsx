@@ -8,6 +8,7 @@ import { TableSkeleton, ConfirmModal } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
 import { commentService } from '@/services'; // We might need to create this service if it doesn't exist
 import type { Comment } from '@/types/api.types';
+import { getImageUrl } from '@/lib/api';
 import Link from 'next/link';
 
 // Temporary service mock if not exists, will check next
@@ -134,7 +135,7 @@ export default function CommentsPage() {
                                 header: 'المستخدم',
                                 render: (comment: Comment) => (
                                     <div className="flex items-center gap-3">
-                                        <Avatar name={comment.author?.name || 'زائر'} size="sm" src={comment.author?.avatar} />
+                                        <Avatar name={comment.author?.name || 'زائر'} size="sm" src={comment.author?.avatar ? getImageUrl(comment.author.avatar) : undefined} />
                                         <div>
                                             <div className="font-medium text-gray-900">{comment.author?.name || 'زائر'}</div>
                                             <div className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleDateString('ar-YE')}</div>
@@ -240,7 +241,7 @@ export default function CommentsPage() {
                 {viewComment && (
                     <div className="space-y-6">
                         <div className="flex items-center gap-4 border-b pb-4">
-                            <Avatar name={viewComment.author?.name || 'زائر'} size="md" src={viewComment.author?.avatar} />
+                            <Avatar name={viewComment.author?.name || 'زائر'} size="md" src={viewComment.author?.avatar ? getImageUrl(viewComment.author.avatar) : undefined} />
                             <div>
                                 <h3 className="font-bold text-gray-900">{viewComment.author?.name || 'زائر'}</h3>
                                 <p className="text-sm text-gray-500">{new Date(viewComment.createdAt).toLocaleString('ar-YE')}</p>

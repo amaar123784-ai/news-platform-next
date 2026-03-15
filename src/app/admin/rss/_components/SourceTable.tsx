@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { Button, Icon } from '@/components/atoms';
 import { DataTable } from '@/components/organisms';
 import { TableSkeleton } from '@/components/molecules';
+import { getImageUrl } from '@/lib/api';
 import type { RSSSource } from './types';
 
 interface SourceTableProps {
@@ -66,7 +67,7 @@ export function SourceTable({
                             <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                                 {source.logoUrl ? (
                                     <Image
-                                        src={source.logoUrl}
+                                        src={getImageUrl(source.logoUrl)}
                                         alt={source.name}
                                         fill
                                         sizes="32px"
