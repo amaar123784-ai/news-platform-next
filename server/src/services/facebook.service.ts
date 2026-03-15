@@ -75,11 +75,21 @@ class FacebookService {
     }
 
     public async postArticleToFacebook(article: any): Promise<boolean> {
-        if (!this.isEnabled || !this.pageId || !this.pageToken) return false;
+        if (!this.isEnabled) {
+            console.log('[Facebook] Service is not enabled.');
+            return false;
+        }
+        if (!this.pageId || !this.pageToken) {
+            console.log(`[Facebook] Missing credentials - pageId: ${!!this.pageId}, pageToken: ${!!this.pageToken}`);
+            return false;
+        }
         
         await this.initialize();
 
-        if (!this.isReady) return false;
+        if (!this.isReady) {
+            console.log('[Facebook] Service failed to initialize (isReady=false).');
+            return false;
+        }
 
         const message = this.buildMessage(article);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
