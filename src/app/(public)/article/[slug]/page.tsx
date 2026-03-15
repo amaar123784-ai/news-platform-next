@@ -10,6 +10,8 @@ import { ArticleMeta } from '@/components/molecules/ArticleMeta';
 import { ShareButtons } from '@/components/molecules/ShareButtons';
 import { CommentSection } from '@/components/organisms/CommentSection';
 import { ArticleContent } from "@/components/organisms/ArticleContent";
+import { ReadNextScroll } from '@/components/article/ReadNextScroll';
+import { SubscribeCTA } from '@/components/molecules/SubscribeCTA';
 import { categoryBadges } from '@/design-system/tokens';
 
 // Fallback image
@@ -238,6 +240,9 @@ export default async function ArticlePage({ params }: Props) {
 
                                     <ArticleContent content={article.content} />
 
+                                    {/* CONVERSION: Subscribe CTA */}
+                                    <SubscribeCTA />
+
                                     {/* Tags */}
                                     {article.tags && article.tags.length > 0 && (
                                         <div className="mt-10 pt-8 border-t border-gray-100">
@@ -264,7 +269,8 @@ export default async function ArticlePage({ params }: Props) {
                                 </div>
                             </article>
 
-                            {/* Comments Section */}
+                            {/* INFINITE SCROLL: Read Next Articles */}
+                            <ReadNextScroll currentArticleId={article.id} categoryId={article.category.id} />
 
                             {/* Comments Section */}
                             <div className="mt-8">
