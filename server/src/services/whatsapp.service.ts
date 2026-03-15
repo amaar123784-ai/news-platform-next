@@ -99,6 +99,7 @@ class WhatsAppService {
                     console.log('[WhatsApp] ✅ Connected successfully!');
                     this.isReady = true;
                     await this.listChannels();
+                    await this.listGroups();
 
                     // Start processing queue if items exist
                     if (this.messageQueue.length > 0) {
@@ -111,6 +112,29 @@ class WhatsAppService {
             console.error('[WhatsApp] Failed to initialize:', error.message);
             // Retry initialization after a delay
             setTimeout(() => this.initializeClient(), 10000);
+        }
+    }
+
+    /**
+     * List all participating groups
+     */
+    private async listGroups(): Promise<void> {
+        try {
+            console.log('[WhatsApp] Attempting to fetch groups...');
+            if (typeof this.sock?.groupFetchAllParticipating === 'function') {
+                const groups = await this.sock.groupFetchAllParticipating();
+                console.log('\n========= WHATSAPP GROUPS =========');
+                let count = 0;
+                for (const id in groups) {
+                    console.log(`- ${groups[id].subject}`);
+                    console.log(`  ID: ${id}`);
+                    count++;
+                }
+                if (count === 0) console.log('  No groups found.');
+                console.log('===================================\n');
+            }
+        } catch (error: any) {
+             console.log('[WhatsApp] Could not list groups:', error.message);
         }
     }
 
