@@ -85,23 +85,24 @@ export const NewsCard: React.FC<NewsCardProps> = ({
                     {isBreaking && <Badge variant="breaking" className="shadow-sm">عاجل</Badge>}
                 </div>
 
-                {/* Clickable Overlay */}
+                {/* Clickable Overlay for Image */}
                 <Link
                     href={articleLink}
                     onClick={onClick}
                     className="absolute inset-0 z-10"
-                    aria-label={`اقرأ المزيد عن: ${title}`}
+                    aria-hidden="true"
+                    tabIndex={-1}
                 />
             </div>
 
             {/* Content */}
             <div className="flex flex-col flex-1 p-4">
                 {/* Title */}
-                <h3 className="font-bold text-base leading-snug mb-1.5 line-clamp-2">
+                <h3 className="font-bold text-base md:text-lg leading-snug mb-2 line-clamp-2">
                     <Link
                         href={articleLink}
                         onClick={onClick}
-                        className="text-gray-900 group-hover:text-primary transition-colors duration-200 after:absolute after:inset-0 after:z-0"
+                        className="text-gray-900 group-hover:text-primary transition-colors duration-200 before:absolute before:inset-0 before:z-0 outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
                     >
                         {title}
                     </Link>

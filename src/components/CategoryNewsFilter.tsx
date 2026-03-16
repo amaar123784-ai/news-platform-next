@@ -51,14 +51,18 @@ export function CategoryNewsFilter({ initialArticles }: CategoryNewsFilterProps)
             </div>
 
             {/* Category Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="تصنيفات الأخبار">
                 {categoryTabs.map((tab) => (
                     <button
                         key={tab.key}
+                        role="tab"
+                        aria-selected={activeCategory === tab.key}
+                        aria-controls={`panel-${tab.key}`}
+                        id={`tab-${tab.key}`}
                         onClick={() => setActiveCategory(tab.key)}
                         className={`
                             flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                            whitespace-nowrap transition-all duration-200
+                            whitespace-nowrap transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
                             ${activeCategory === tab.key
                                 ? 'bg-primary text-white shadow-sm shadow-primary/25'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
@@ -72,7 +76,12 @@ export function CategoryNewsFilter({ initialArticles }: CategoryNewsFilterProps)
             </div>
 
             {/* Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div 
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                id={`panel-${activeCategory}`}
+                role="tabpanel"
+                aria-labelledby={`tab-${activeCategory}`}
+            >
                 {showSkeleton ? (
                     Array.from({ length: 6 }).map((_, i) => (
                         <NewsCardSkeleton key={i} />

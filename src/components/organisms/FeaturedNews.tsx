@@ -37,8 +37,8 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
 
     if (variant === 'large') {
         return (
-            <article className="relative h-full min-h-[420px] lg:min-h-[500px] rounded-2xl overflow-hidden group">
-                <Link href={link} className="block h-full">
+            <article className="relative h-full min-h-[320px] md:min-h-[420px] lg:min-h-[500px] rounded-2xl overflow-hidden group">
+                <Link href={link} className="block h-full outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl">
                     <Image
                         src={displayImageUrl}
                         alt={title}
@@ -88,7 +88,7 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
     // Small variant
     return (
         <article className="relative h-full min-h-[200px] lg:min-h-[240px] rounded-2xl overflow-hidden group">
-            <Link href={link} className="block h-full">
+            <Link href={link} className="block h-full outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl">
                 <Image
                     src={displayImageUrl}
                     alt={title}

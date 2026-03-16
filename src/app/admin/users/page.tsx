@@ -178,7 +178,7 @@ export default function UserManagementPage() {
                                 )
                             },
                             {
-                                key: 'articles',
+                                key: 'id' as any,
                                 header: 'المقالات',
                                 render: (user: any) => (
                                     <span className="text-sm text-gray-600">
@@ -217,7 +217,7 @@ export default function UserManagementPage() {
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-4">
                 {isLoading ? (
-                    <CardGridSkeleton count={3} />
+                    <CardGridSkeleton cards={3} />
                 ) : users.map((user: any) => {
                     const role = roleLabels[user.role?.toUpperCase()] || roleLabels.READER;
                     return (

@@ -45,18 +45,19 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
                     {urgentNews.slice(0, 5).map((news, index) => {
                         const imgUrl = getImageUrl(news.imageUrl);
                         return (
-                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group">
-                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-primary/[0.03] rounded-lg transition-colors">
+                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg mb-1 last:mb-0">
+                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-primary/5 rounded-lg transition-colors">
                                     {/* Thumbnail */}
                                     {imgUrl && (
                                         <div className="relative w-16 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                             <Image
                                                 src={imgUrl}
-                                                alt={news.title}
+                                                alt=""
                                                 fill
                                                 sizes="64px"
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 loading="lazy"
+                                                aria-hidden="true"
                                             />
                                         </div>
                                     )}
@@ -99,8 +100,8 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
                     {mostReadNews.map((news, index) => {
                         const imgUrl = getImageUrl(news.imageUrl);
                         return (
-                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group" role="listitem">
-                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-secondary/[0.03] rounded-lg transition-colors">
+                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded-lg mb-1 last:mb-0" role="listitem">
+                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-secondary/5 rounded-lg transition-colors">
                                     {/* Rank Number */}
                                     <span className={`
                                         flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold shrink-0 mt-0.5
