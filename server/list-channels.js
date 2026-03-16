@@ -1,11 +1,11 @@
-import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
+import baileys from '@whiskeysockets/baileys';
+const { default: makeWASocket, useMultiFileAuthState } = baileys;
 
 async function listChannels() {
     console.log('Loading WhatsApp session...');
     const { state } = await useMultiFileAuthState('./whatsapp-auth');
     
-    // @ts-ignore
-    const sock = makeWASocket.default({
+    const sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
     });
