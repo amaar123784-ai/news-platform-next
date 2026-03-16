@@ -167,7 +167,7 @@ export default async function ArticlePage({ params }: Props) {
             <div className="bg-white min-h-screen">
                 {/* Unified Hero Section (Image Overlay - Contained) */}
                 <div className="container mx-auto px-4 pt-6">
-                    <div className="relative w-full min-h-[400px] md:min-h-[500px] lg:min-h-[600px] overflow-hidden group rounded-3xl shadow-xl">
+                    <div className="relative w-full min-h-[300px] md:min-h-[400px] lg:min-h-[500px] overflow-hidden group rounded-3xl shadow-xl">
                         {/* Background Image */}
                         <div className="absolute inset-0">
                             <Image
@@ -188,7 +188,7 @@ export default async function ArticlePage({ params }: Props) {
 
                         {/* Content Container */}
                         <div className="absolute inset-0 flex flex-col justify-end">
-                            <div className="px-6 pb-10 md:px-12 md:pb-16 max-w-5xl">
+                            <div className="px-6 pb-8 md:px-12 md:pb-12 max-w-5xl">
                                 <div className="animate-fade-in-up">
                                     <Link href={`/category/${categorySlug}`} className="inline-block mb-4">
                                         <Badge category={categorySlug} className="text-xs uppercase tracking-[0.2em] px-5 py-2 shadow-lg border-white/20 hover:scale-105 transition-transform bg-white/10 backdrop-blur-md text-white border">
