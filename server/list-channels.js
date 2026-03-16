@@ -5,8 +5,13 @@
  * Usage: npx tsx list-channels.js
  */
 
-import pkg from '@whiskeysockets/baileys';
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = pkg;
+/// <reference types="node" />
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+const baileys = require('@whiskeysockets/baileys');
+const makeWASocket = baileys.default || baileys;
+const { useMultiFileAuthState, fetchLatestBaileysVersion } = baileys;
 
 async function listWhatsAppEntities() {
     console.log('\n--- 📱 WhatsApp ID Discovery Utility ---\n');
