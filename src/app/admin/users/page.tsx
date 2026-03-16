@@ -174,7 +174,7 @@ export default function UserManagementPage() {
                                 key: 'isActive',
                                 header: 'الحالة',
                                 render: (user: any) => (
-                                    <StatusBadge status={user.isActive ? 'published' : 'draft'} label={user.isActive ? 'نشط' : 'معطل'} />
+                                    <StatusBadge status={user.isActive ? 'published' : 'draft'} />
                                 )
                             },
                             {
@@ -230,7 +230,7 @@ export default function UserManagementPage() {
                                         <p className="text-sm text-gray-500">{user.email}</p>
                                     </div>
                                 </div>
-                                <StatusBadge status={user.isActive ? 'published' : 'draft'} label={user.isActive ? 'نشط' : 'معطل'} />
+                                <StatusBadge status={user.isActive ? 'published' : 'draft'} />
                             </div>
 
                             <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
