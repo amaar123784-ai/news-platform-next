@@ -211,7 +211,7 @@ export const rssService = {
     /**
      * Manually trigger all feeds fetch for a source (admin)
      */
-    async fetchSource(id: string): Promise<SingleResponse<{ feedsCount: number; successful: number; totalNewArticles: number }>> {
+    async fetchSource(id: string): Promise<SingleResponse<{ feedsChecked: number; successCount: number; newArticles: number }>> {
         const response = await api.post(`/rss/sources/${id}/fetch`);
         return response.data;
     },

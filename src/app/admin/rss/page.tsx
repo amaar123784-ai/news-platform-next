@@ -71,13 +71,13 @@ export default function RSSSourcesPage() {
 
     const fetchMutation = useMutation({
         mutationFn: (id: string) => rssService.fetchSource(id),
-        onSuccess: (data) => { success(`تم جلب ${data.data?.totalNewArticles || 0} مقال جديد`); invalidateSources(); },
+        onSuccess: (data) => { success(data.message || `تم جلب ${data.data?.newArticles || 0} مقال جديد`); invalidateSources(); },
         onError: (err: any) => apiError(err, 'فشل جلب المقالات'),
     });
 
     const fetchAllMutation = useMutation({
         mutationFn: () => rssService.fetchAllFeeds(),
-        onSuccess: (data) => { success(`تم جلب ${data.data?.totalNewArticles || 0} مقال من ${data.data?.feedsChecked || 0} رابط`); invalidateSources(); },
+        onSuccess: (data) => { success(data.message || `تم جلب ${data.data?.totalNewArticles || 0} مقال من ${data.data?.feedsChecked || 0} رابط`); invalidateSources(); },
         onError: (err: any) => apiError(err, 'فشل تحديث المصادر'),
     });
 
