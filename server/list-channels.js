@@ -1,5 +1,7 @@
-import baileys from '@whiskeysockets/baileys';
-const { default: makeWASocket, useMultiFileAuthState } = baileys;
+import makeWASocketImport from '@whiskeysockets/baileys';
+// ESM import workaround for Baileys
+const makeWASocket = makeWASocketImport.default || makeWASocketImport;
+const { useMultiFileAuthState } = makeWASocketImport;
 
 async function listChannels() {
     console.log('Loading WhatsApp session...');
