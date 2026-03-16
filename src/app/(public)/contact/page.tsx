@@ -139,7 +139,7 @@ export default function ContactPage() {
                                 <p className="text-sm text-blue-800 mb-4">كن على اطلاع دائم بآخر الأخبار</p>
                                 <div className="flex justify-center gap-3">
                                     <a
-                                        href="https://facebook.com/voiceoftihama"
+                                        href="https://www.facebook.com/profile.php?id=61586335597792"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
@@ -148,7 +148,7 @@ export default function ContactPage() {
                                         <Icon name="ri-facebook-fill" />
                                     </a>
                                     <a
-                                        href="https://twitter.com/voiceoftihama"
+                                        href="https://x.com/voiceoftihama"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
@@ -157,13 +157,22 @@ export default function ContactPage() {
                                         <Icon name="ri-twitter-x-fill" />
                                     </a>
                                     <a
-                                        href="https://telegram.me/voiceoftihama"
+                                        href="https://t.me/voiceoftihama6"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
                                         aria-label="تابعنا على تيليجرام"
                                     >
                                         <Icon name="ri-telegram-fill" />
+                                    </a>
+                                    <a
+                                        href="https://chat.whatsapp.com/Jtk05k0G8O81d861NJhSHU?mode=gi_t"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-green-600 shadow-sm hover:shadow-md transition-all hover:scale-105"
+                                        aria-label="انضم إلى مجتمع واتساب"
+                                    >
+                                        <Icon name="ri-whatsapp-line" />
                                     </a>
                                 </div>
                             </div>
