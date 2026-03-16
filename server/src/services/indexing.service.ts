@@ -28,6 +28,13 @@ class IndexingService {
     }
 
     /**
+     * Alias for notifyGoogle to match automation service expectations
+     */
+    public async submitUrl(url: string, type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED'): Promise<boolean> {
+        return this.notifyGoogle(url, type);
+    }
+
+    /**
      * Notify Google about a new or updated URL
      */
     public async notifyGoogle(url: string, type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED'): Promise<boolean> {

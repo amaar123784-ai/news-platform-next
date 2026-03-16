@@ -297,11 +297,15 @@ export class AutomationService {
 
         console.log(`[Automation] Created platform article: ${newArticle.slug}`);
 
-        // SEO: Notify Google Indexing API
-        const articleUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com'}/article/${newArticle.slug}`;
-        indexingService.notifyGoogle(articleUrl).catch(err => {
-            console.error('[Automation] Google Indexing notification failed:', err.message);
-        });
+        // SEO: Trigger Google Indexing API after Publishing
+        try {
+            const articleUrl = `https://voiceoftihama.com/article/${finalSlug}`;
+            console.log(`[Google Indexing] Triggering for: ${articleUrl}`);
+            await indexingService.submitUrl(articleUrl, 'URL_UPDATED');
+            console.log(`[Google Indexing] Success for: ${finalSlug}`);
+        } catch (error: any) {
+            console.error(`[Google Indexing] Failed: ${error.message}`);
+        }
 
         // Social publishing handled here
         try {
