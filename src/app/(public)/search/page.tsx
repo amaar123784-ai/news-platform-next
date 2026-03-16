@@ -51,7 +51,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         
                         <div className="relative px-6 py-12 sm:px-12 sm:py-16 text-center max-w-3xl mx-auto">
                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6 uppercase tracking-widest">
-                                <Icon name="ri-search-eye-line" size="xs" />
+                                <Icon name="ri-search-eye-line" size="sm" />
                                 محرك البحث
                             </div>
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 mb-8 leading-tight">عن ماذا تبحث اليوم؟</h1>

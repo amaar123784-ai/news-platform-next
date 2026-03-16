@@ -333,7 +333,7 @@ export default async function ArticlePage({ params }: Props) {
                             {/* Ad Space Placeholder */}
                             <div className="bg-primary/5 rounded-3xl p-8 text-center border border-dashed border-primary/20">
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4 uppercase tracking-widest">
-                                    <Icon name="ri-advertisement-line" size="xs" />
+                                    <Icon name="ri-advertisement-line" size="sm" />
                                     إعلان
                                 </div>
                                 <div className="h-64 bg-white/50 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 italic text-sm">
