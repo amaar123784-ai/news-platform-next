@@ -150,4 +150,43 @@ router.post('/:id/archive', authenticate, requireRole('ADMIN', 'EDITOR'), async 
     }
 });
 
+/**
+ * POST /api/articles/:idOrSlug/view
+ * 
+ * Increments view count with bot detection and cookie deduplication
+ */
+router.post('/:idOrSlug/view', async (req, res, next) => {
+    try {
+        const { idOrSlug } = req.params;
+        const userAgent = req.headers['user-agent'] || '';
+
+        // 1. Bot Detection
+        const isBot = /bot|googlebot|crawler|spider|robot|crawling/i.test(userAgent);
+        if (isBot) {
+            return res.json({ success: true, message: 'Bot detected, view not counted' });
+        }
+
+        // 2. Cookie Deduplication
+        const cookieName = `viewed_article_${idOrSlug}`;
+        if (req.cookies[cookieName]) {
+            return res.json({ success: true, message: 'Already viewed recently' });
+        }
+
+        // 3. Increment views
+        await articleService.incrementArticleViews(idOrSlug);
+
+        // 4. Set cookie (Expires in 24 hours)
+        res.cookie(cookieName, '1', {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
 export default router;

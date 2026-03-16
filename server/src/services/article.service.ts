@@ -248,6 +248,21 @@ export async function getRelatedArticles(idOrSlug: string, limit: number) {
 }
 
 /**
+ * Increment view count for an article with deduplication logic
+ */
+export async function incrementArticleViews(idOrSlug: string) {
+    return prisma.article.update({
+        where: {
+            slug: idOrSlug.includes('-') ? idOrSlug : undefined,
+            id: !idOrSlug.includes('-') ? idOrSlug : undefined,
+        },
+        data: {
+            views: { increment: 1 }
+        }
+    });
+}
+
+/**
  * Get a single article by ID or slug, with access control and view tracking
  */
 export async function getArticleByIdOrSlug(idOrSlug: string, user?: ArticleUser | null) {

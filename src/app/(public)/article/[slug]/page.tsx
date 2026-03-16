@@ -11,6 +11,7 @@ import { ShareButtons } from '@/components/molecules/ShareButtons';
 import { CommentSection } from '@/components/organisms/CommentSection';
 import { ArticleContent } from "@/components/organisms/ArticleContent";
 import { ReadNextScroll } from '@/components/article/ReadNextScroll';
+import { ViewTracker } from '@/components/article/ViewTracker';
 import { SubscribeCTA } from '@/components/molecules/SubscribeCTA';
 import { categoryBadges } from '@/design-system/tokens';
 
@@ -98,8 +99,9 @@ export default async function ArticlePage({ params }: Props) {
                                 />
                             </div>
 
-                            {/* 2. Category & Title (Stacking Order) */}
+                            {/* 1. Category & Title (Stacking Order) */}
                             <header className="mb-8">
+                                <ViewTracker slug={article.slug} />
                                 <Link href={`/category/${categorySlug}`} className="inline-block mb-4">
                                     <Badge category={categorySlug} className="text-xs font-bold px-3 py-1 uppercase tracking-widest transition-transform hover:scale-105">
                                         {article.category?.name || 'أخبار'}
