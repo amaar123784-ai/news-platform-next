@@ -14,9 +14,6 @@ import { ReadNextScroll } from '@/components/article/ReadNextScroll';
 import { SubscribeCTA } from '@/components/molecules/SubscribeCTA';
 import { categoryBadges } from '@/design-system/tokens';
 
-// Fallback image
-import fallbackImg from '@/image/79c82bf90ef6d83cfcc8af5f94b6f09a.jpg';
-
 interface Props {
     params: Promise<{ slug: string }>;
 }
@@ -31,10 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const imageUrl = getImageUrl(article.imageUrl);
     const absoluteImageUrl = imageUrl?.startsWith('http') ? imageUrl : `${siteUrl}${imageUrl}`;
 
-    // Dynamic OG Image URL
     const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent(article.title)}&category=${encodeURIComponent(article.category?.name || 'أخبار')}${absoluteImageUrl ? `&imageUrl=${encodeURIComponent(absoluteImageUrl)}` : ''}`;
 
-    // Extract keywords from tags
     const keywords = article.tags?.map((t: any) => t.tag?.name || t).filter(Boolean) || [];
 
     return {
@@ -43,13 +38,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         keywords: keywords.length > 0 ? keywords : undefined,
         alternates: {
             canonical: `${siteUrl}/article/${slug}`,
-        },
-        robots: {
-            index: true,
-            follow: true,
-            'max-image-preview': 'large',
-            'max-snippet': -1,
-            'max-video-preview': -1,
         },
         openGraph: {
             title: article.title,
@@ -85,10 +73,9 @@ export const revalidate = 60;
 export default async function ArticlePage({ params }: Props) {
     const { slug } = await params;
 
-    // Fetch data
     const [article, relatedArticles] = await Promise.all([
         getArticle(slug),
-        getRelatedArticles(slug, 3),
+        getRelatedArticles(slug, 5), // Increased to 5 for better sidebar
     ]);
 
     if (!article) notFound();
@@ -97,7 +84,6 @@ export default async function ArticlePage({ params }: Props) {
     const categoryInfo = categoryBadges[categorySlug as keyof typeof categoryBadges] || categoryBadges.politics;
     const displayImageUrl = getImageUrl(article.imageUrl);
 
-    // Format helpers
     const formatArticleDate = (date: string) => {
         return new Date(date).toLocaleDateString('ar-YE', {
             day: 'numeric',
@@ -106,7 +92,6 @@ export default async function ArticlePage({ params }: Props) {
         });
     };
 
-    // JSON-LD structured data for SEO
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
     const absoluteImageUrl = displayImageUrl?.startsWith('http') ? displayImageUrl : `${siteUrl}${displayImageUrl}`;
 
@@ -125,6 +110,10 @@ export default async function ArticlePage({ params }: Props) {
         ] : undefined,
         datePublished: new Date(article.publishedAt || article.createdAt).toISOString(),
         dateModified: new Date(article.updatedAt).toISOString(),
+        author: {
+            '@type': 'Person',
+            name: article.author?.name || 'صوت تهامة',
+        },
         publisher: {
             '@type': 'NewsMediaOrganization',
             name: 'صوت تهامة',
@@ -170,7 +159,6 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
         <>
-            {/* JSON-LD Schema for SEO */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
@@ -179,80 +167,91 @@ export default async function ArticlePage({ params }: Props) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
             />
-            <div className="bg-gray-50 min-h-screen py-8">
-                <main className="container mx-auto px-4">
-                    <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto">
+            
+            <div className="bg-gray-50 min-h-screen">
+                {/* Hero Header Area */}
+                <div className="bg-white border-b border-gray-100 mb-8 pt-8">
+                    <div className="container mx-auto px-4 max-w-5xl">
+                        <div className="flex flex-col items-center text-center mb-8">
+                            <Link href={`/category/${categorySlug}`} className="mb-4">
+                                <Badge category={categorySlug} className="text-xs uppercase tracking-widest px-4 py-1.5 shadow-sm hover:scale-105 transition-transform">
+                                    {article.category?.name || categoryInfo.label}
+                                </Badge>
+                            </Link>
+                            
+                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-6 leading-[1.15] font-arabic max-w-4xl">
+                                {article.title}
+                            </h1>
+
+                            <div className="flex flex-wrap items-center justify-center gap-4 text-gray-500 text-sm md:text-base mb-8">
+                                <ArticleMeta
+                                    author={article.author?.name}
+                                    authorImage={article.author?.avatar}
+                                    date={formatArticleDate(article.publishedAt || article.createdAt)}
+                                    views={article.views}
+                                    readTime={article.readTime}
+                                    size="md"
+                                    showAvatar={true}
+                                    className="justify-center"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Featured Image */}
+                        <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-2xl mb-[-4rem] z-10 bg-gray-100 border-4 border-white">
+                            <Image
+                                src={displayImageUrl}
+                                alt={article.title}
+                                fill
+                                priority={true}
+                                className="object-cover"
+                                sizes="(max-width: 1200px) 100vw, 1200px"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <main className="container mx-auto px-4 pb-12 pt-16">
+                    <div className="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto">
 
                         {/* Main Content Column */}
                         <div className="flex-1 min-w-0">
-                            <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-                                <div className="p-6 md:p-10">
-                                    {/* Main Article Image (Top) - Optimized for LCP */}
-                                    <div className="mb-8">
-                                        <Image
-                                            src={displayImageUrl}
-                                            alt={article.title}
-                                            width={1200}
-                                            height={630}
-                                            priority={true}
-                                            className="w-full h-auto rounded-xl shadow-sm"
-                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                                        />
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-12">
+                                {/* Share Bar */}
+                                <div className="flex items-center justify-between mb-10 pb-6 border-b border-gray-50">
+                                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                        <Icon name="ri-share-line" />
+                                        <span>مشاركة المقال:</span>
                                     </div>
+                                    <ShareButtons title={article.title} excerpt={article.excerpt} />
+                                </div>
 
-                                    {/* Header: Category & Title (Below Image) */}
-                                    <div className="mb-8">
-                                        <Link href={`/category/${categorySlug}`}>
-                                            <Badge category={categorySlug} className="mb-4 text-sm px-3 py-1">
-                                                {article.category?.name || categoryInfo.label}
-                                            </Badge>
-                                        </Link>
-
-                                        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-6 leading-tight font-arabic">
-                                            {article.title}
-                                        </h1>
-
-                                        {/* Meta */}
-                                        <div className="flex flex-wrap items-center gap-6 text-gray-500 text-sm pb-6 border-b border-gray-100">
-                                            <div className="flex items-center gap-1">
-                                                <Icon name="ri-calendar-line" />
-                                                <time>{formatArticleDate(article.publishedAt || article.createdAt)}</time>
-                                            </div>
-                                            <ArticleMeta
-                                                views={article.views}
-                                                readTime={article.readTime}
-                                                size="sm"
-                                                className="!gap-6"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Share & Content */}
-                                    <div className="mb-8 flex justify-end border-b border-gray-100 pb-4">
-                                        <ShareButtons title={article.title} excerpt={article.excerpt} />
-                                    </div>
-
+                                {/* Article Body */}
+                                <div className="article-body">
                                     <ArticleContent content={article.content} />
+                                </div>
 
-                                    {/* CONVERSION: Subscribe CTA */}
+                                {/* CONVERSION: Subscribe CTA */}
+                                <div className="my-12">
                                     <SubscribeCTA />
+                                </div>
 
-                                    {/* Tags */}
-                                    {article.tags && article.tags.length > 0 && (
-                                        <div className="mt-10 pt-8 border-t border-gray-100">
-                                            <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="flex items-center gap-2 text-primary font-bold">
-                                                    <Icon name="ri-price-tag-3-line" />
-                                                    الوسوم:
-                                                </span>
+                                {/* Tags Section */}
+                                {article.tags && article.tags.length > 0 && (
+                                    <div className="mt-12 pt-10 border-t border-gray-100">
+                                        <div className="flex items-center gap-4 flex-wrap">
+                                            <div className="flex items-center gap-2 text-gray-900 font-bold bg-gray-100 px-3 py-1.5 rounded-lg text-sm">
+                                                <Icon name="ri-price-tag-3-line" className="text-primary" />
+                                                الكلمات المفتاحية:
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 {article.tags.map((tagItem: any) => {
                                                     const tagSlug = tagItem.tag?.slug || tagItem.slug || tagItem;
                                                     const tagName = tagItem.tag?.name || tagItem.name || tagItem;
                                                     return (
                                                         <Link key={tagItem.tag?.id || tagItem.id || tagSlug} href={`/tag/${tagSlug}`}>
                                                             <Tag
-                                                                className="hover:bg-primary hover:text-white transition-colors cursor-pointer px-4 py-1.5 text-sm bg-gray-50 border-transparent">
+                                                                className="hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 cursor-pointer px-4 py-2 text-sm bg-white border-gray-200">
                                                                 {tagName}
                                                             </Tag>
                                                         </Link>
@@ -260,67 +259,85 @@ export default async function ArticlePage({ params }: Props) {
                                                 })}
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            </article>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* INFINITE SCROLL: Read Next Articles */}
-                            <ReadNextScroll currentArticleId={article.id} categoryId={article.category.id} />
+                            <div className="mt-12">
+                                <ReadNextScroll currentArticleId={article.id} categoryId={article.category.id} />
+                            </div>
 
                             {/* Comments Section */}
-                            <div className="mt-8">
+                            <div className="mt-12" id="comments">
                                 <CommentSection articleId={article.id} />
                             </div>
                         </div>
 
                         {/* Sidebar / Related Articles */}
-                        <aside className="lg:w-[350px] space-y-8">
+                        <aside className="lg:w-[380px] space-y-8">
                             {/* Related Articles Widget */}
                             {relatedArticles && relatedArticles.length > 0 && (
-                                <div className="bg-white rounded-xl shadow-sm p-6 ring-1 ring-gray-100 sticky top-24">
-                                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-                                        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 border-r-4 border-primary pr-3">
-                                            مقالات ذات صلة
-                                        </h3>
-                                        <Link href={`/category/${categorySlug}`} className="text-primary text-sm hover:underline">
-                                            المزيد
+                                <section 
+                                    className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 sticky top-28"
+                                    aria-label="مقالات ذات صلة"
+                                >
+                                    <div className="bg-gradient-to-l from-primary to-primary/80 px-6 py-5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-white">
+                                            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                                <Icon name="ri-links-line" size="lg" />
+                                            </div>
+                                            <h3 className="font-bold text-lg">ذات صلة</h3>
+                                        </div>
+                                        <Link href={`/category/${categorySlug}`} className="text-white/80 hover:text-white text-xs underline underline-offset-4">
+                                            عرض الكل
                                         </Link>
                                     </div>
 
-                                    <div className="grid gap-6">
+                                    <div className="p-4 space-y-1">
                                         {relatedArticles.map((a: any) => (
-                                            <Link key={a.id} href={`/article/${a.slug || a.id}`} className="group flex gap-4 items-start">
-                                                <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                                                    <Image
-                                                        src={getImageUrl(a.imageUrl)}
-                                                        alt={a.title}
-                                                        fill
-                                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                    />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <Badge category={a.category?.slug as any || 'politics'} className="mb-2 text-[10px] px-2 py-0.5">
-                                                        {a.category?.name || 'أخبار'}
-                                                    </Badge>
-                                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 leading-relaxed mb-1">
-                                                        {a.title}
-                                                    </h4>
-                                                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                                                        <Icon name="ri-time-line" size="sm" />
-                                                        {formatTimeAgo(a.publishedAt || a.createdAt)}
-                                                    </span>
-                                                </div>
+                                            <Link key={a.id} href={`/article/${a.slug || a.id}`} className="block group p-3 rounded-xl hover:bg-primary/5 transition-colors">
+                                                <article className="flex gap-4 items-start">
+                                                    <div className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                                                        <Image
+                                                            src={getImageUrl(a.imageUrl)}
+                                                            alt=""
+                                                            fill
+                                                            sizes="80px"
+                                                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 leading-relaxed mb-2">
+                                                            {a.title}
+                                                        </h4>
+                                                        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                                                            <span className="flex items-center gap-1">
+                                                                <Icon name="ri-time-line" size="sm" />
+                                                                {formatTimeAgo(a.publishedAt || a.createdAt)}
+                                                            </span>
+                                                            <span className="flex items-center gap-1">
+                                                                <Icon name="ri-eye-line" size="sm" />
+                                                                {a.views?.toLocaleString('ar-YE')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </article>
                                             </Link>
                                         ))}
                                     </div>
-                                </div>
+                                </section>
                             )}
 
                             {/* Ad Space Placeholder */}
-                            <div className="bg-primary/5 rounded-xl p-6 text-center border border-dashed border-primary/20">
-                                <span className="text-primary font-medium block mb-2">إعلان تجاري</span>
-                                <div className="h-48 bg-white/50 rounded-lg flex items-center justify-center text-gray-400">
-                                    مساحة إعلانية
+                            <div className="bg-primary/5 rounded-3xl p-8 text-center border border-dashed border-primary/20">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4 uppercase tracking-widest">
+                                    <Icon name="ri-advertisement-line" size="xs" />
+                                    إعلان
+                                </div>
+                                <div className="h-64 bg-white/50 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 italic text-sm">
+                                    مساحة إعلانية شاغرة
                                 </div>
                             </div>
                         </aside>

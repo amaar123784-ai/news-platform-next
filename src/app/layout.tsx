@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Arabic } from "next/font/google";
 import { Providers } from "./providers";
+import { GoogleAnalytics } from '@next/third-parties/google';
 import "./globals.css";
 import { settingsService } from "@/services/settings.service";
 
@@ -77,7 +78,7 @@ export default function RootLayout({
         <link rel="alternate" type="application/rss+xml" title="صوت تهامة - RSS" href="/rss.xml" />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
-
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />}
         <Providers>
           {children}
         </Providers>

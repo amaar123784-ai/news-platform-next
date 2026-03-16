@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getArticles } from "@/lib/api";
+import { getArticles, getImageUrl, formatTimeAgo } from "@/lib/api";
 import { NewsCard } from "@/components/organisms";
 import { Container, Button, Icon } from "@/components/atoms";
 import { UrlPagination } from "@/components/molecules";
@@ -14,7 +14,6 @@ interface TagPageProps {
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
 
-// Common Arabic names for slugs if applicable
 const TAG_DISPLAY_NAMES: Record<string, string> = {
     'tihama-issue': 'القضية التهامية',
     'tihama-movement': 'الحراك التهامي',
@@ -78,25 +77,36 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
 
     return (
         <>
-            {/* CollectionPage JSON-LD Schema for SEO */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
             />
 
-            <main className="min-h-screen bg-gray-50 py-6 sm:py-8">
+            <main className="min-h-screen bg-gray-50 py-8 sm:py-12">
                 <Container>
-                    {/* Tag Header */}
-                    <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-4 border-r-4 border-primary">
-                        <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary shrink-0">
-                                <Icon name="ri-price-tag-3-line" size="xl" />
+                    {/* Enhanced Tag Header */}
+                    <div className="relative bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8 sm:mb-12 border-r-8 border-primary">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
+                        
+                        <div className="relative px-6 py-8 sm:px-10 sm:py-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-center gap-5 sm:gap-6">
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-primary shadow-sm shrink-0 transform rotate-3">
+                                    <Icon name="ri-price-tag-3-line" size="2xl" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-gray-400 text-xs font-bold uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-md">موضوع</span>
+                                        <div className="h-px w-8 bg-gray-200" />
+                                    </div>
+                                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 leading-none">{tagName}</h1>
+                                </div>
                             </div>
-                            <div className="min-w-0">
-                                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">موضوع: {tagName}</h1>
-                                <p className="text-gray-500 text-xs sm:text-sm mt-1">
-                                    تصفح جميع الأخبار والتقارير المتعلقة بـ {tagName}
-                                </p>
+                            
+                            <div className="flex items-center gap-4 bg-gray-50 px-5 py-3 rounded-2xl border border-gray-100 self-start md:self-auto">
+                                <div className="text-center">
+                                    <span className="block text-xl font-bold text-gray-900 leading-none mb-1">{meta?.totalItems || 0}</span>
+                                    <span className="text-[10px] text-gray-400 font-bold uppercase">مقال مرتبط</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -104,36 +114,43 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
                     {/* Articles Grid */}
                     {articles.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                {articles.map((article: any) => (
-                                    <NewsCard
-                                        key={article.id}
-                                        id={article.id}
-                                        title={article.title}
-                                        excerpt={article.excerpt}
-                                        category={article.category?.slug || 'news'}
-                                        imageUrl={article.imageUrl?.startsWith('http') ? article.imageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://127.0.0.1:5000'}${article.imageUrl || '/images/placeholder.jpg'}`}
-                                        author={article.author?.name || "المحرر"}
-                                        timeAgo={new Date(article.publishedAt || article.createdAt).toLocaleDateString('ar-YE')}
-                                    />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                                {articles.map((article: any, index: number) => (
+                                    <div key={article.id} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                                        <NewsCard
+                                            id={article.id}
+                                            title={article.title}
+                                            excerpt={article.excerpt}
+                                            category={article.category?.slug || 'news'}
+                                            imageUrl={getImageUrl(article.imageUrl)}
+                                            timeAgo={formatTimeAgo(article.publishedAt || article.createdAt)}
+                                            readTime={article.readTime}
+                                        />
+                                    </div>
                                 ))}
                             </div>
 
                             {meta && meta.totalPages > 1 && (
-                                <div className="mt-8 pb-4">
+                                <div className="mt-12 pt-8 border-t border-gray-100">
                                     <UrlPagination currentPage={page} totalPages={meta.totalPages} />
                                 </div>
                             )}
                         </>
                     ) : (
-                        <div className="text-center py-20 bg-white rounded-lg shadow-sm">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                                <Icon name="ri-article-line" size="2xl" />
+                        <div className="text-center py-24 bg-white rounded-3xl shadow-sm border border-gray-100 max-w-2xl mx-auto">
+                            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300 relative">
+                                <Icon name="ri-price-tag-3-line" size="3xl" />
+                                <div className="absolute top-0 right-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100">
+                                    <Icon name="ri-close-line" className="text-red-400" />
+                                </div>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">لا توجد مقالات</h3>
-                            <p className="text-gray-500 mb-6">لم يتم العثور على أي مقالات بهذا الوسم.</p>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-3">لا توجد نتائج</h3>
+                            <p className="text-gray-500 mb-8 max-w-sm mx-auto">لم يتم العثور على أي مقالات مرتبطة بهذا الموضوع حالياً.</p>
                             <Link href="/">
-                                <Button variant="primary">العودة للرئيسية</Button>
+                                <Button variant="primary" className="px-8 rounded-full h-12 shadow-lg shadow-primary/20">
+                                    العودة للرئيسية
+                                    <Icon name="ri-arrow-left-line" className="mr-2" />
+                                </Button>
                             </Link>
                         </div>
                     )}
