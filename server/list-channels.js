@@ -1,51 +1,105 @@
-import makeWASocketImport from '@whiskeysockets/baileys';
-// ESM import workaround for Baileys
-const makeWASocket = makeWASocketImport.default || makeWASocketImport;
-const { useMultiFileAuthState } = makeWASocketImport;
+/**
+ * WhatsApp Channel & Group ID Discovery Script
+ * 
+ * Run this to find the JID (ID) of the groups or channels you want to post to.
+ * Usage: npx tsx list-channels.js
+ */
 
-async function listChannels() {
-    console.log('Loading WhatsApp session...');
-    const { state } = await useMultiFileAuthState('./whatsapp-auth');
-    
-    const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-    });
+import pkg from '@whiskeysockets/baileys';
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = pkg;
 
-    sock.ev.on('connection.update', async (update) => {
-        const { connection } = update;
-        
-        if (connection === 'open') {
-            console.log('\n✅ Connected to WhatsApp!');
-            console.log('\n--- Fetching your Channels/Newsletters ---');
-            
-            try {
-                // @ts-ignore
-                const newsletters = await sock.newsletterMetadata('all');
-                
-                if (!newsletters || newsletters.length === 0) {
-                    console.log('❌ No channels found. You might need to create one first.');
-                } else {
-                    console.log(`Found ${newsletters.length} channel(s): \n`);
-                    // @ts-ignore
-                    newsletters.forEach((channel, index) => {
-                        console.log(`[${index + 1}] Name: ${channel.name}`);
-                        console.log(`    JID (Channel ID): ${channel.id}`);
-                        console.log(`    Link:    https://whatsapp.com/channel/${channel.inviteCode}`);
-                        console.log('--------------------------------------------------');
-                    });
-                    
-                    console.log('\n👉 Copy the "JID" of your target channel and paste it in your .env file as WHATSAPP_CHANNEL_ID.');
-                }
-            } catch (error) {
-                console.error('Error fetching channels:', error.message);
-                console.log('Note: Channel fetching sometimes requires the account to be fully synced or have admin rights to the channel.');
+async function listWhatsAppEntities() {
+    console.log('\n--- 📱 WhatsApp ID Discovery Utility ---\n');
+
+    try {
+        // Use the same auth folder as the main service
+        const { state, saveCreds } = await useMultiFileAuthState('./whatsapp-auth');
+        const { version } = await fetchLatestBaileysVersion();
+
+        console.log('[Info] Initializing connection to WhatsApp...');
+        const sock = makeWASocket({
+            version,
+            auth: state,
+            printQRInTerminal: true, // Only needed if session expired
+            browser: ['VoiceOfTihama Discovery', 'Chrome', '120.0'],
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                console.log('[Warning] Session expired. Please scan this QR code to continue:');
             }
-            
-            console.log('\nClosing connection. You can now press Ctrl+C to exit.');
-            process.exit(0);
-        }
-    });
+
+            if (connection === 'open') {
+                console.log('\n✅ Connected successfully!\n');
+
+                // 1. Fetch Groups
+                console.log('--- 👥 WHATSAPP GROUPS ---');
+                try {
+                    const groups = await sock.groupFetchAllParticipating();
+                    const groupList = Object.values(groups).map(g => ({
+                        'Name': g.subject,
+                        'JID (Copy this to .env)': g.id
+                    }));
+
+                    if (groupList.length > 0) {
+                        console.table(groupList);
+                    } else {
+                        console.log('No groups found.');
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch groups:', err.message);
+                }
+
+                // 2. Fetch Newsletters (Channels)
+                console.log('\n--- 📢 WHATSAPP CHANNELS (Newsletters) ---');
+                try {
+                    // Try different Baileys versions methods for newsletters
+                    let newsletters = [];
+                    if (typeof sock.newsletterSubscribed === 'function') {
+                        newsletters = await sock.newsletterSubscribed();
+                    } else if (typeof sock.newsletterSubscriptions === 'function') {
+                        newsletters = await sock.newsletterSubscriptions();
+                    }
+
+                    const channelList = newsletters.map(nl => ({
+                        'Name': nl.name || 'Unnamed Channel',
+                        'JID (Copy this to .env)': nl.id
+                    }));
+
+                    if (channelList.length > 0) {
+                        console.table(channelList);
+                    } else {
+                        console.log('No subscribed channels found.');
+                    }
+                } catch (err) {
+                    console.warn('Could not fetch channels (Your Baileys version might not support newsletters):', err.message);
+                }
+
+                console.log('\n--- 🏁 Discovery Complete ---\n');
+                console.log('Instructions: Copy the relevant JID above and paste it into your .env as WHATSAPP_CHANNEL_ID');
+                
+                // Graceful Exit
+                sock.ws.close();
+                process.exit(0);
+            }
+
+            if (connection === 'close') {
+                const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
+                if (!shouldReconnect) {
+                    console.error('❌ Authentication failed. Please delete the ./whatsapp-auth folder and scan again.');
+                    process.exit(1);
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Fatal error during discovery:', error.message);
+        process.exit(1);
+    }
 }
 
-listChannels().catch(console.error);
+listWhatsAppEntities();
