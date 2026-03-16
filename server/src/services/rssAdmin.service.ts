@@ -378,7 +378,14 @@ export async function getModerationArticles(
     sourceId?: string,
     categoryId?: string
 ) {
-    const where: any = { status };
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    const where: any = { 
+        status,
+        fetchedAt: {
+            gte: fortyEightHoursAgo
+        }
+    };
 
     if (sourceId) {
         where.feed = { sourceId };
