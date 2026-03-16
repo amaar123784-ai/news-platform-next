@@ -164,48 +164,56 @@ export default async function ArticlePage({ params }: Props) {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
             />
             
-            <div className="bg-gray-50 min-h-screen">
-                {/* Hero Header Area */}
-                <div className="bg-white border-b border-gray-100 mb-8 pt-8">
-                    <div className="container mx-auto px-4 max-w-5xl">
-                        <div className="flex flex-col items-center text-center mb-8">
-                            <Link href={`/category/${categorySlug}`} className="mb-4">
-                                <Badge category={categorySlug} className="text-xs uppercase tracking-widest px-4 py-1.5 shadow-sm hover:scale-105 transition-transform">
-                                    {article.category?.name || categoryInfo.label}
-                                </Badge>
-                            </Link>
-                            
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-8 leading-[1.2] font-arabic max-w-4xl drop-shadow-sm">
-                                {article.title}
-                            </h1>
+            <div className="bg-white min-h-screen">
+                {/* Unified Hero Section (Image Overlay) */}
+                <div className="relative w-full min-h-[450px] md:min-h-[550px] lg:min-h-[650px] overflow-hidden group">
+                    {/* Background Image */}
+                    <div className="absolute inset-0">
+                        <Image
+                            src={displayImageUrl}
+                            alt={article.title}
+                            fill
+                            priority={true}
+                            fetchPriority="high"
+                            className="object-cover object-center transition-transform duration-[2000ms] group-hover:scale-105"
+                            sizes="100vw"
+                        />
+                    </div>
+                    
+                    {/* Artistic Gradients & Overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-black/10" />
+                    <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
 
-                            <div className="flex flex-wrap items-center justify-center gap-6 text-gray-600 text-sm md:text-base mb-10 pb-2">
-                                <ArticleMeta
-                                    date={formatArticleDate(article.publishedAt || article.createdAt)}
-                                    views={article.views}
-                                    readTime={article.readTime}
-                                    size="md"
-                                    className="justify-center bg-gray-50/50 px-6 py-2 rounded-full border border-gray-100 shadow-sm"
-                                />
+                    {/* Content Container */}
+                    <div className="absolute inset-0 flex flex-col justify-end">
+                        <div className="container mx-auto px-4 pb-12 md:pb-24 max-w-6xl">
+                            <div className="animate-fade-in-up">
+                                <Link href={`/category/${categorySlug}`} className="inline-block mb-6">
+                                    <Badge category={categorySlug} className="text-xs uppercase tracking-[0.2em] px-5 py-2 shadow-lg border-white/20 hover:scale-105 transition-transform bg-white/10 backdrop-blur-md text-white border">
+                                        {article.category?.name || categoryInfo.label}
+                                    </Badge>
+                                </Link>
+                                
+                                <h1 className="text-3xl md:text-5xl lg:text-7xl font-black text-white mb-8 leading-[1.15] font-arabic max-w-5xl drop-shadow-2xl">
+                                    {article.title}
+                                </h1>
+
+                                <div className="flex flex-wrap items-center gap-6">
+                                    <ArticleMeta
+                                        date={formatArticleDate(article.publishedAt || article.createdAt)}
+                                        views={article.views}
+                                        readTime={article.readTime}
+                                        size="md"
+                                        className="bg-white/10 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/20 shadow-xl text-white font-medium"
+                                    />
+                                </div>
                             </div>
-                        </div>
-
-                        {/* Featured Image */}
-                        <div className="relative aspect-[21/9] w-full rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] mb-[-5rem] z-10 bg-gray-100 border-[6px] border-white group">
-                            <Image
-                                src={displayImageUrl}
-                                alt={article.title}
-                                fill
-                                priority={true}
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                                sizes="(max-width: 1200px) 100vw, 1200px"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                         </div>
                     </div>
                 </div>
 
-                <main className="container mx-auto px-4 pb-20 pt-24">
+                <main className="container mx-auto px-4 pb-20 pt-16">
                     <div className="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto">
 
                         {/* Main Content Column */}
