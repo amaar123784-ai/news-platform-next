@@ -110,10 +110,6 @@ export default async function ArticlePage({ params }: Props) {
         ] : undefined,
         datePublished: new Date(article.publishedAt || article.createdAt).toISOString(),
         dateModified: new Date(article.updatedAt).toISOString(),
-        author: {
-            '@type': 'Person',
-            name: article.author?.name || 'صوت تهامة',
-        },
         publisher: {
             '@type': 'NewsMediaOrganization',
             name: 'صوت تهامة',
@@ -179,39 +175,37 @@ export default async function ArticlePage({ params }: Props) {
                                 </Badge>
                             </Link>
                             
-                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-6 leading-[1.15] font-arabic max-w-4xl">
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-8 leading-[1.2] font-arabic max-w-4xl drop-shadow-sm">
                                 {article.title}
                             </h1>
 
-                            <div className="flex flex-wrap items-center justify-center gap-4 text-gray-500 text-sm md:text-base mb-8">
+                            <div className="flex flex-wrap items-center justify-center gap-6 text-gray-600 text-sm md:text-base mb-10 pb-2">
                                 <ArticleMeta
-                                    author={article.author?.name}
-                                    authorImage={article.author?.avatar}
                                     date={formatArticleDate(article.publishedAt || article.createdAt)}
                                     views={article.views}
                                     readTime={article.readTime}
                                     size="md"
-                                    showAvatar={true}
-                                    className="justify-center"
+                                    className="justify-center bg-gray-50/50 px-6 py-2 rounded-full border border-gray-100 shadow-sm"
                                 />
                             </div>
                         </div>
 
                         {/* Featured Image */}
-                        <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-2xl mb-[-4rem] z-10 bg-gray-100 border-4 border-white">
+                        <div className="relative aspect-[21/9] w-full rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] mb-[-5rem] z-10 bg-gray-100 border-[6px] border-white group">
                             <Image
                                 src={displayImageUrl}
                                 alt={article.title}
                                 fill
                                 priority={true}
-                                className="object-cover"
+                                className="object-cover transition-transform duration-700 group-hover:scale-105"
                                 sizes="(max-width: 1200px) 100vw, 1200px"
                             />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                         </div>
                     </div>
                 </div>
 
-                <main className="container mx-auto px-4 pb-12 pt-16">
+                <main className="container mx-auto px-4 pb-20 pt-24">
                     <div className="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto">
 
                         {/* Main Content Column */}
@@ -282,14 +276,14 @@ export default async function ArticlePage({ params }: Props) {
                                     className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 sticky top-28"
                                     aria-label="مقالات ذات صلة"
                                 >
-                                    <div className="bg-gradient-to-l from-primary to-primary/80 px-6 py-5 flex items-center justify-between">
-                                        <div className="flex items-center gap-3 text-white">
-                                            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                    <div className="bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-gray-900 font-arabic">
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                                                 <Icon name="ri-links-line" size="lg" />
                                             </div>
-                                            <h3 className="font-bold text-lg">ذات صلة</h3>
+                                            <h3 className="font-black text-lg">قد يهمك أيضاً</h3>
                                         </div>
-                                        <Link href={`/category/${categorySlug}`} className="text-white/80 hover:text-white text-xs underline underline-offset-4">
+                                        <Link href={`/category/${categorySlug}`} className="text-primary hover:text-primary-dark text-xs font-bold transition-colors">
                                             عرض الكل
                                         </Link>
                                     </div>
@@ -312,12 +306,12 @@ export default async function ArticlePage({ params }: Props) {
                                                         <h4 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 leading-relaxed mb-2">
                                                             {a.title}
                                                         </h4>
-                                                        <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                                                            <span className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-3 text-[11px] font-medium text-gray-400">
+                                                            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-md">
                                                                 <Icon name="ri-time-line" size="sm" />
                                                                 {formatTimeAgo(a.publishedAt || a.createdAt)}
                                                             </span>
-                                                            <span className="flex items-center gap-1">
+                                                            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-md">
                                                                 <Icon name="ri-eye-line" size="sm" />
                                                                 {a.views?.toLocaleString('ar-YE')}
                                                             </span>
