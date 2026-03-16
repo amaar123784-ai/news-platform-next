@@ -30,12 +30,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent(article.title)}&category=${encodeURIComponent(article.category?.name || 'أخبار')}${absoluteImageUrl ? `&imageUrl=${encodeURIComponent(absoluteImageUrl)}` : ''}`;
 
-    const keywords = article.tags?.map((t: any) => t.tag?.name || t).filter(Boolean) || [];
-
     return {
         title: article.seoTitle || article.title,
         description: article.seoDesc || article.excerpt,
-        keywords: keywords.length > 0 ? keywords : undefined,
         alternates: {
             canonical: `${siteUrl}/article/${slug}`,
         },
@@ -46,24 +43,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             siteName: 'صوت تهامة',
             type: 'article',
             publishedTime: article.publishedAt || article.createdAt,
-            modifiedTime: article.updatedAt,
-            authors: [article.author?.name || 'صوت تهامة'],
-            images: [
-                {
-                    url: ogImageUrl,
-                    width: 1200,
-                    height: 630,
-                    alt: article.title,
-                }
-            ],
+            images: [{ url: ogImageUrl, width: 1200, height: 630 }],
         },
         twitter: {
             card: 'summary_large_image',
             title: article.title,
             description: article.excerpt,
             images: [ogImageUrl],
-            creator: '@voiceoftihama',
-            site: '@voiceoftihama',
         },
     };
 }
@@ -75,13 +61,12 @@ export default async function ArticlePage({ params }: Props) {
 
     const [article, relatedArticles] = await Promise.all([
         getArticle(slug),
-        getRelatedArticles(slug, 5), // Increased to 5 for better sidebar
+        getRelatedArticles(slug, 4),
     ]);
 
     if (!article) notFound();
 
     const categorySlug = article.category?.slug as any || 'politics';
-    const categoryInfo = categoryBadges[categorySlug as keyof typeof categoryBadges] || categoryBadges.politics;
     const displayImageUrl = getImageUrl(article.imageUrl);
 
     const formatArticleDate = (date: string) => {
@@ -92,263 +77,153 @@ export default async function ArticlePage({ params }: Props) {
         });
     };
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
-    const absoluteImageUrl = displayImageUrl?.startsWith('http') ? displayImageUrl : `${siteUrl}${displayImageUrl}`;
-
-    const articleSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'NewsArticle',
-        headline: article.title,
-        description: article.excerpt,
-        image: absoluteImageUrl ? [
-            {
-                '@type': 'ImageObject',
-                url: absoluteImageUrl,
-                width: 1200,
-                height: 630
-            }
-        ] : undefined,
-        datePublished: new Date(article.publishedAt || article.createdAt).toISOString(),
-        dateModified: new Date(article.updatedAt).toISOString(),
-        publisher: {
-            '@type': 'NewsMediaOrganization',
-            name: 'صوت تهامة',
-            logo: {
-                '@type': 'ImageObject',
-                url: `${siteUrl}/images/logo.webp`,
-                width: 600,
-                height: 60
-            },
-        },
-        mainEntityOfPage: {
-            '@type': 'WebPage',
-            '@id': `${siteUrl}/article/${slug}`,
-        },
-        articleSection: article.category?.name,
-        wordCount: article.content?.split(/\s+/).length || 0,
-    };
-
-    const breadcrumbSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-            {
-                '@type': 'ListItem',
-                position: 1,
-                name: 'الرئيسية',
-                item: siteUrl,
-            },
-            {
-                '@type': 'ListItem',
-                position: 2,
-                name: article.category?.name || 'أخبار',
-                item: `${siteUrl}/category/${categorySlug}`,
-            },
-            {
-                '@type': 'ListItem',
-                position: 3,
-                name: article.title,
-                item: `${siteUrl}/article/${slug}`,
-            },
-        ],
-    };
-
     return (
-        <>
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
-            />
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-            />
-            
-            <div className="bg-white min-h-screen">
-                {/* Unified Hero Section (Image Overlay - Contained) */}
-                <div className="container mx-auto px-4 pt-6">
-                    <div className="relative w-full min-h-[300px] md:min-h-[400px] lg:min-h-[500px] overflow-hidden group rounded-3xl shadow-xl">
-                        {/* Background Image */}
-                        <div className="absolute inset-0">
-                            <Image
-                                src={displayImageUrl}
-                                alt={article.title}
-                                fill
-                                priority={true}
-                                fetchPriority="high"
-                                className="object-cover object-center transition-transform duration-[2000ms] group-hover:scale-105"
-                                sizes="(max-width: 1280px) 100vw, 1280px"
-                            />
-                        </div>
-                        
-                        {/* Artistic Gradients & Overlays */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-                        <div className="absolute inset-0 bg-black/10" />
-                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+        <div className="bg-white min-h-screen">
+            {/* Main Layout Container */}
+            <main className="container mx-auto px-4 py-8 lg:py-12">
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 lg:gap-16">
+                    
+                    {/* 70% Content Area: Distraction-Free Reading */}
+                    <div className="lg:w-[70%] min-w-0">
+                        <article>
+                            {/* 1. Category & Title (Stacking Order) */}
+                            <header className="mb-8">
+                                <Link href={`/category/${categorySlug}`} className="inline-block mb-4">
+                                    <Badge category={categorySlug} className="text-xs font-bold px-3 py-1 uppercase tracking-widest transition-transform hover:scale-105">
+                                        {article.category?.name || 'أخبار'}
+                                    </Badge>
+                                </Link>
+                                
+                                <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-6 leading-tight font-arabic">
+                                    {article.title}
+                                </h1>
 
-                        {/* Content Container */}
-                        <div className="absolute inset-0 flex flex-col justify-end">
-                            <div className="px-6 pb-8 md:px-12 md:pb-12 max-w-5xl">
-                                <div className="animate-fade-in-up">
-                                    <Link href={`/category/${categorySlug}`} className="inline-block mb-4">
-                                        <Badge category={categorySlug} className="text-xs uppercase tracking-[0.2em] px-5 py-2 shadow-lg border-white/20 hover:scale-105 transition-transform bg-white/10 backdrop-blur-md text-white border">
-                                            {article.category?.name || categoryInfo.label}
-                                        </Badge>
-                                    </Link>
+                                {/* 2. Metadata: Elegant Author & Date Row */}
+                                <div className="flex flex-wrap items-center gap-y-4 gap-x-8 text-gray-500 text-sm md:text-base border-b border-gray-100 pb-8">
+                                    <ArticleMeta
+                                        author={article.author?.name}
+                                        authorImage={article.author?.avatar}
+                                        date={formatArticleDate(article.publishedAt || article.createdAt)}
+                                        views={article.views}
+                                        readTime={article.readTime}
+                                        size="md"
+                                        showAvatar={true}
+                                    />
                                     
-                                    <h1 className="text-3xl md:text-5xl lg:text-7xl font-black text-white mb-6 leading-[1.15] font-arabic max-w-4xl drop-shadow-2xl">
-                                        {article.title}
-                                    </h1>
-
-                                    <div className="flex flex-wrap items-center gap-6">
-                                        <ArticleMeta
-                                            date={formatArticleDate(article.publishedAt || article.createdAt)}
-                                            views={article.views}
-                                            readTime={article.readTime}
-                                            size="md"
-                                            className="bg-white/10 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/20 shadow-xl text-white font-medium"
-                                        />
+                                    <div className="mr-auto">
+                                        <ShareButtons title={article.title} excerpt={article.excerpt} />
                                     </div>
                                 </div>
+                            </header>
+
+                            {/* 3. Featured Image (Full width, responsive) */}
+                            <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-sm bg-gray-50 mb-10">
+                                <Image
+                                    src={displayImageUrl}
+                                    alt={article.title}
+                                    fill
+                                    priority={true}
+                                    className="object-cover"
+                                    sizes="(max-width: 1024px) 100vw, 850px"
+                                />
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                <main className="container mx-auto px-4 pb-20 pt-12">
-                    <div className="flex flex-col lg:flex-row gap-12 max-w-7xl mx-auto">
+                            {/* 4. Article Body: Premium Typography */}
+                            <div className="article-content max-w-none">
+                                <ArticleContent content={article.content} className="md:prose-xl" />
+                            </div>
 
-                        {/* Main Content Column */}
-                        <div className="flex-1 min-w-0">
-                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-12">
-                                {/* Share Bar */}
-                                <div className="flex items-center justify-between mb-10 pb-6 border-b border-gray-50">
-                                    <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                        <Icon name="ri-share-line" />
-                                        <span>مشاركة المقال:</span>
+                            {/* Engagement & Conversion */}
+                            <div className="my-16 border-y border-gray-100 py-12">
+                                <SubscribeCTA />
+                            </div>
+
+                            {/* Tags Section */}
+                            {article.tags && article.tags.length > 0 && (
+                                <footer className="mb-16">
+                                    <div className="flex items-center gap-3 mb-4 text-gray-900 font-bold text-sm">
+                                        <Icon name="ri-price-tag-3-line" className="text-primary" />
+                                        <span>الكلمات المفتاحية:</span>
                                     </div>
-                                    <ShareButtons title={article.title} excerpt={article.excerpt} />
-                                </div>
-
-                                {/* Article Body */}
-                                <div className="article-body">
-                                    <ArticleContent content={article.content} />
-                                </div>
-
-                                {/* CONVERSION: Subscribe CTA */}
-                                <div className="my-12">
-                                    <SubscribeCTA />
-                                </div>
-
-                                {/* Tags Section */}
-                                {article.tags && article.tags.length > 0 && (
-                                    <div className="mt-12 pt-10 border-t border-gray-100">
-                                        <div className="flex items-center gap-4 flex-wrap">
-                                            <div className="flex items-center gap-2 text-gray-900 font-bold bg-gray-100 px-3 py-1.5 rounded-lg text-sm">
-                                                <Icon name="ri-price-tag-3-line" className="text-primary" />
-                                                الكلمات المفتاحية:
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                {article.tags.map((tagItem: any) => {
-                                                    const tagSlug = tagItem.tag?.slug || tagItem.slug || tagItem;
-                                                    const tagName = tagItem.tag?.name || tagItem.name || tagItem;
-                                                    return (
-                                                        <Link key={tagItem.tag?.id || tagItem.id || tagSlug} href={`/tag/${tagSlug}`}>
-                                                            <Tag
-                                                                className="hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 cursor-pointer px-4 py-2 text-sm bg-white border-gray-200">
-                                                                {tagName}
-                                                            </Tag>
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {article.tags.map((tagItem: any) => {
+                                            const tagSlug = tagItem.tag?.slug || tagItem.slug || tagItem;
+                                            const tagName = tagItem.tag?.name || tagItem.name || tagItem;
+                                            return (
+                                                <Link key={tagItem.tag?.id || tagItem.id || tagSlug} href={`/tag/${tagSlug}`}>
+                                                    <Tag className="hover:bg-primary hover:text-white transition-all cursor-pointer bg-gray-50 border-gray-100 text-gray-600 px-4 py-2">
+                                                        {tagName}
+                                                    </Tag>
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
-                                )}
-                            </div>
+                                </footer>
+                            )}
 
-                            {/* INFINITE SCROLL: Read Next Articles */}
-                            <div className="mt-12">
-                                <ReadNextScroll currentArticleId={article.id} categoryId={article.category.id} />
-                            </div>
+                            {/* INFINITE SCROLL: Next Read */}
+                            <ReadNextScroll currentArticleId={article.id} categoryId={article.category.id} />
 
-                            {/* Comments Section */}
-                            <div className="mt-12" id="comments">
+                            {/* Comments */}
+                            <div id="comments" className="mt-12 bg-gray-50 rounded-3xl p-6 md:p-8 border border-gray-100">
                                 <CommentSection articleId={article.id} />
                             </div>
-                        </div>
+                        </article>
+                    </div>
 
-                        {/* Sidebar / Related Articles */}
-                        <aside className="lg:w-[380px] space-y-8">
-                            {/* Related Articles Widget */}
-                            {relatedArticles && relatedArticles.length > 0 && (
-                                <section 
-                                    className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 sticky top-28"
-                                    aria-label="مقالات ذات صلة"
-                                >
-                                    <div className="bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between">
-                                        <div className="flex items-center gap-3 text-gray-900 font-arabic">
-                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                                <Icon name="ri-links-line" size="lg" />
-                                            </div>
-                                            <h3 className="font-black text-lg">قد يهمك أيضاً</h3>
-                                        </div>
-                                        <Link href={`/category/${categorySlug}`} className="text-primary hover:text-primary-dark text-xs font-bold transition-colors">
-                                            عرض الكل
+                    {/* 30% Sidebar Area */}
+                    <aside className="lg:w-[30%] space-y-10">
+                        {/* Related Articles Sticky Sidebar */}
+                        {relatedArticles && relatedArticles.length > 0 && (
+                            <div className="sticky top-28 space-y-8">
+                                <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+                                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                            <span className="w-1.5 h-6 bg-primary rounded-full" />
+                                            مقالات ذات صلة
+                                        </h3>
+                                        <Link href={`/category/${categorySlug}`} className="text-xs text-primary font-bold hover:underline">
+                                            المزيد
                                         </Link>
                                     </div>
-
-                                    <div className="p-4 space-y-1">
+                                    <div className="p-4 space-y-4">
                                         {relatedArticles.map((a: any) => (
-                                            <Link key={a.id} href={`/article/${a.slug || a.id}`} className="block group p-3 rounded-xl hover:bg-primary/5 transition-colors">
-                                                <article className="flex gap-4 items-start">
-                                                    <div className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                                                        <Image
-                                                            src={getImageUrl(a.imageUrl)}
-                                                            alt=""
-                                                            fill
-                                                            sizes="80px"
-                                                            className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 leading-relaxed mb-2">
-                                                            {a.title}
-                                                        </h4>
-                                                        <div className="flex items-center gap-3 text-[11px] font-medium text-gray-400">
-                                                            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-md">
-                                                                <Icon name="ri-time-line" size="sm" />
-                                                                {formatTimeAgo(a.publishedAt || a.createdAt)}
-                                                            </span>
-                                                            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-md">
-                                                                <Icon name="ri-eye-line" size="sm" />
-                                                                {a.views?.toLocaleString('ar-YE')}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </article>
+                                            <Link key={a.id} href={`/article/${a.slug || a.id}`} className="group flex gap-4 items-center p-2 rounded-xl hover:bg-gray-50 transition-colors">
+                                                <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                                                    <Image
+                                                        src={getImageUrl(a.imageUrl)}
+                                                        alt=""
+                                                        fill
+                                                        sizes="80px"
+                                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                                                        {a.title}
+                                                    </h4>
+                                                    <span className="text-[11px] text-gray-400 mt-1 block">
+                                                        {formatTimeAgo(a.publishedAt || a.createdAt)}
+                                                    </span>
+                                                </div>
                                             </Link>
                                         ))}
                                     </div>
                                 </section>
-                            )}
 
-                            {/* Ad Space Placeholder */}
-                            <div className="bg-primary/5 rounded-3xl p-8 text-center border border-dashed border-primary/20">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4 uppercase tracking-widest">
-                                    <Icon name="ri-advertisement-line" size="sm" />
-                                    إعلان
-                                </div>
-                                <div className="h-64 bg-white/50 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 italic text-sm">
-                                    مساحة إعلانية شاغرة
+                                {/* Sidebar Ad Space */}
+                                <div className="bg-gray-50 rounded-2xl p-8 border border-dashed border-gray-200 text-center">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-4">إعلان</span>
+                                    <div className="h-60 flex items-center justify-center text-gray-300 italic text-sm">
+                                        مساحة إعلانية
+                                    </div>
                                 </div>
                             </div>
-                        </aside>
+                        )}
+                    </aside>
 
-                    </div>
-                </main>
-            </div>
-        </>
+                </div>
+            </main>
+        </div>
     );
 }
