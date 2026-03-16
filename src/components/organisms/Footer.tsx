@@ -59,7 +59,13 @@ export const Footer: React.FC<FooterProps> = ({
         { icon: 'ri-twitter-x-fill', href: settings?.social?.twitter || '#', label: 'Twitter' },
         { icon: 'ri-youtube-fill', href: settings?.social?.youtube || '#', label: 'YouTube' },
         { icon: 'ri-telegram-fill', href: settings?.social?.telegram || '#', label: 'Telegram' },
-        { icon: 'ri-whatsapp-fill', href: settings?.social?.whatsapp ? `https://wa.me/${settings.social.whatsapp.replace(/\s+/g, '')}` : '#', label: 'WhatsApp' },
+        { 
+            icon: 'ri-whatsapp-fill', 
+            href: settings?.social?.whatsapp 
+                ? (settings.social.whatsapp.startsWith('http') ? settings.social.whatsapp : `https://wa.me/${settings.social.whatsapp.replace(/\s+/g, '')}`) 
+                : '#', 
+            label: 'WhatsApp' 
+        },
     ].filter(link => link.href !== '#');
 
     return (

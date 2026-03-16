@@ -5,8 +5,8 @@ import { Icon } from '@/components/atoms/Icon';
 
 export const SubscribeCTA: React.FC = () => {
     // These would ideally come from a site config file
-    const whatsappLink = process.env.NEXT_PUBLIC_WHATSAPP_CHANNEL_URL || "https://whatsapp.com/channel/your-channel-id";
-    const telegramLink = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL || "https://t.me/voiceoftihama";
+    const whatsappLink = process.env.NEXT_PUBLIC_WHATSAPP_CHANNEL_URL || "https://chat.whatsapp.com/Jtk05k0G8O81d861NJhSHU?mode=gi_t";
+    const telegramLink = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL || "https://t.me/voiceoftihama6";
 
     return (
         <div className="my-10 p-6 md:p-8 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">

@@ -125,11 +125,6 @@ export default async function ArticlePage({ params }: Props) {
         ] : undefined,
         datePublished: new Date(article.publishedAt || article.createdAt).toISOString(),
         dateModified: new Date(article.updatedAt).toISOString(),
-        author: {
-            '@type': 'Person',
-            name: article.author?.name || 'المحرر',
-            url: article.author?.id ? `${siteUrl}/author/${article.author.id}` : undefined,
-        },
         publisher: {
             '@type': 'NewsMediaOrganization',
             name: 'صوت تهامة',

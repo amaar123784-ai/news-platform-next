@@ -247,7 +247,7 @@ export default function SettingsPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
                                 <Input
                                     icon="ri-whatsapp-line"
-                                    placeholder="+967..."
+                                    placeholder="رقم الواتساب أو رابط المجموعة / القناة"
                                     value={formData.social?.whatsapp || ''}
                                     onChange={(e: any) => updateNestedField('social', 'whatsapp', e.target.value)}
                                     dir="ltr"

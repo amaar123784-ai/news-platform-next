@@ -63,7 +63,7 @@ export const RelatedArticles: React.FC<RelatedArticlesProps> = ({
                         excerpt={article.excerpt}
                         category={article.category}
                         imageUrl={article.imageUrl}
-                        author={article.author}
+
                         timeAgo={article.timeAgo}
                         href={`#article/${article.id}`}
                     />
