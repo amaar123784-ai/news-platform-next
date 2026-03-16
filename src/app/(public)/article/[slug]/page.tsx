@@ -86,7 +86,19 @@ export default async function ArticlePage({ params }: Props) {
                     {/* 70% Content Area: Distraction-Free Reading */}
                     <div className="lg:w-[70%] min-w-0">
                         <article>
-                            {/* 1. Category & Title (Stacking Order) */}
+                            {/* 1. Featured Image (Full width, responsive) */}
+                            <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-sm bg-gray-50 mb-10">
+                                <Image
+                                    src={displayImageUrl}
+                                    alt={article.title}
+                                    fill
+                                    priority={true}
+                                    className="object-cover"
+                                    sizes="(max-width: 1024px) 100vw, 850px"
+                                />
+                            </div>
+
+                            {/* 2. Category & Title (Stacking Order) */}
                             <header className="mb-8">
                                 <Link href={`/category/${categorySlug}`} className="inline-block mb-4">
                                     <Badge category={categorySlug} className="text-xs font-bold px-3 py-1 uppercase tracking-widest transition-transform hover:scale-105">
@@ -98,7 +110,7 @@ export default async function ArticlePage({ params }: Props) {
                                     {article.title}
                                 </h1>
 
-                                {/* 2. Metadata: Elegant Author & Date Row */}
+                                {/* 3. Metadata: Elegant Author & Date Row */}
                                 <div className="flex flex-wrap items-center gap-y-4 gap-x-8 text-gray-500 text-sm md:text-base border-b border-gray-100 pb-8">
                                     <ArticleMeta
                                         author={article.author?.name}
@@ -115,18 +127,6 @@ export default async function ArticlePage({ params }: Props) {
                                     </div>
                                 </div>
                             </header>
-
-                            {/* 3. Featured Image (Full width, responsive) */}
-                            <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-sm bg-gray-50 mb-10">
-                                <Image
-                                    src={displayImageUrl}
-                                    alt={article.title}
-                                    fill
-                                    priority={true}
-                                    className="object-cover"
-                                    sizes="(max-width: 1024px) 100vw, 850px"
-                                />
-                            </div>
 
                             {/* 4. Article Body: Premium Typography */}
                             <div className="article-content max-w-none">
