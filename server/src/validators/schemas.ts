@@ -67,9 +67,10 @@ export const createUserSchema = z.object({
     role: z.enum(['ADMIN', 'EDITOR', 'JOURNALIST', 'READER']).default('READER'),
     avatar: z.string().url().optional().nullable(),
     bio: z.string().max(500).optional(),
+    isActive: z.boolean().optional(),
 });
 
-export const updateUserSchema = createUserSchema.partial().omit({ password: true });
+export const updateUserSchema = createUserSchema.partial();
 
 // ============= Category Schemas =============
 

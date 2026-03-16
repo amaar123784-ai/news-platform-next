@@ -177,6 +177,7 @@ import { imageProcessor } from './imageProcessor.js';
 
 /**
  * Download and process external image
+ * Uses realistic browser headers to bypass anti-bot / hotlink protections
  */
 async function downloadAndProcessImage(url: string | null, baseUrl: string): Promise<string | null> {
     if (!url) return null;
@@ -184,15 +185,30 @@ async function downloadAndProcessImage(url: string | null, baseUrl: string): Pro
     const absoluteUrl = ensureAbsoluteUrl(url, baseUrl);
     if (!absoluteUrl) return null;
 
+    // Extract the origin from the image URL to use as Referer
+    let referer = baseUrl;
+    try { referer = new URL(absoluteUrl).origin; } catch {}
+
     try {
-        // Download image with 10s timeout
+        // Download image with 15s timeout and realistic browser headers
         const response = await axios.get(absoluteUrl, {
             responseType: 'arraybuffer',
-            timeout: 10000,
+            timeout: 15000,
             headers: {
-                'User-Agent': 'YemenNewsBot/1.0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Referer': referer,
+                'Sec-Fetch-Dest': 'image',
+                'Sec-Fetch-Mode': 'no-cors',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Ch-Ua': '"Chromium";v="131", "Not_A Brand";v="24"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
             },
-            maxContentLength: 10 * 1024 * 1024 // 10MB limit for external images
+            maxContentLength: 10 * 1024 * 1024, // 10MB limit
+            maxRedirects: 5,
         });
 
         const buffer = Buffer.from(response.data);

@@ -4,10 +4,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Icon, StatusBadge, Modal, Avatar } from '@/components/atoms';
 import { DataTable, AddUserForm, EditUserForm } from '@/components/organisms';
-import { TableSkeleton, ConfirmModal } from '@/components/molecules';
+import { TableSkeleton, ConfirmModal, CardGridSkeleton } from '@/components/molecules';
 import { useToast } from '@/components/organisms/Toast';
 import { userService } from '@/services';
-import type { StatusType } from '@/types/api.types';
 
 // Role definitions
 const roleLabels: Record<string, { label: string; color: string }> = {
@@ -27,7 +26,7 @@ export default function UserManagementPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
 
-    // Custom debounce hook inline for simplicity without adding dependencies
+    // Custom debounce hook inline
     const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
     React.useEffect(() => {
         const handler = setTimeout(() => {
@@ -37,7 +36,7 @@ export default function UserManagementPage() {
     }, [searchQuery]);
 
     // Fetch users from API
-    const { data, isLoading, isError } = useQuery({
+    const { data, isLoading, isError, isFetching } = useQuery({
         queryKey: ['users', { page, search: debouncedSearch }],
         queryFn: () => userService.getUsers({
             page,
@@ -49,7 +48,7 @@ export default function UserManagementPage() {
     // Create user mutation
     const createMutation = useMutation({
         mutationFn: (userData: any) => userService.createUser(userData),
-        onSuccess: () => {
+        onSuccess: (res) => {
             success('تم إضافة المستخدم بنجاح');
             queryClient.invalidateQueries({ queryKey: ['users'] });
             setAddModalOpen(false);
@@ -61,9 +60,9 @@ export default function UserManagementPage() {
 
     // Update user mutation
     const updateMutation = useMutation({
-        mutationFn: (userData: any) => userService.updateUser({ id: userData.id, ...userData }),
+        mutationFn: (userData: any) => userService.updateUser(userData),
         onSuccess: () => {
-            success('تم تحديث المستخدم بنجاح');
+            success('تم تحديث بيانات المستخدم بنجاح');
             queryClient.invalidateQueries({ queryKey: ['users'] });
             setEditingUser(null);
         },
@@ -87,25 +86,6 @@ export default function UserManagementPage() {
 
     const users = data?.data || [];
     const meta = data?.meta;
-
-    const handleAddUser = (newUser: any) => {
-        createMutation.mutate({
-            name: newUser.name,
-            email: newUser.email,
-            password: newUser.password,
-            role: newUser.role.toUpperCase(),
-        });
-    };
-
-    const handleEditUser = (updatedUser: any) => {
-        updateMutation.mutate({
-            id: updatedUser.id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            role: updatedUser.role.toUpperCase(),
-            // Password might be optional or handled separately in backend service logic if provided
-        });
-    };
 
     const handleDeleteUser = () => {
         if (deleteTarget) {
@@ -139,18 +119,27 @@ export default function UserManagementPage() {
                         value={searchQuery}
                         onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                         placeholder="بحث بالاسم أو البريد..."
-                        className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
+                        className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm text-gray-900"
                     />
+                    {isFetching && !isLoading && (
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                            <Icon name="ri-loader-4-line" className="animate-spin text-primary" />
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* Desktop Table View */}
             <div className="hidden md:block">
                 {isLoading ? (
                     <TableSkeleton rows={5} columns={5} />
                 ) : isError ? (
-                    <div className="bg-white p-8 rounded-lg text-center text-red-500">
-                        <Icon name="ri-error-warning-line" size="2xl" className="mb-2" />
-                        <p>حدث خطأ في تحميل المستخدمين</p>
+                    <div className="bg-white p-8 rounded-lg text-center text-red-500 border border-red-100 shadow-sm">
+                        <Icon name="ri-error-warning-line" size="2xl" className="mb-2 mx-auto" />
+                        <p className="font-medium">حدث خطأ في تحميل المستخدمين</p>
+                        <Button variant="secondary" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })} className="mt-4">
+                            إعادة المحاولة
+                        </Button>
                     </div>
                 ) : (
                     <DataTable
@@ -161,7 +150,7 @@ export default function UserManagementPage() {
                                 header: 'المستخدم',
                                 render: (user: any) => (
                                     <div className="flex items-center gap-3">
-                                        <Avatar name={user.name} size="sm" />
+                                        <Avatar name={user.name} size="sm" src={user.avatar} />
                                         <div>
                                             <div className="font-medium text-gray-900">{user.name}</div>
                                             <div className="text-xs text-gray-500">{user.email}</div>
@@ -173,7 +162,7 @@ export default function UserManagementPage() {
                                 key: 'role',
                                 header: 'الدور',
                                 render: (user: any) => {
-                                    const role = roleLabels[user.role.toUpperCase()] || roleLabels.READER;
+                                    const role = roleLabels[user.role?.toUpperCase()] || roleLabels.READER;
                                     return (
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${role.color}`}>
                                             {role.label}
@@ -182,10 +171,19 @@ export default function UserManagementPage() {
                                 }
                             },
                             {
-                                key: 'isActive', // Assuming API returns isActive boolean
+                                key: 'isActive',
                                 header: 'الحالة',
                                 render: (user: any) => (
-                                    <StatusBadge status={user.isActive ? 'published' : 'draft'} /> // Mapping boolean to existing badge status
+                                    <StatusBadge status={user.isActive ? 'published' : 'draft'} label={user.isActive ? 'نشط' : 'معطل'} />
+                                )
+                            },
+                            {
+                                key: 'articles',
+                                header: 'المقالات',
+                                render: (user: any) => (
+                                    <span className="text-sm text-gray-600">
+                                        {user._count?.articles || 0}
+                                    </span>
                                 )
                             },
                             {
@@ -216,21 +214,23 @@ export default function UserManagementPage() {
                 )}
             </div>
 
-            {/* Mobile Cards */}
+            {/* Mobile Cards View */}
             <div className="md:hidden space-y-4">
-                {users.map((user: any) => {
-                    const role = roleLabels[user.role.toUpperCase()] || roleLabels.READER;
+                {isLoading ? (
+                    <CardGridSkeleton count={3} />
+                ) : users.map((user: any) => {
+                    const role = roleLabels[user.role?.toUpperCase()] || roleLabels.READER;
                     return (
                         <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
-                                    <Avatar name={user.name} size="md" />
+                                    <Avatar name={user.name} size="md" src={user.avatar} />
                                     <div>
                                         <h3 className="font-bold text-gray-900">{user.name}</h3>
                                         <p className="text-sm text-gray-500">{user.email}</p>
                                     </div>
                                 </div>
-                                <StatusBadge status={user.isActive ? 'published' : 'draft'} />
+                                <StatusBadge status={user.isActive ? 'published' : 'draft'} label={user.isActive ? 'نشط' : 'معطل'} />
                             </div>
 
                             <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
@@ -278,7 +278,7 @@ export default function UserManagementPage() {
 
             {/* Pagination */}
             {meta && meta.totalPages > 1 && (
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-center items-center gap-4 pt-4">
                     <Button
                         variant="secondary"
                         size="sm"
@@ -287,7 +287,7 @@ export default function UserManagementPage() {
                     >
                         السابق
                     </Button>
-                    <span className="px-4 py-2 text-sm text-gray-600">
+                    <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
                         صفحة {page} من {meta.totalPages}
                     </span>
                     <Button
@@ -309,7 +309,7 @@ export default function UserManagementPage() {
                 width="max-w-2xl"
             >
                 <AddUserForm
-                    onSuccess={handleAddUser}
+                    onSuccess={(data) => createMutation.mutate(data)}
                     onCancel={() => setAddModalOpen(false)}
                 />
             </Modal>
@@ -324,7 +324,7 @@ export default function UserManagementPage() {
                 {editingUser && (
                     <EditUserForm
                         user={editingUser}
-                        onSuccess={handleEditUser}
+                        onSuccess={(data) => updateMutation.mutate(data)}
                         onCancel={() => setEditingUser(null)}
                     />
                 )}

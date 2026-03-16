@@ -7,9 +7,8 @@
  */
 
 import React, { useState } from 'react';
-import { Button, Input } from '@/components/atoms'; // Using Input directly for custom select, or FormField for standard
+import { Button } from '@/components/atoms';
 import { FormField } from '@/components/molecules';
-import { useToast } from '@/components/organisms/Toast';
 
 export interface AddUserFormProps {
     onSuccess: (user: any) => void;
@@ -17,15 +16,12 @@ export interface AddUserFormProps {
 }
 
 export const AddUserForm: React.FC<AddUserFormProps> = ({ onSuccess, onCancel }) => {
-    const { success } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-
     // Form State
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
-        role: 'editor',
+        role: 'EDITOR',
     });
 
     // Validation State
@@ -54,25 +50,9 @@ export const AddUserForm: React.FC<AddUserFormProps> = ({ onSuccess, onCancel })
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!validate()) return;
-
-        setIsLoading(true);
-
-        // Simulate API delay
-        setTimeout(() => {
-            setIsLoading(false);
-
-            const newUser = {
-                id: Math.random().toString(36).substr(2, 9),
-                ...formData,
-                status: 'published', // Active by default
-                lastActive: 'الآن'
-            };
-
-            success(`تم إضافة المستخدم ${formData.name} بنجاح`);
-            onSuccess(newUser);
-        }, 1000);
+        if (validate()) {
+            onSuccess(formData);
+        }
     };
 
     return (
@@ -130,13 +110,14 @@ export const AddUserForm: React.FC<AddUserFormProps> = ({ onSuccess, onCancel })
                     </label>
                     <div className="relative">
                         <select
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm appearance-none bg-white"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm appearance-none bg-white text-gray-900"
                             value={formData.role}
                             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                         >
-                            <option value="admin">مسؤول (Admin)</option>
-                            <option value="editor">محرر (Editor)</option>
-                            <option value="writer">صحفي (Writer)</option>
+                            <option value="ADMIN">مسؤول (Admin)</option>
+                            <option value="EDITOR">محرر (Editor)</option>
+                            <option value="JOURNALIST">صحفي (Journalist)</option>
+                            <option value="READER">قارئ (Reader)</option>
                         </select>
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
                             <i className="ri-arrow-down-s-line text-lg"></i>
@@ -150,8 +131,8 @@ export const AddUserForm: React.FC<AddUserFormProps> = ({ onSuccess, onCancel })
                 <Button variant="secondary" onClick={onCancel} type="button">
                     العودة
                 </Button>
-                <Button variant="primary" type="submit" disabled={isLoading}>
-                    {isLoading ? 'جاري الحفظ...' : 'إضافة المستخدم'}
+                <Button variant="primary" type="submit">
+                    إضافة المستخدم
                 </Button>
             </div>
         </form>

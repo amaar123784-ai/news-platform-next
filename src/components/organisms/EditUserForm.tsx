@@ -14,25 +14,25 @@ export interface User {
     id: string;
     name: string;
     email: string;
-    role: 'admin' | 'editor' | 'writer' | 'viewer';
-    status: 'published' | 'draft';
-    lastActive: string;
+    role: 'ADMIN' | 'EDITOR' | 'JOURNALIST' | 'READER';
+    isActive: boolean;
     avatar?: string;
     phone?: string;
     bio?: string;
+    createdAt: string;
 }
 
 export interface EditUserFormProps {
     user: User;
-    onSuccess: (updatedUser: User) => void;
+    onSuccess: (updatedUser: any) => void;
     onCancel: () => void;
 }
 
 const roleOptions = [
-    { value: 'admin', label: 'مدير النظام', description: 'صلاحيات كاملة' },
-    { value: 'editor', label: 'محرر', description: 'تعديل ونشر المقالات' },
-    { value: 'writer', label: 'كاتب', description: 'كتابة المقالات فقط' },
-    { value: 'viewer', label: 'مشاهد', description: 'قراءة فقط' },
+    { value: 'ADMIN', label: 'مدير النظام', description: 'صلاحيات كاملة' },
+    { value: 'EDITOR', label: 'محرر', description: 'تعديل ونشر المقالات' },
+    { value: 'JOURNALIST', label: 'صحفي', description: 'كتابة المقالات' },
+    { value: 'READER', label: 'قارئ', description: 'قراءة فقط' },
 ];
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -43,16 +43,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        role: 'writer' as User['role'],
-        phone: '',
+        role: 'JOURNALIST' as User['role'],
         bio: '',
-        status: 'published' as User['status'],
+        isActive: true,
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [changePassword, setChangePassword] = useState(false);
-    const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+    const [passwords, setPasswords] = useState({ new: '', confirm: '' });
 
     useEffect(() => {
         if (user) {
@@ -60,9 +58,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                phone: user.phone || '',
                 bio: user.bio || '',
-                status: user.status,
+                isActive: user.isActive,
             });
         }
     }, [user]);
@@ -82,14 +79,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             newErrors.email = 'البريد الإلكتروني غير صالح';
         }
 
-        if (formData.phone && !/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-            newErrors.phone = 'رقم الهاتف غير صالح';
-        }
-
         if (changePassword) {
-            if (!passwords.current) {
-                newErrors.currentPassword = 'كلمة المرور الحالية مطلوبة';
-            }
             if (!passwords.new) {
                 newErrors.newPassword = 'كلمة المرور الجديدة مطلوبة';
             } else if (passwords.new.length < 8) {
@@ -109,26 +99,23 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         if (!validate()) return;
 
-        setIsSubmitting(true);
-
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const updatedUser: User = {
-            ...user,
+        const updateData: any = {
+            id: user.id,
             name: formData.name,
             email: formData.email,
             role: formData.role,
-            phone: formData.phone,
             bio: formData.bio,
-            status: formData.status,
+            isActive: formData.isActive,
         };
 
-        onSuccess(updatedUser);
-        setIsSubmitting(false);
+        if (changePassword && passwords.new) {
+            updateData.password = passwords.new;
+        }
+
+        onSuccess(updateData);
     };
 
-    const handleInputChange = (field: string, value: string) => {
+    const handleInputChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: '' }));
@@ -147,12 +134,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 <div className="flex-1">
                     <h3 className="font-medium text-gray-900">{user.name}</h3>
                     <p className="text-sm text-gray-500">{user.email}</p>
-                    <button
-                        type="button"
-                        className="text-sm text-primary hover:text-primary/80 mt-1"
-                    >
-                        تغيير الصورة الشخصية
-                    </button>
                 </div>
             </div>
 
@@ -189,27 +170,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        رقم الهاتف
-                    </label>
-                    <Input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        placeholder="+967 123 456 789"
-                        icon="ri-phone-line"
-                        dir="ltr"
-                        error={errors.phone}
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
                         الدور الوظيفي <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={formData.role}
                         onChange={(e) => handleInputChange('role', e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm transition-colors bg-white"
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm transition-colors bg-white text-gray-900"
                     >
                         {roleOptions.map((role) => (
                             <option key={role.value} value={role.value}>
@@ -230,23 +196,23 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     placeholder="نبذة مختصرة عن المستخدم..."
                     rows={3}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm transition-colors resize-none"
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm transition-colors resize-none text-gray-900"
                 />
             </div>
 
             {/* Status Toggle */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div>
                     <h4 className="font-medium text-gray-900">حالة الحساب</h4>
                     <p className="text-sm text-gray-500">
-                        {formData.status === 'published' ? 'الحساب نشط ويمكنه الوصول للنظام' : 'الحساب معطل'}
+                        {formData.isActive ? 'الحساب نشط ويمكنه الوصول للنظام' : 'الحساب معطل'}
                     </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                     <input
                         type="checkbox"
-                        checked={formData.status === 'published'}
-                        onChange={(e) => handleInputChange('status', e.target.checked ? 'published' : 'draft')}
+                        checked={formData.isActive}
+                        onChange={(e) => handleInputChange('isActive', e.target.checked)}
                         className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:w-5 after:h-5 after:transition-all peer-checked:bg-green-500"></div>
@@ -272,19 +238,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
                 {changePassword && (
                     <div className="p-4 space-y-4 border-t border-gray-200">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                كلمة المرور الحالية
-                            </label>
-                            <Input
-                                type="password"
-                                value={passwords.current}
-                                onChange={(e) => setPasswords(p => ({ ...p, current: e.target.value }))}
-                                placeholder="••••••••"
-                                icon="ri-lock-line"
-                                error={errors.currentPassword}
-                            />
-                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -319,21 +272,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
+                <Button type="button" variant="secondary" onClick={onCancel}>
                     إلغاء
                 </Button>
-                <Button type="submit" variant="primary" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                        <span className="flex items-center gap-2">
-                            <Icon name="ri-loader-4-line" className="animate-spin" />
-                            جاري الحفظ...
-                        </span>
-                    ) : (
-                        <span className="flex items-center gap-2">
-                            <Icon name="ri-check-line" />
-                            حفظ التغييرات
-                        </span>
-                    )}
+                <Button type="submit" variant="primary">
+                    <span className="flex items-center gap-2">
+                        <Icon name="ri-check-line" />
+                        حفظ التغييرات
+                    </span>
                 </Button>
             </div>
         </form>
