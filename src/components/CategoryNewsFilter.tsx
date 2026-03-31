@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Icon } from "@/components/atoms";
 import { NewsCard } from "@/components/organisms";
@@ -23,6 +23,11 @@ const categoryTabs = [
 
 export function CategoryNewsFilter({ initialArticles }: CategoryNewsFilterProps) {
     const [activeCategory, setActiveCategory] = useState("all");
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const { data: filteredData, isFetching } = useQuery({
         queryKey: ["articles", "list", activeCategory],
@@ -99,7 +104,7 @@ export function CategoryNewsFilter({ initialArticles }: CategoryNewsFilterProps)
                                 excerpt={article.excerpt}
                                 category={(article.category?.slug || "politics") as any}
                                 imageUrl={getImageUrl(article.imageUrl)}
-                                timeAgo={formatTimeAgo(article.publishedAt || article.createdAt)}
+                                timeAgo={mounted ? formatTimeAgo(article.publishedAt || article.createdAt) : ""}
                             />
                         </div>
                     ))

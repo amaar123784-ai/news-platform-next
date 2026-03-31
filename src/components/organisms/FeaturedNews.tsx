@@ -1,3 +1,4 @@
+"use client";
 /**
  * FeaturedNews Component — Redesigned
  * 
@@ -7,7 +8,7 @@
  * - Gradient overlays with elegant typography
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Icon, Badge } from '@/components/atoms';
@@ -133,10 +134,18 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = (props) => {
 
 /** Main export: Featured News Grid with 1 large + 2 small */
 export const FeaturedNewsGrid: React.FC<{ articles: FeaturedNewsProps[] }> = ({ articles }) => {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     if (!articles || articles.length === 0) return null;
 
-    const mainArticle = articles[0];
-    const sideArticles = articles.slice(1, 3);
+    const mainArticle = { ...articles[0], timeAgo: mounted ? articles[0].timeAgo : "" };
+    const sideArticles = articles.slice(1, 3).map(art => ({
+        ...art,
+        timeAgo: mounted ? art.timeAgo : ""
+    }));
 
     return (
         <section className="mb-6 sm:mb-8">

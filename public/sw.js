@@ -1,5 +1,5 @@
 // public/sw.js
-import localforage from 'localforage';
+self.importScripts('https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js');
 
 const CACHE_NAME = 'voice-of-tihama-v1';
 
