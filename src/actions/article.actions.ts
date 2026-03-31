@@ -8,6 +8,7 @@ import { revalidateTag } from 'next/cache';
 export async function createArticleAction(data: CreateArticleRequest, idempotencyKey: string) {
     try {
         const article = await articleService.createArticle(data, idempotencyKey);
+        // @ts-ignore - Next.js 16 type signature mismatch
         revalidateTag('articles');
         return { success: true, data: article };
     } catch (error: any) {

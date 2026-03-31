@@ -50,7 +50,7 @@ export function useFormPersist<TFieldValues extends FieldValues>(
     useEffect(() => {
         if (!enabled) return;
 
-        const subscription = watch((value) => {
+        const subscription = watch((value: any) => {
             if (isRestoring.current) return;
             localStorage.setItem(storageKey, JSON.stringify(value));
         });

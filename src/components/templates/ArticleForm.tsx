@@ -47,7 +47,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
 
     useEffect(() => {
         if (!isEditMode) {
-            localforage.getItem('draft_article_form').then((saved) => {
+            localforage.getItem('draft_article_form').then((saved: any) => {
                 if (saved) setFormData(saved as any);
             });
         }
@@ -82,7 +82,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
             if (!navigator.onLine && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(sw => {
                     localforage.setItem(`sync_queue_${idempotencyKey}`, newArticle);
-                    sw.sync.register('sync-articles');
+                    (sw as any).sync.register('sync-articles');
                 });
             }
         },
