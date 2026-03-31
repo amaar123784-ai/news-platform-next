@@ -45,16 +45,16 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
                     {urgentNews.slice(0, 5).map((news, index) => {
                         const imgUrl = getImageUrl(news.imageUrl);
                         return (
-                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg mb-1 last:mb-0">
-                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-primary/5 rounded-lg transition-colors">
+                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg mb-2 last:mb-0 min-h-[44px]">
+                                <article className="flex gap-3 py-3 px-3 border-b border-gray-100 last:border-b-0 hover:bg-primary/5 rounded-lg transition-colors">
                                     {/* Thumbnail */}
                                     {imgUrl && (
-                                        <div className="relative w-16 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                                        <div className="relative w-20 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
                                             <Image
                                                 src={imgUrl}
                                                 alt=""
                                                 fill
-                                                sizes="64px"
+                                                sizes="80px"
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 loading="lazy"
                                                 aria-hidden="true"
@@ -62,12 +62,12 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
                                         </div>
                                     )}
 
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-[13px] leading-relaxed text-gray-800 group-hover:text-primary transition-colors line-clamp-2 mb-1">
+                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                        <h4 className="font-bold text-[14px] leading-tight text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-1.5">
                                             {news.title}
                                         </h4>
-                                        <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                                            <Icon name="ri-time-line" size="sm" />
+                                        <span className="text-[12px] text-gray-600 font-medium flex items-center gap-1.5">
+                                            <Icon name="ri-time-line" size="sm" className="text-primary" />
                                             {formatTimeAgo(news.publishedAt || news.createdAt)}
                                         </span>
                                     </div>
@@ -76,42 +76,42 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
                         );
                     })}
                     {urgentNews.length === 0 && (
-                        <p className="text-gray-400 text-sm py-6 text-center">لا توجد أخبار عاجلة حالياً</p>
+                        <p className="text-gray-600 font-bold text-sm py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">لا توجد أخبار عاجلة حالياً</p>
                     )}
                 </div>
             </section>
 
             {/* ===== الأكثر قراءة ===== */}
             <section
-                className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100/60"
+                className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200"
                 aria-label="الأكثر قراءة"
             >
                 {/* Header */}
-                <div className="relative bg-gradient-to-l from-secondary to-emerald-600 px-5 py-3.5 flex items-center gap-3 overflow-hidden">
+                <div className="relative bg-gradient-to-l from-emerald-600 to-emerald-800 px-5 py-4 flex items-center gap-3 overflow-hidden">
                     <div className="absolute -left-4 -top-4 w-16 h-16 bg-white/10 rounded-full" />
                     <div className="absolute left-8 -bottom-6 w-12 h-12 bg-white/5 rounded-full" />
-                    <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
                         <Icon name="ri-fire-line" size="lg" className="text-white" />
                     </div>
-                    <h3 className="text-white font-bold text-sm relative z-10">الأكثر قراءة</h3>
+                    <h3 className="text-white font-black text-base relative z-10 tracking-tight">الأكثر قراءة</h3>
                 </div>
 
                 <div className="p-3" role="list">
                     {mostReadNews.map((news, index) => {
                         const imgUrl = getImageUrl(news.imageUrl);
                         return (
-                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded-lg mb-1 last:mb-0" role="listitem">
-                                <article className="flex gap-3 py-3 px-2 border-b border-gray-50 last:border-b-0 hover:bg-secondary/5 rounded-lg transition-colors">
+                            <Link key={news.id} href={`/article/${news.slug || news.id}`} className="block group outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded-lg mb-2 last:mb-0 min-h-[44px]" role="listitem">
+                                <article className="flex gap-3 py-3 px-3 border-b border-gray-100 last:border-b-0 hover:bg-secondary/5 rounded-lg transition-colors">
                                     {/* Rank Number */}
                                     <span className={`
-                                        flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold shrink-0 mt-0.5
+                                        flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0 mt-0.5
                                         ${index === 0
-                                            ? 'bg-secondary text-white shadow-sm shadow-secondary/30'
+                                            ? 'bg-secondary text-white shadow-md shadow-secondary/30'
                                             : index === 1
                                                 ? 'bg-secondary/20 text-secondary'
                                                 : index === 2
                                                     ? 'bg-secondary/10 text-secondary'
-                                                    : 'bg-gray-100 text-gray-500'
+                                                    : 'bg-gray-100 text-gray-700'
                                         }
                                     `}>
                                         {index + 1}
@@ -119,26 +119,26 @@ export function PublicSidebar({ urgentNews, mostReadNews }: PublicSidebarProps) 
 
                                     {/* Thumbnail */}
                                     {imgUrl && (
-                                        <div className="relative w-16 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                                        <div className="relative w-20 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
                                             <Image
                                                 src={imgUrl}
                                                 alt={news.title}
                                                 fill
-                                                sizes="64px"
+                                                sizes="80px"
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 loading="lazy"
                                             />
                                         </div>
                                     )}
 
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-[13px] leading-relaxed text-gray-800 group-hover:text-secondary transition-colors line-clamp-2 mb-1">
+                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                        <h4 className="font-bold text-[14px] leading-tight text-gray-900 group-hover:text-secondary transition-colors line-clamp-2 mb-1.5">
                                             {news.title}
                                         </h4>
-                                        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                                        <div className="flex items-center gap-4 text-[12px] text-gray-600 font-medium">
                                             {news.views !== undefined && (
-                                                <span className="flex items-center gap-1">
-                                                    <Icon name="ri-eye-line" size="sm" />
+                                                <span className="flex items-center gap-1.5">
+                                                    <Icon name="ri-eye-line" size="sm" className="text-secondary" />
                                                     {news.views.toLocaleString('ar-YE')}
                                                 </span>
                                             )}

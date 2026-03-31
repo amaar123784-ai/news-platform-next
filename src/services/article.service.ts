@@ -5,6 +5,7 @@
  */
 
 import api from './api';
+import { v4 as uuidv4 } from 'uuid';
 import type {
     Article,
     CreateArticleRequest,
@@ -67,8 +68,11 @@ export const articleService = {
     /**
      * Create new article
      */
-    async createArticle(data: CreateArticleRequest): Promise<Article> {
-        const response = await api.post<ApiResponse<Article>>('/articles', data);
+    async createArticle(data: CreateArticleRequest, idempotencyKey?: string): Promise<Article> {
+        const key = idempotencyKey || uuidv4();
+        const response = await api.post<ApiResponse<Article>>('/articles', data, {
+            headers: { 'Idempotency-Key': key }
+        });
         return response.data.data;
     },
 

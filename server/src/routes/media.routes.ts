@@ -151,6 +151,56 @@ router.post(
 );
 
 /**
+ * POST /api/media/upload/chunk - Resumable chunked upload
+ */
+router.post('/upload/chunk', authenticate, upload.single('file'), async (req, res, next) => {
+    try {
+        const { uploadId, chunkIndex, totalChunks, fileName, alt } = req.body;
+        if (!uploadId || !req.file) throw createError(400, 'Missing upload info');
+
+        const tempDir = path.join(process.cwd(), 'uploads', 'temp', uploadId);
+        await fs.mkdir(tempDir, { recursive: true });
+
+        const chunkPath = path.join(tempDir, `chunk-${chunkIndex}`);
+        await fs.writeFile(chunkPath, req.file.buffer);
+
+        const files = await fs.readdir(tempDir);
+        if (files.length === parseInt(totalChunks)) {
+            // Combine chunks in order
+            const chunks = [];
+            for (let i = 0; i < totalChunks; i++) {
+                chunks.push(await fs.readFile(path.join(tempDir, `chunk-${i}`)));
+            }
+            const finalBuffer = Buffer.concat(chunks);
+
+            // Process final image
+            const processed = await imageProcessor.process(finalBuffer, fileName || 'upload.webp');
+            
+            // Store in DB
+            const media = await prisma.media.create({
+                data: {
+                    filename: processed.filename,
+                    url: processed.url,
+                    type: 'image/webp',
+                    size: processed.size,
+                    alt: alt || fileName,
+                    uploaderId: req.user!.userId,
+                },
+            });
+
+            // Cleanup
+            await fs.rm(tempDir, { recursive: true, force: true });
+
+            return res.status(201).json({ success: true, data: media });
+        }
+
+        res.json({ success: true, message: 'Chunk uploaded' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * GET /api/media/:id - Get single media file
  */
 router.get('/:id', authenticate, async (req, res, next) => {

@@ -34,11 +34,11 @@ export function CategoryNewsFilter({ initialArticles }: CategoryNewsFilterProps)
             const data = await res.json();
             return data.data;
         },
-        initialData: initialArticles,
+        initialData: activeCategory === "all" ? initialArticles : undefined,
         staleTime: 2 * 60 * 1000,
     });
 
-    const displayArticles = filteredData || initialArticles;
+    const displayArticles = activeCategory === "all" ? initialArticles : (filteredData || []);
     const showSkeleton = isFetching && activeCategory !== "all";
 
     return (

@@ -404,8 +404,19 @@ export async function fetchRSSFeed(feedId: string): Promise<{
             }
         }
 
+        const maxAgeMs = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
+        const nowMs = Date.now();
+
         for (const item of feedItems) {
             if (!item.guid && !item.link) continue;
+
+            // تخطي الأخبار التي مضى عليها أكثر من 48 ساعة
+            if (item.pubDate) {
+                const pubDateMs = new Date(item.pubDate).getTime();
+                if (!isNaN(pubDateMs) && (nowMs - pubDateMs > maxAgeMs)) {
+                    continue; 
+                }
+            }
 
             // Enforce max length of 500 characters for GUID to prevent DB constraint errors
             const rawGuid = item.guid || item.link!;

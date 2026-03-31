@@ -54,26 +54,26 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
                     {/* Content */}
                     <div className="absolute bottom-0 right-0 left-0 p-5 md:p-8">
                         <div className="flex items-center gap-2 mb-3">
-                            <Badge variant="primary">{categoryInfo.label}</Badge>
-                            {isBreaking && <Badge variant="breaking">عاجل</Badge>}
+                            <Badge variant="primary" className="font-black bg-primary text-white shadow-md">{categoryInfo.label}</Badge>
+                            {isBreaking && <Badge variant="breaking" className="font-black">عاجل</Badge>}
                         </div>
-                        <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white mb-3 leading-tight line-clamp-3">
+                        <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white mb-3 leading-tight line-clamp-3 drop-shadow-lg">
                             {title}
                         </h2>
                         {excerpt && (
-                            <p className="text-gray-200 text-sm md:text-base line-clamp-2 mb-4 hidden md:block max-w-xl">
+                            <p className="text-gray-100 font-medium text-sm md:text-base line-clamp-2 mb-4 hidden md:block max-w-xl drop-shadow-md">
                                 {excerpt}
                             </p>
                         )}
-                        <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-white/80">
+                        <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-white font-bold">
                             {timeAgo && (
-                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                                <span className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
                                     <Icon name="ri-time-line" size="sm" className="text-secondary" />
                                     {timeAgo}
                                 </span>
                             )}
                             {views !== undefined && views > 0 && (
-                                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                                <span className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
                                     <Icon name="ri-eye-line" size="sm" className="text-secondary" />
                                     {views.toLocaleString('ar-YE')} مشاهدة
                                 </span>
@@ -87,7 +87,7 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
 
     // Small variant
     return (
-        <article className="relative h-full min-h-[200px] lg:min-h-[240px] rounded-2xl overflow-hidden group">
+        <article className="relative h-full min-h-[220px] lg:min-h-[240px] rounded-2xl overflow-hidden group">
             <Link href={link} className="block h-full outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl">
                 <Image
                     src={displayImageUrl}
@@ -96,25 +96,25 @@ const FeaturedCard: React.FC<FeaturedNewsProps & { variant: 'large' | 'small' }>
                     className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
                     sizes="(max-width: 768px) 100vw, 30vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
 
-                <div className="absolute bottom-0 right-0 left-0 p-4">
+                <div className="absolute bottom-0 right-0 left-0 p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="primary" className="text-xs">{categoryInfo.label}</Badge>
-                        {isBreaking && <Badge variant="breaking" className="text-xs">عاجل</Badge>}
+                        <Badge variant="primary" className="text-[10px] font-black">{categoryInfo.label}</Badge>
+                        {isBreaking && <Badge variant="breaking" className="text-[10px] font-black">عاجل</Badge>}
                     </div>
-                    <h3 className="text-base md:text-lg font-bold text-white leading-snug line-clamp-2 mb-2">
+                    <h3 className="text-base md:text-lg font-black text-white leading-snug line-clamp-2 mb-3 drop-shadow-md">
                         {title}
                     </h3>
-                    <div className="flex items-center gap-3 text-xs text-white/70">
+                    <div className="flex items-center gap-3 text-xs text-white/90 font-bold">
                         {timeAgo && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1.5">
                                 <Icon name="ri-time-line" size="sm" className="text-secondary" />
                                 {timeAgo}
                             </span>
                         )}
                         {views !== undefined && views > 0 && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1.5">
                                 <Icon name="ri-eye-line" size="sm" className="text-secondary" />
                                 {views.toLocaleString('ar-YE')}
                             </span>

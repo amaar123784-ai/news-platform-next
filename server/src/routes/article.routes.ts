@@ -6,8 +6,10 @@
 
 import { Router } from 'express';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
+import { requireIdempotency } from '../middleware/idempotency.js';
 import { createArticleSchema, updateArticleSchema, articleQuerySchema } from '../validators/schemas.js';
 import * as articleService from '../services/article.service.js';
+import { prisma } from '../index.js';
 
 const router = Router();
 
@@ -79,7 +81,7 @@ router.get('/:idOrSlug', optionalAuth, async (req, res, next) => {
 /**
  * POST /api/articles - Create article
  */
-router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), async (req, res, next) => {
+router.post('/', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'), requireIdempotency, async (req, res, next) => {
     try {
         const data = createArticleSchema.parse(req.body);
         const article = await articleService.createArticle(data, req.user!.userId);
@@ -186,6 +188,22 @@ router.post('/:idOrSlug/view', async (req, res, next) => {
         res.json({ success: true });
     } catch (error) {
         next(error);
+    }
+});
+
+/**
+ * GET /api/articles/:id/status - Get article status
+ */
+router.get('/:id/status', async (req, res) => {
+    try {
+        const article = await prisma.article.findUnique({
+            where: { id: req.params.id },
+            select: { id: true, status: true, publishedAt: true }
+        });
+        if (!article) return res.status(404).json({ success: false, message: 'Not found' });
+        res.json({ success: true, data: article });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 

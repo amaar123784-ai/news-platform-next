@@ -94,8 +94,20 @@ export const Header: React.FC = () => {
                 {/* Actions & Mobile Menu (Last item -> End/Left in RTL) */}
                 <div className="flex items-center justify-end gap-2 lg:gap-3">
 
+                    {/* Report Violation CTA - High Contrast & Visible */}
+                    <Link href="/report/new" className="shrink-0">
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            className="bg-red-600 hover:bg-red-700 text-white font-black shadow-lg shadow-red-500/20 px-3 lg:px-5 py-2.5 h-auto lg:h-11 flex items-center gap-2 animate-pulse-slow"
+                        >
+                            <Icon name="ri-megaphone-line" className="text-lg lg:text-xl" />
+                            <span className="text-xs lg:text-sm">بلغ عن انتهاك</span>
+                        </Button>
+                    </Link>
+
                     {/* Desktop Search (Hidden on Mobile) */}
-                    <Button variant="icon" onClick={() => router.push('/search')} className="hidden lg:flex hover:bg-primary/10 hover:text-primary" aria-label="بحث">
+                    <Button variant="icon" onClick={() => router.push('/search')} className="hidden lg:flex hover:bg-primary/10 hover:text-primary min-w-[44px] min-h-[44px]" aria-label="بحث">
                         <Icon name="ri-search-line" size="lg" />
                     </Button>
 
@@ -105,21 +117,21 @@ export const Header: React.FC = () => {
                                 <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{user.name}</span>
                                 {['admin', 'editor', 'journalist'].includes(user.role.toLowerCase()) && (
                                     <Link href="/admin">
-                                        <Button variant="outline" size="sm" className="whitespace-nowrap">
+                                        <Button variant="outline" size="sm" className="whitespace-nowrap h-11">
                                             <Icon name="ri-dashboard-line" className="ml-1" />
                                             لوحة التحكم
                                         </Button>
                                     </Link>
                                 )}
-                                <Button variant="primary" size="sm" onClick={async () => { await logout(); router.push('/login'); }} className="bg-red-500 hover:bg-red-600 whitespace-nowrap">خروج</Button>
+                                <Button variant="primary" size="sm" onClick={async () => { await logout(); router.push('/login'); }} className="bg-gray-800 hover:bg-gray-900 h-11 whitespace-nowrap">خروج</Button>
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
                                 <Link href="/login">
-                                    <Button variant="outline" size="sm" className="whitespace-nowrap">دخول</Button>
+                                    <Button variant="outline" size="sm" className="whitespace-nowrap h-11 px-6">دخول</Button>
                                 </Link>
                                 <Link href="/register">
-                                    <Button variant="primary" size="sm" className="whitespace-nowrap">اشتراك</Button>
+                                    <Button variant="secondary" size="sm" className="whitespace-nowrap h-11 px-6 bg-gray-100 text-gray-900 border-none hover:bg-gray-200">اشتراك</Button>
                                 </Link>
                             </div>
                         )}
@@ -127,7 +139,7 @@ export const Header: React.FC = () => {
 
                     {/* Mobile Menu Button (Visible on Mobile) */}
                     <button
-                        className="lg:hidden w-10 h-10 flex items-center justify-center rounded-full text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                        className="lg:hidden w-11 h-11 flex items-center justify-center rounded-full text-gray-900 hover:bg-gray-50 hover:text-primary transition-colors border border-gray-100 shadow-sm"
                         onClick={() => setMobileMenuOpen(true)}
                         aria-label="فتح القائمة"
                     >

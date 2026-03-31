@@ -9,8 +9,11 @@ import { FormField } from '@/components/molecules';
 import { RichTextEditor, ArticleContent, MediaPicker } from '@/components/organisms';
 import { useToast } from '@/components/organisms/Toast';
 import { articleService } from '@/services';
+import { createArticleAction } from '@/actions/article.actions';
 import type { CreateArticleRequest, UpdateArticleRequest, StatusType, Category } from '@/types/api.types';
 import type { MediaFile } from '@/services/media.service';
+import localforage from 'localforage';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ArticleFormProps {
     initialData?: Partial<CreateArticleRequest> & { id?: string };
@@ -26,6 +29,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isMediaOpen, setIsMediaOpen] = useState(false);
     const [editorImageCallback, setEditorImageCallback] = useState<((url: string) => void) | null>(null);
+    const [idempotencyKey] = useState(() => uuidv4());
 
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
@@ -41,16 +45,50 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
         isFeatured: initialData?.isFeatured || false,
     });
 
+    useEffect(() => {
+        if (!isEditMode) {
+            localforage.getItem('draft_article_form').then((saved) => {
+                if (saved) setFormData(saved as any);
+            });
+        }
+    }, [isEditMode]);
+
+    useEffect(() => {
+        if (!isEditMode) {
+            localforage.setItem('draft_article_form', formData);
+        }
+    }, [formData, isEditMode]);
+
     const createMutation = useMutation({
-        mutationFn: (data: CreateArticleRequest) => articleService.createArticle(data),
-        onSuccess: () => {
-            success('تم إنشاء المقال بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['articles'] });
-            router.push('/admin/articles');
+        mutationFn: (data: CreateArticleRequest) => createArticleAction(data, idempotencyKey),
+        onMutate: async (newArticle) => {
+            await queryClient.cancelQueries({ queryKey: ['articles'] });
+            const previousArticles = queryClient.getQueryData(['articles']);
+            queryClient.setQueryData(['articles'], (old: any) => ({ ...old, data: [newArticle, ...(old?.data || [])] }));
+            return { previousArticles };
         },
-        onError: (err: any) => {
+        onSuccess: (result) => {
+            if (result.success) {
+                success('تم إنشاء المقال بنجاح');
+                localforage.removeItem('draft_article_form');
+                router.push('/admin/articles');
+            } else {
+                showError(result.error || 'فشل إنشاء المقال');
+            }
+        },
+        onError: (err: any, newArticle, context) => {
+            queryClient.setQueryData(['articles'], context?.previousArticles);
             showError(`فشل إنشاء المقال: ${err.message || 'خطأ غير معروف'}`);
+            if (!navigator.onLine && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(sw => {
+                    localforage.setItem(`sync_queue_${idempotencyKey}`, newArticle);
+                    sw.sync.register('sync-articles');
+                });
+            }
         },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['articles'] });
+        }
     });
 
     const updateMutation = useMutation({

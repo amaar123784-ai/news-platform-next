@@ -48,7 +48,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
 
     // Upload mutation
     const uploadMutation = useMutation({
-        mutationFn: (file: File) => mediaService.uploadFile(file),
+        mutationFn: (file: File) => mediaService.uploadFileResumable(file),
         onError: (err: any) => {
             showError(`فشل رفع الملف: ${err.message || 'خطأ غير معروف'}`);
         },

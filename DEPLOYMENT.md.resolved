@@ -68,6 +68,27 @@ NODE_ENV=production
 GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 # ضروري عند استخدام Nginx كـ reverse proxy حتى تعمل كوكيز تسجيل الدخول على الدومين العام
 COOKIE_DOMAIN=voiceoftihama.com
+
+# متغيرات النشر التلقائي لفيسبوك
+FACEBOOK_ENABLE=true
+FACEBOOK_PAGE_ID="رقم_الصفحة"
+FACEBOOK_PAGE_TOKEN="التوكن_الخاص_بالصفحة"
+```
+
+### كيفية تحديث Facebook Page Access Token في السيرفر
+لتحديث رمز الوصول الخاص بصفحة فيسبوك على السيرفر الحي، اتبع هذه الأوامر عبر اتصال SSH:
+
+```bash
+# 1. افتح ملف إعدادات البيئة للسيرفر الخلفي
+nano /var/www/voiceoftihama/server/.env
+
+# 2. قم بتحديث المتغير FACEBOOK_PAGE_TOKEN بالرمز الجديد، وتأكد من تفعيل النشر
+# FACEBOOK_ENABLE=true
+# FACEBOOK_PAGE_TOKEN="الرمز_الجديد_هنا"
+# ثم احفظ الملف بالضغط على Ctrl+O ثم Enter، وللخروج اضغط Ctrl+X
+
+# 3. أعد تشغيل السيرفر الخلفي لتطبيق التوكن الجديد
+pm2 restart api
 ```
 
 ---
