@@ -34,6 +34,7 @@ class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
+    private groupJid: string | null = null;
     private inviteCode: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
     private messageQueue: any[] = [];
@@ -61,6 +62,12 @@ class WhatsAppService {
             this.initializeClient();
         } else {
             console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
+        }
+
+        // Group JID for sending to WhatsApp group as well
+        this.groupJid = process.env.WHATSAPP_GROUP_JID || null;
+        if (this.groupJid) {
+            console.log('[WhatsApp] Group JID configured:', this.groupJid);
         }
     }
 
@@ -313,6 +320,22 @@ class WhatsAppService {
                 20000,
                 "WhatsApp API timeout (sendMessage)"
             );
+
+            // Also send to group if configured
+            if (this.groupJid) {
+                try {
+                    await new Promise(r => setTimeout(r, 2000)); // Small delay between sends
+                    await withTimeout(
+                        this.sock.sendMessage(this.groupJid, { text }),
+                        20000,
+                        "WhatsApp API timeout (group sendMessage)"
+                    );
+                    console.log(`[WhatsApp] ✅ Also sent to group: ${article.title}`);
+                } catch (groupErr: any) {
+                    console.warn(`[WhatsApp] ⚠️ Group send failed: ${groupErr.message}`);
+                }
+            }
+
             return true;
 
         } catch (error: any) {
