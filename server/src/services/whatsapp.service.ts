@@ -309,6 +309,39 @@ class WhatsAppService {
                         "WhatsApp API timeout (relayMessage)"
                     );
                     console.log(`[WhatsApp] ✅ Sent article with large preview: ${article.title}`);
+                    
+                    // Also send to group if configured
+                    if (this.groupJid) {
+                        try {
+                            await new Promise(r => setTimeout(r, 2000));
+                            const groupMsg = generateWAMessageFromContent(
+                                this.groupJid,
+                                proto.Message.fromObject({
+                                    extendedTextMessage: {
+                                        text,
+                                        matchedText: articleUrl,
+                                        canonicalUrl: articleUrl,
+                                        title: article.title || '',
+                                        description: article.excerpt || '',
+                                        jpegThumbnail,
+                                        previewType: 1,
+                                    }
+                                }),
+                                { userJid: this.sock.user.id }
+                            );
+                            await withTimeout(
+                                this.sock.relayMessage(this.groupJid, groupMsg.message!, {
+                                    messageId: groupMsg.key.id!
+                                }),
+                                20000,
+                                "WhatsApp API timeout (group relayMessage)"
+                            );
+                            console.log(`[WhatsApp] ✅ Also sent to group with large preview: ${article.title}`);
+                        } catch (groupErr: any) {
+                            console.warn(`[WhatsApp] ⚠️ Group send failed: ${groupErr.message}`);
+                        }
+                    }
+
                     return true;
                 } catch (err: any) {
                     console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
