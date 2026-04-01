@@ -94,17 +94,7 @@ export const Header: React.FC = () => {
                 {/* Actions & Mobile Menu (Last item -> End/Left in RTL) */}
                 <div className="flex items-center justify-end gap-2 lg:gap-3">
 
-                    {/* Report Violation CTA - High Contrast & Visible */}
-                    <Link href="/report/new" className="shrink-0">
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            className="bg-red-600 hover:bg-red-700 text-white font-black shadow-lg shadow-red-500/20 px-3 lg:px-5 py-2.5 h-auto lg:h-11 flex items-center gap-2 animate-pulse-slow"
-                        >
-                            <Icon name="ri-megaphone-line" className="text-lg lg:text-xl" />
-                            <span className="text-xs lg:text-sm">بلغ عن انتهاك</span>
-                        </Button>
-                    </Link>
+ 
 
                     {/* Desktop Search (Hidden on Mobile) */}
                     <Button variant="icon" onClick={() => router.push('/search')} className="hidden lg:flex hover:bg-primary/10 hover:text-primary min-w-[44px] min-h-[44px]" aria-label="بحث">

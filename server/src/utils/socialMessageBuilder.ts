@@ -26,7 +26,7 @@ function escapeHtml(text: string): string {
 /**
  * Returns the standardized footer with social links
  */
-const getFooter = (isHtml: boolean) => {
+const getFooter = (platform: 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'WEBHOOK') => {
     const links = {
         facebook: process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61586335597792',
         telegram: process.env.TELEGRAM_URL || 'https://t.me/voiceoftihama6',
@@ -36,7 +36,7 @@ const getFooter = (isHtml: boolean) => {
 
     const header = '\n\n---\n📱 تابعوا "صوت تهامة" عبر منصاتنا:\n';
     
-    if (isHtml) {
+    if (platform === 'TELEGRAM') {
         return `${header}` +
                `🔵 <a href="${links.facebook}">فيسبوك</a> | ` +
                `✈️ <a href="${links.telegram}">تيليجرام</a>\n` +
@@ -44,6 +44,7 @@ const getFooter = (isHtml: boolean) => {
                `𝕏 <a href="${links.x}">تويتر</a>`;
     }
 
+    // Default for plain text (WhatsApp & Facebook)
     return `${header}` +
            `🔵 فيسبوك: ${links.facebook}\n` +
            `✈️ تيليجرام: ${links.telegram}\n` +
@@ -52,11 +53,35 @@ const getFooter = (isHtml: boolean) => {
 };
 
 /**
+ * Returns the standardized hashtags
+ */
+const getHashtags = (isBreaking: boolean, categorySlug?: string) => {
+    const base = [
+        '#صوت_تهامة', '#تهامة', '#اليمن', '#أخبار_اليمن', 
+        '#الحديدة', '#حجة', '#تعز', '#ساحل_تهامة', 
+        '#أخبار', '#News', '#YemenNews'
+    ];
+    
+    if (isBreaking) base.push('#عاجل');
+    
+    // Add category as hashtag if available
+    if (categorySlug) {
+        const catTag = categorySlug === 'politics' ? '#السياسة' : 
+                      categorySlug === 'economy' ? '#الاقتصاد' : 
+                      categorySlug === 'sports' ? '#الرياضة' : 
+                      categorySlug === 'culture' ? '#الثقافة' : null;
+        if (catTag) base.push(catTag);
+    }
+
+    return '\n\n' + Array.from(new Set(base)).join(' ');
+};
+
+/**
  * Build a unified message for social platforms
  */
 export function buildUnifiedMessage(
     article: any, 
-    platform: 'TELEGRAM' | 'WHATSAPP' | 'WEBHOOK', 
+    platform: 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'WEBHOOK', 
     siteUrl: string
 ): string {
     const rawTitle = article.aiRewrittenTitle || article.title || 'صوت تهامة';
@@ -72,14 +97,25 @@ export function buildUnifiedMessage(
         const head = `🔴 <b>${escapeHtml(cleanTitle)}</b>`;
         const body = `📝 ${escapeHtml(cleanExcerpt)}`;
         const cta = `🔗 <b>التفاصيل كاملة:</b> <a href="${articleUrl}">اضغط هنا</a>`;
+        const tags = getHashtags(!!article.isBreaking, article.category?.slug);
         
-        return `${head}\n\n${body}\n\n${cta}${getFooter(true)}`;
+        return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('TELEGRAM')}`;
     } 
+
+    if (platform === 'WHATSAPP') {
+        const head = `🔴 *${cleanTitle}*`;
+        const body = `📝 ${cleanExcerpt}`;
+        const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
+        const tags = getHashtags(!!article.isBreaking, article.category?.slug);
+        
+        return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('WHATSAPP')}`;
+    }
     
-    // Default for WhatsApp and Webhook
-    const head = `🔴 *${cleanTitle}*`;
+    // Default for Facebook and Webhook (No special bolding characters)
+    const head = `🔴 ${cleanTitle}`;
     const body = `📝 ${cleanExcerpt}`;
     const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
+    const tags = getHashtags(!!article.isBreaking, article.category?.slug);
 
-    return `${head}\n\n${body}\n\n${cta}${getFooter(false)}`;
+    return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('FACEBOOK')}`;
 }

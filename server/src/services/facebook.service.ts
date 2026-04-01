@@ -6,6 +6,8 @@
 const GRAPH_API = 'https://graph.facebook.com/v19.0';
 const MAX_RETRIES = 3;
 
+import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
+
 class FacebookService {
     private pageId: string | null = null;
     private pageToken: string | null = null;
@@ -64,17 +66,8 @@ class FacebookService {
         }
     }
 
-    private stripHtml(html: string): string {
-        if (!html) return '';
-        return html.replace(/<[^>]*>?/gm, '').trim();
-    }
-
     private buildMessage(article: any): string {
-        const title = article.title || '';
-        const excerpt = this.stripHtml(article.excerpt || '');
-        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-
-        return `📰 ${title}\n\n${excerpt}\n\n🔗 اقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+        return buildUnifiedMessage(article, 'FACEBOOK', this.platformUrl);
     }
 
     public async postArticleToFacebook(article: any): Promise<boolean> {

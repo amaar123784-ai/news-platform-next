@@ -90,33 +90,33 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
             <main className="min-h-screen bg-gray-50 py-8 sm:py-12">
                 <Container>
-                    {/* Enhanced Category Header */}
-                    <div className="relative bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8 sm:mb-12">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-secondary/5 rounded-full -ml-12 -mb-12" />
+                    {/* Compact Category Header */}
+                    <div className="relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 sm:mb-8">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12" />
+                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-secondary/5 rounded-full -ml-8 -mb-8" />
                         
-                        <div className="relative px-6 py-8 sm:px-10 sm:py-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div className="flex items-center gap-5 sm:gap-6">
-                                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20 shrink-0 transform -rotate-3">
-                                    <Icon name="ri-price-tag-3-line" size="2xl" />
+                        <div className="relative px-4 py-4 sm:px-6 sm:py-5 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center text-white shadow-md shadow-primary/20 shrink-0 transform -rotate-3">
+                                    <Icon name="ri-price-tag-3-line" size="lg" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-primary text-xs font-bold uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded-md">القسم</span>
-                                        <div className="h-px w-8 bg-gray-200" />
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-primary/10 px-1.5 py-0.5 rounded">القسم</span>
+                                        <div className="hidden sm:block h-px w-6 bg-gray-200" />
                                     </div>
-                                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 leading-none">{categoryName}</h1>
+                                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-none">{categoryName}</h1>
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-4 bg-gray-50 px-5 py-3 rounded-2xl border border-gray-100 self-start md:self-auto">
-                                <div className="text-center border-l border-gray-200 pl-4 ml-4 last:border-0 last:pl-0 last:ml-0">
-                                    <span className="block text-xl font-bold text-gray-900 leading-none mb-1">{meta?.totalItems || 0}</span>
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase">مقال</span>
+                            <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-gray-100">
+                                <div className="text-center border-l border-gray-200 pl-3 md:pl-4 ml-3 md:ml-4 last:border-0 last:pl-0 last:ml-0">
+                                    <span className="block text-base md:text-lg font-bold text-gray-900 leading-none mb-0.5">{meta?.totalItems || 0}</span>
+                                    <span className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase">مقال</span>
                                 </div>
                                 <div className="text-center">
-                                    <span className="block text-xl font-bold text-gray-900 leading-none mb-1">{meta?.totalPages || 0}</span>
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase">صفحة</span>
+                                    <span className="block text-base md:text-lg font-bold text-gray-900 leading-none mb-0.5">{meta?.totalPages || 0}</span>
+                                    <span className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase">صفحة</span>
                                 </div>
                             </div>
                         </div>
