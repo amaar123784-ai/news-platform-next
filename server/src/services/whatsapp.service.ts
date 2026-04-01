@@ -267,28 +267,44 @@ class WhatsAppService {
 
             console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
 
-            let imageBuffer: Buffer | undefined;
+            let jpegThumbnail: Buffer | undefined;
             if (article.imageUrl) {
                 const fullImageUrl = article.imageUrl.startsWith('http')
                     ? article.imageUrl
                     : `${this.platformUrl}${article.imageUrl}`;
-                imageBuffer = await this.fetchThumbnail(fullImageUrl);
+                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
             }
 
-            if (imageBuffer) {
+            if (jpegThumbnail && this.sock?.user?.id) {
                 try {
-                    await withTimeout(
-                        this.sock.sendMessage(this.channelJid!, { 
-                            image: imageBuffer,
-                            caption: text 
+                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
+                    const msg = generateWAMessageFromContent(
+                        this.channelJid!,
+                        proto.Message.fromObject({
+                            extendedTextMessage: {
+                                text,
+                                matchedText: articleUrl,
+                                canonicalUrl: articleUrl,
+                                title: article.title || '',
+                                description: article.excerpt || '',
+                                jpegThumbnail,
+                                previewType: 1,
+                            }
                         }),
-                        30000,
-                        "WhatsApp API timeout (sendImage)"
+                        { userJid: this.sock.user.id }
                     );
-                    console.log(`[WhatsApp] ✅ Sent article with photo: ${article.title}`);
+
+                    await withTimeout(
+                        this.sock.relayMessage(this.channelJid!, msg.message!, {
+                            messageId: msg.key.id!
+                        }),
+                        20000,
+                        "WhatsApp API timeout (relayMessage)"
+                    );
+                    console.log(`[WhatsApp] ✅ Sent article with large preview: ${article.title}`);
                     return true;
                 } catch (err: any) {
-                    console.warn(`[WhatsApp] ⚠️ Image send failed, falling back to text: ${err.message}`);
+                    console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
                 }
             }
 
