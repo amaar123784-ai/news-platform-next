@@ -267,42 +267,28 @@ class WhatsAppService {
 
             console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
 
-            let jpegThumbnail: Buffer | undefined;
+            let imageBuffer: Buffer | undefined;
             if (article.imageUrl) {
                 const fullImageUrl = article.imageUrl.startsWith('http')
                     ? article.imageUrl
                     : `${this.platformUrl}${article.imageUrl}`;
-                jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
+                imageBuffer = await this.fetchThumbnail(fullImageUrl);
             }
 
-            if (jpegThumbnail && this.sock?.user?.id) {
+            if (imageBuffer) {
                 try {
-                    const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
-                    const msg = generateWAMessageFromContent(
-                        this.channelJid!,
-                        proto.Message.fromObject({
-                            extendedTextMessage: {
-                                text,
-                                matchedText: articleUrl,
-                                canonicalUrl: articleUrl,
-                                title: article.title || '',
-                                jpegThumbnail,
-                                previewType: 0,
-                            }
-                        }),
-                        { userJid: this.sock.user.id }
-                    );
-
                     await withTimeout(
-                        this.sock.relayMessage(this.channelJid!, msg.message!, {
-                            messageId: msg.key.id!
+                        this.sock.sendMessage(this.channelJid!, { 
+                            image: imageBuffer,
+                            caption: text 
                         }),
-                        20000,
-                        "WhatsApp API timeout (relayMessage)"
+                        30000,
+                        "WhatsApp API timeout (sendImage)"
                     );
+                    console.log(`[WhatsApp] ✅ Sent article with photo: ${article.title}`);
                     return true;
                 } catch (err: any) {
-                    console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
+                    console.warn(`[WhatsApp] ⚠️ Image send failed, falling back to text: ${err.message}`);
                 }
             }
 
