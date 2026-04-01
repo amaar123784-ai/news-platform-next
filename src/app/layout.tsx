@@ -76,6 +76,30 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/logo.webp" />
         <link rel="apple-touch-icon" href="/images/logo.webp" />
         <link rel="alternate" type="application/rss+xml" title="صوت تهامة - RSS" href="/rss.xml" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "صوت تهامة",
+              "alternateName": "Voice of Tihama",
+              "url": "https://voiceoftihama.com",
+              "logo": "https://voiceoftihama.com/images/logo.png",
+              "sameAs": [
+                "https://www.facebook.com/profile.php?id=61586335597792",
+                "https://t.me/voiceoftihama6",
+                "https://x.com/voiceoftihama"
+              ],
+              "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer service",
+                "areaServed": "YE",
+                "availableLanguage": "Arabic"
+              }
+            })
+          }}
+        />
       </head>
       <body className="font-arabic antialiased bg-gray-50 min-h-screen flex flex-col">
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />}

@@ -14,6 +14,7 @@ import { ReadNextScroll } from '@/components/article/ReadNextScroll';
 import { ViewTracker } from '@/components/article/ViewTracker';
 import { SubscribeCTA } from '@/components/molecules/SubscribeCTA';
 import { categoryBadges } from '@/design-system/tokens';
+import ArticleJsonLd from '@/components/article/ArticleJsonLd';
 
 interface Props {
     params: Promise<{ slug: string }>;
@@ -80,6 +81,7 @@ export default async function ArticlePage({ params }: Props) {
 
     return (
         <div className="bg-white min-h-screen">
+            <ArticleJsonLd article={article} />
             {/* Main Layout Container */}
             <main className="container mx-auto px-4 py-8 lg:py-12">
                 <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 lg:gap-16">

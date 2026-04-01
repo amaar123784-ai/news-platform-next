@@ -99,7 +99,7 @@ export function buildUnifiedMessage(
         const cta = `🔗 <b>التفاصيل كاملة:</b> <a href="${articleUrl}">اضغط هنا</a>`;
         const tags = getHashtags(!!article.isBreaking, article.category?.slug);
         
-        return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('TELEGRAM')}`;
+        return `${head}\n\n${body}\n\n${cta}${getFooter('TELEGRAM')}${tags}`;
     } 
 
     if (platform === 'WHATSAPP') {
@@ -108,7 +108,7 @@ export function buildUnifiedMessage(
         const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
         const tags = getHashtags(!!article.isBreaking, article.category?.slug);
         
-        return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('WHATSAPP')}`;
+        return `${head}\n\n${body}\n\n${cta}${getFooter('WHATSAPP')}${tags}`;
     }
     
     // Default for Facebook and Webhook (No special bolding characters)
@@ -117,5 +117,5 @@ export function buildUnifiedMessage(
     const cta = `🔗 التفاصيل كاملة:\n${articleUrl}`;
     const tags = getHashtags(!!article.isBreaking, article.category?.slug);
 
-    return `${head}\n\n${body}\n\n${cta}${tags}${getFooter('FACEBOOK')}`;
+    return `${head}\n\n${body}\n\n${cta}${getFooter('FACEBOOK')}${tags}`;
 }
