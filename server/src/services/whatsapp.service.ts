@@ -73,7 +73,7 @@ class WhatsAppService {
         try {
             console.log(`[WhatsApp] 🔍 Resolving channel from invite code: ${this.inviteCode}...`);
             const metadata = await this.sock.newsletterMetadata('invite', this.inviteCode);
-            
+
             if (metadata?.id) {
                 this.channelJid = metadata.id;
                 console.log(`[WhatsApp] ✅ Channel resolved: "${metadata.name || 'Unknown'}" → ${this.channelJid}`);
@@ -82,7 +82,7 @@ class WhatsAppService {
             }
         } catch (error: any) {
             console.error(`[WhatsApp] ❌ Failed to resolve channel invite code: ${error.message}`);
-            
+
             // Try listing subscribed newsletters as fallback
             try {
                 console.log('[WhatsApp] 🔄 Attempting to list all subscribed channels...');
@@ -160,10 +160,10 @@ class WhatsAppService {
                 if (connection === 'open') {
                     console.log('[WhatsApp] ✅ Connected successfully!');
                     this.reconnectAttempts = 0;
-                    
+
                     // Resolve channel JID if we only have invite code
                     await this.resolveChannelJid();
-                    
+
                     this.isReady = true;
                     if (this.messageQueue.length > 0) {
                         this.processQueue();
@@ -194,7 +194,7 @@ class WhatsAppService {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                if (buffer.length > 1024 * 1024) return undefined;
+                if (buffer.length > 5 * 1024 * 1024) return undefined; // Skip images over 5MB
                 return buffer;
             } catch (err: any) {
                 console.log(`[WhatsApp] ⚠️ Thumbnail fetch attempt ${attempt}/${retries} failed: ${err.message}`);
@@ -228,7 +228,7 @@ class WhatsAppService {
             while (this.messageQueue.length > 0) {
                 if (!this.isReady || !this.sock) {
                     console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
-                    return; 
+                    return;
                 }
                 const item = this.messageQueue[0];
                 await this.updatePostStatus(item.article.id, SocialPostStatus.PROCESSING);
@@ -253,7 +253,7 @@ class WhatsAppService {
                 }
             }
         } catch (error: any) {
-             console.error(`[WhatsApp] ⚠️ Unexpected error in queue processing: ${error.message}`);
+            console.error(`[WhatsApp] ⚠️ Unexpected error in queue processing: ${error.message}`);
         } finally {
             this.isProcessingQueue = false;
         }
