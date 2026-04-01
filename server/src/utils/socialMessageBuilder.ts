@@ -28,28 +28,31 @@ function escapeHtml(text: string): string {
  */
 const getFooter = (platform: 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'WEBHOOK') => {
     const links = {
-        facebook: process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61586335597792',
+        whatsappChannel: process.env.WHATSAPP_CHANNEL_URL || 'https://whatsapp.com/channel/0029VbCPmHj1HspqfKinlk16',
+        whatsappGroup: process.env.WHATSAPP_GROUP_URL || 'https://chat.whatsapp.com/Jtk05k0G8O81d861NJhSHU',
         telegram: process.env.TELEGRAM_URL || 'https://t.me/voiceoftihama6',
-        whatsapp: process.env.WHATSAPP_CHANNEL_URL || 'https://chat.whatsapp.com/Jtk05k0G8O81d861NJhSHU?mode=gi_t',
+        facebook: process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61586335597792',
         x: process.env.X_URL || 'https://x.com/voiceoftihama'
     };
 
-    const header = '\n\n---\n📱 تابعوا "صوت تهامة" عبر منصاتنا:\n';
-    
     if (platform === 'TELEGRAM') {
+        const header = '\n\n---\n📱 <b>تابعوا "صوت تهامة" عبر منصاتنا:</b>\n';
         return `${header}` +
+               `🟢 <a href="${links.whatsappChannel}">قناة واتس آب</a> | ` +
+               `💬 <a href="${links.whatsappGroup}">مجموعة واتس آب</a>\n` +
+               `✈️ <a href="${links.telegram}">تيليجرام</a> | ` +
                `🔵 <a href="${links.facebook}">فيسبوك</a> | ` +
-               `✈️ <a href="${links.telegram}">تيليجرام</a>\n` +
-               `🟢 <a href="${links.whatsapp}">واتساب</a> | ` +
-               `𝕏 <a href="${links.x}">تويتر</a>`;
+               `𝕏 <a href="${links.x}">منصة X</a>`;
     }
 
     // Default for plain text (WhatsApp & Facebook)
+    const header = '\n\n---\n📱 تابعوا "صوت تهامة" عبر منصاتنا:\n\n';
     return `${header}` +
-           `🔵 فيسبوك: ${links.facebook}\n` +
+           `🟢 قناة واتس آب: ${links.whatsappChannel}\n` +
+           `💬 ومجموعة واتس آب: ${links.whatsappGroup}\n` +
            `✈️ تيليجرام: ${links.telegram}\n` +
-           `🟢 واتساب: ${links.whatsapp}\n` +
-           `𝕏 تويتر: ${links.x}`;
+           `🔵 فيسبوك: ${links.facebook}\n` +
+           `𝕏 منصة X: ${links.x}`;
 };
 
 /**
