@@ -64,24 +64,31 @@ async function listWhatsAppEntities() {
                 try {
                     // Try different Baileys versions methods for newsletters
                     let newsletters = [];
+                    
                     if (typeof sock.newsletterSubscribed === 'function') {
                         newsletters = await sock.newsletterSubscribed();
                     } else if (typeof sock.newsletterSubscriptions === 'function') {
                         newsletters = await sock.newsletterSubscriptions();
+                    } else {
+                        // Brute force method finding
+                        const subFn = Object.values(sock).find(fn => fn && typeof fn === 'function' && fn.name.includes('newsletterSubscribed'));
+                        if (subFn) newsletters = await subFn();
                     }
 
                     const channelList = newsletters.map(nl => ({
                         'Name': nl.name || 'Unnamed Channel',
-                        'JID (Copy this to .env)': nl.id
+                        'JID (Copy this to .env)': nl.id,
+                        'Role': nl.role || 'viewer'
                     }));
 
                     if (channelList.length > 0) {
                         console.table(channelList);
                     } else {
-                        console.log('No subscribed channels found.');
+                        console.log('No subscribed channels found. Note: You MUST join the channel on your phone first.');
                     }
                 } catch (err) {
-                    console.warn('Could not fetch channels (Your Baileys version might not support newsletters):', err.message);
+                    console.warn('Could not fetch channels automatically:', err.message);
+                    console.log('💡 Tip: Use get-channel-id.js for targeted discovery of a specific link.');
                 }
 
                 console.log('\n--- 🏁 Discovery Complete ---\n');

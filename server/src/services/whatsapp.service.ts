@@ -34,18 +34,75 @@ class WhatsAppService {
     private sock: any = null;
     private isReady: boolean = false;
     private channelJid: string | null = null;
+    private inviteCode: string | null = null;
     private platformUrl: string = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
     private messageQueue: any[] = [];
     private isProcessingQueue: boolean = false;
     private reconnectAttempts: number = 0;
 
     constructor() {
-        this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
+        const rawChannelId = process.env.WHATSAPP_CHANNEL_ID || '';
+
+        // Support multiple formats:
+        // 1. Full URL: https://whatsapp.com/channel/0029VbCPmHj1HspqfKinlk16
+        // 2. Invite code only: 0029VbCPmHj1HspqfKinlk16
+        // 3. Full JID: 120363XXXX@newsletter
+        if (rawChannelId.includes('@newsletter')) {
+            this.channelJid = rawChannelId;
+            console.log('[WhatsApp] Channel JID set directly:', this.channelJid);
+        } else if (rawChannelId) {
+            // Extract invite code from URL or use raw value
+            const urlMatch = rawChannelId.match(/channel\/([a-zA-Z0-9]+)/);
+            this.inviteCode = urlMatch ? urlMatch[1] : rawChannelId;
+            console.log('[WhatsApp] Will resolve channel from invite code:', this.inviteCode);
+        }
 
         if (process.env.WHATSAPP_ENABLE === 'true') {
             this.initializeClient();
         } else {
             console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
+        }
+    }
+
+    /**
+     * Resolve channel invite code to actual JID using Baileys newsletter API
+     */
+    private async resolveChannelJid(): Promise<void> {
+        if (this.channelJid || !this.inviteCode || !this.sock) return;
+
+        try {
+            console.log(`[WhatsApp] 🔍 Resolving channel from invite code: ${this.inviteCode}...`);
+            const metadata = await this.sock.newsletterMetadata('invite', this.inviteCode);
+            
+            if (metadata?.id) {
+                this.channelJid = metadata.id;
+                console.log(`[WhatsApp] ✅ Channel resolved: "${metadata.name || 'Unknown'}" → ${this.channelJid}`);
+            } else {
+                console.error('[WhatsApp] ❌ Could not resolve channel. No metadata returned.');
+            }
+        } catch (error: any) {
+            console.error(`[WhatsApp] ❌ Failed to resolve channel invite code: ${error.message}`);
+            
+            // Try listing subscribed newsletters as fallback
+            try {
+                console.log('[WhatsApp] 🔄 Attempting to list all subscribed channels...');
+                const newsletters = await this.sock.newsletterList();
+                if (newsletters && newsletters.length > 0) {
+                    console.log(`[WhatsApp] 📋 Found ${newsletters.length} channel(s):`);
+                    newsletters.forEach((ch: any, i: number) => {
+                        console.log(`  ${i + 1}. "${ch.name}" → JID: ${ch.id}`);
+                    });
+                    // Auto-select first channel if only one exists
+                    if (newsletters.length === 1) {
+                        this.channelJid = newsletters[0].id;
+                        console.log(`[WhatsApp] ✅ Auto-selected channel: "${newsletters[0].name}"`);
+                    }
+                } else {
+                    console.warn('[WhatsApp] ⚠️ No subscribed channels found.');
+                }
+            } catch (listError: any) {
+                console.error(`[WhatsApp] ❌ Newsletter list also failed: ${listError.message}`);
+            }
         }
     }
 
@@ -102,8 +159,12 @@ class WhatsAppService {
 
                 if (connection === 'open') {
                     console.log('[WhatsApp] ✅ Connected successfully!');
-                    this.isReady = true;
                     this.reconnectAttempts = 0;
+                    
+                    // Resolve channel JID if we only have invite code
+                    await this.resolveChannelJid();
+                    
+                    this.isReady = true;
                     if (this.messageQueue.length > 0) {
                         this.processQueue();
                     }
