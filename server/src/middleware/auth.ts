@@ -61,7 +61,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
             if (jwtError.name === 'TokenExpiredError') {
                 throw createError(401, 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.', 'TOKEN_EXPIRED');
             }
-            console.error('[Auth Error]', jwtError.message, 'Token:', token?.substring(0, 20) + '...');
             throw createError(401, 'رمز الدخول غير صالح.', 'INVALID_TOKEN');
         }
 

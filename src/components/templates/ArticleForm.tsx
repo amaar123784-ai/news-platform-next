@@ -60,7 +60,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
     }, [formData, isEditMode]);
 
     const createMutation = useMutation({
-        mutationFn: (data: CreateArticleRequest) => createArticleAction(data, idempotencyKey),
+        mutationFn: (data: CreateArticleRequest) => articleService.createArticle(data, idempotencyKey),
         onMutate: async (newArticle) => {
             await queryClient.cancelQueries({ queryKey: ['articles'] });
             const previousArticles = queryClient.getQueryData(['articles']);
