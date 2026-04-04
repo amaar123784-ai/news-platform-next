@@ -67,14 +67,10 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
             queryClient.setQueryData(['articles'], (old: any) => ({ ...old, data: [newArticle, ...(old?.data || [])] }));
             return { previousArticles };
         },
-        onSuccess: (result) => {
-            if (result.success) {
-                success('تم إنشاء المقال بنجاح');
-                localforage.removeItem('draft_article_form');
-                router.push('/admin/articles');
-            } else {
-                showError(result.error || 'فشل إنشاء المقال');
-            }
+        onSuccess: () => {
+            success('تم إنشاء المقال بنجاح');
+            localforage.removeItem('draft_article_form');
+            router.push('/admin/articles');
         },
         onError: (err: any, newArticle, context) => {
             queryClient.setQueryData(['articles'], context?.previousArticles);
