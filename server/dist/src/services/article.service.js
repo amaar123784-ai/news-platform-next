@@ -25,7 +25,6 @@ export function generateSlug(title) {
 const ARTICLE_LIST_INCLUDE = {
     author: { select: { id: true, name: true, avatar: true } },
     category: { select: { id: true, name: true, slug: true, color: true } },
-    tags: { include: { tag: true } },
     _count: { select: { comments: true } },
 };
 const ARTICLE_DETAIL_INCLUDE = {
@@ -54,7 +53,7 @@ const ARTICLE_BASIC_INCLUDE = {
  * List articles with filtering, pagination, and search
  */
 export async function listArticles(query, user) {
-    const { page, perPage, category, tag, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
+    const { page, perPage, category, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
     // Build where clause
     const where = {};
     // Public users can only see published articles
@@ -66,15 +65,6 @@ export async function listArticles(query, user) {
     }
     if (category)
         where.category = { slug: category };
-    if (tag) {
-        where.tags = {
-            some: {
-                tag: {
-                    slug: tag
-                }
-            }
-        };
-    }
     if (authorId)
         where.authorId = authorId;
     // Filter by isBreaking or isFeatured
@@ -176,20 +166,6 @@ export async function getRelatedArticles(idOrSlug, limit) {
         take: limit,
     });
     return related;
-}
-/**
- * Increment view count for an article with deduplication logic
- */
-export async function incrementArticleViews(idOrSlug) {
-    return prisma.article.update({
-        where: {
-            slug: idOrSlug.includes('-') ? idOrSlug : undefined,
-            id: !idOrSlug.includes('-') ? idOrSlug : undefined,
-        },
-        data: {
-            views: { increment: 1 }
-        }
-    });
 }
 /**
  * Get a single article by ID or slug, with access control and view tracking

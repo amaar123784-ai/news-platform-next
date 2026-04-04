@@ -2,10 +2,6 @@
  * Telegram Bot Service
  * Sends articles to a Telegram channel via the official Bot API.
  */
-export interface TelegramResult {
-    success: boolean;
-    error?: string;
-}
 declare class TelegramService {
     private botToken;
     private channelId;
@@ -13,8 +9,12 @@ declare class TelegramService {
     private platformUrl;
     constructor();
     private verifyBot;
-    sendArticleToTelegram(article: any): Promise<TelegramResult>;
-    sendArticleWithPhoto(article: any): Promise<TelegramResult>;
+    private stripHtml;
+    private truncateText;
+    private escapeHtml;
+    private buildMessage;
+    sendArticleToTelegram(article: any): Promise<boolean>;
+    sendArticleWithPhoto(article: any): Promise<boolean>;
 }
 export declare const telegramService: TelegramService;
 export {};

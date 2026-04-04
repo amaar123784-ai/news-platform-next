@@ -9,7 +9,6 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs/promises';
 import { prisma } from '../index.js';
 import { createError } from '../middleware/errorHandler.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -77,7 +76,7 @@ router.post('/upload', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'
             throw createError(400, 'لم يتم رفع أي ملف', 'NO_FILE');
         }
         // Validate file type
-        if (!imageProcessor.validateMimeType(req.file.mimetype, req.file.originalname)) {
+        if (!imageProcessor.validateMimeType(req.file.mimetype)) {
             throw createError(400, 'نوع الملف غير مدعوم. يُسمح فقط بـ JPEG, PNG, GIF, WEBP', 'INVALID_FILE_TYPE');
         }
         // Process and optimize image
@@ -113,49 +112,6 @@ router.post('/upload', authenticate, requireRole('ADMIN', 'EDITOR', 'JOURNALIST'
         if (error instanceof ImageProcessingError) {
             return next(createError(400, error.message, error.code));
         }
-        next(error);
-    }
-});
-/**
- * POST /api/media/upload/chunk - Resumable chunked upload
- */
-router.post('/upload/chunk', authenticate, upload.single('file'), async (req, res, next) => {
-    try {
-        const { uploadId, chunkIndex, totalChunks, fileName, alt } = req.body;
-        if (!uploadId || !req.file)
-            throw createError(400, 'Missing upload info');
-        const tempDir = path.join(process.cwd(), 'uploads', 'temp', uploadId);
-        await fs.mkdir(tempDir, { recursive: true });
-        const chunkPath = path.join(tempDir, `chunk-${chunkIndex}`);
-        await fs.writeFile(chunkPath, req.file.buffer);
-        const files = await fs.readdir(tempDir);
-        if (files.length === parseInt(totalChunks)) {
-            // Combine chunks in order
-            const chunks = [];
-            for (let i = 0; i < totalChunks; i++) {
-                chunks.push(await fs.readFile(path.join(tempDir, `chunk-${i}`)));
-            }
-            const finalBuffer = Buffer.concat(chunks);
-            // Process final image
-            const processed = await imageProcessor.process(finalBuffer, fileName || 'upload.webp');
-            // Store in DB
-            const media = await prisma.media.create({
-                data: {
-                    filename: processed.filename,
-                    url: processed.url,
-                    type: 'image/webp',
-                    size: processed.size,
-                    alt: alt || fileName,
-                    uploaderId: req.user.userId,
-                },
-            });
-            // Cleanup
-            await fs.rm(tempDir, { recursive: true, force: true });
-            return res.status(201).json({ success: true, data: media });
-        }
-        res.json({ success: true, message: 'Chunk uploaded' });
-    }
-    catch (error) {
         next(error);
     }
 });

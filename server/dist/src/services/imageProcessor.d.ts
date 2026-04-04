@@ -98,12 +98,8 @@ export declare class ImageProcessor {
     private getMetadata;
     /**
      * Validate MIME type
-     *
-     * @param mimeType - Provided MIME type
-     * @param filename - Optional filename for inference
-     * @returns boolean
      */
-    validateMimeType(mimeType: string, filename?: string): boolean;
+    validateMimeType(mimeType: string): boolean;
     /**
      * Delete image and all its variants
      */

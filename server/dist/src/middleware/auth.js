@@ -1,13 +1,13 @@
+/**
+ * Authentication Middleware
+ *
+ * Reads the JWT from the `access_token` HttpOnly cookie (set by auth routes).
+ * Falls back to the Authorization: Bearer header for non-browser clients.
+ */
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { createError } from './errorHandler.js';
 import { prisma } from '../index.js';
-import { cache } from '../services/cache.service.js';
-/**
- * Cache keys for user session/status
- */
-const USER_CACHE_KEY = (userId) => `user:status:${userId}`;
-const USER_CACHE_TTL = 3600; // 1 hour - safe for role/active checks
 /**
  * Extract JWT string from request.
  * Priority: HttpOnly cookie → Authorization: Bearer header
@@ -26,7 +26,6 @@ function extractToken(req) {
 }
 /**
  * Verify JWT token and attach user to request
- * Optimized with Redis caching to prevent per-request DB hits
  */
 export async function authenticate(req, res, next) {
     try {
@@ -44,29 +43,13 @@ export async function authenticate(req, res, next) {
             }
             throw createError(401, 'رمز الدخول غير صالح.', 'INVALID_TOKEN');
         }
-        // --- OPTIMIZATION: Check Redis Cache First ---
-        const cacheKey = USER_CACHE_KEY(decoded.userId);
-        let cachedStatus = await cache.get(cacheKey);
-        if (!cachedStatus) {
-            // Cache Miss: Verify user exists and is active in DB
-            const user = await prisma.user.findUnique({
-                where: { id: decoded.userId },
-                select: { id: true, isActive: true, role: true },
-            });
-            if (!user) {
-                throw createError(401, 'المستخدم غير موجود.', 'USER_NOT_FOUND');
-            }
-            cachedStatus = { isActive: user.isActive, role: user.role };
-            // Populate Cache
-            await cache.set(cacheKey, cachedStatus, USER_CACHE_TTL);
-        }
-        // Final Validation from (Cached) Data
-        if (!cachedStatus.isActive) {
-            throw createError(401, 'تم تعطيل هذا الحساب. يرجى التواصل مع الإدارة.', 'USER_INACTIVE');
-        }
-        // Ensure token role matches DB role (prevents elevation if role changed)
-        if (cachedStatus.role !== decoded.role) {
-            throw createError(401, 'تم تحديث صلاحياتك. يرجى تسجيل الدخول مجدداً.', 'ROLE_CHANGED');
+        // Verify user still exists and is active
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, isActive: true },
+        });
+        if (!user || !user.isActive) {
+            throw createError(401, 'المستخدم غير موجود أو تم تعطيل الحساب.', 'USER_INACTIVE');
         }
         req.user = decoded;
         next();
@@ -104,12 +87,5 @@ export async function optionalAuth(req, res, next) {
         }
     }
     next();
-}
-/**
- * Manual Cache Invalidation Helper
- * Call this from controllers whenever user status, role, or credentials change.
- */
-export async function invalidateUserCache(userId) {
-    await cache.del(USER_CACHE_KEY(userId));
 }
 //# sourceMappingURL=auth.js.map

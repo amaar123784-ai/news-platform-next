@@ -2,8 +2,6 @@
  * Telegram Bot Service
  * Sends articles to a Telegram channel via the official Bot API.
  */
-import axios from 'axios';
-import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
 const TELEGRAM_API = 'https://api.telegram.org';
 /** Message cap for Telegram (official limit is 4096) */
 const MESSAGE_MAX_LENGTH = 4096;
@@ -30,12 +28,13 @@ class TelegramService {
     }
     async verifyBot() {
         try {
-            const res = await axios.get(`${TELEGRAM_API}/bot${this.botToken}/getMe`);
-            if (res.data.ok) {
-                console.log(`[Telegram] ✅ Bot verified: @${res.data.result.username}`);
+            const res = await fetch(`${TELEGRAM_API}/bot${this.botToken}/getMe`);
+            const data = await res.json();
+            if (data.ok) {
+                console.log(`[Telegram] ✅ Bot verified: @${data.result.username}`);
             }
             else {
-                console.error('[Telegram] ❌ Bot verification failed:', res.data.description);
+                console.error('[Telegram] ❌ Bot verification failed:', data.description);
                 this.isEnabled = false;
             }
         }
@@ -43,93 +42,106 @@ class TelegramService {
             console.error('[Telegram] ❌ Failed to verify bot:', error.message);
         }
     }
+    stripHtml(html) {
+        if (!html)
+            return '';
+        return html.replace(/<[^>]*>?/gm, '').trim();
+    }
+    truncateText(text, maxLen) {
+        const cleaned = text.replace(/\s+/g, ' ').trim();
+        if (cleaned.length <= maxLen)
+            return cleaned;
+        return cleaned.slice(0, maxLen).trim() + '…';
+    }
+    escapeHtml(text) {
+        if (!text)
+            return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+    buildMessage(article) {
+        const title = article.title || '';
+        const excerpt = article.excerpt || '';
+        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+        const message = `<b>${this.escapeHtml(title)}</b>\n\n${this.escapeHtml(excerpt)}\n\n🔗 <a href="${articleUrl}">اقرأ المزيد على منصة صوت تهامة</a>`;
+        if (message.length <= MESSAGE_MAX_LENGTH)
+            return message;
+        const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 100);
+        const excerptTrimmed = this.truncateText(this.stripHtml(excerpt), Math.max(50, excerptMax));
+        return `<b>${this.escapeHtml(title)}</b>\n\n${this.escapeHtml(excerptTrimmed)}\n\n🔗 <a href="${articleUrl}">اقرأ المزيد على منصة صوت تهامة</a>`;
+    }
     async sendArticleToTelegram(article) {
-        if (!this.isEnabled || !this.botToken || !this.channelId) {
-            return { success: false, error: 'Telegram service disabled or missing credentials' };
-        }
-        const text = buildUnifiedMessage(article, 'TELEGRAM', this.platformUrl);
+        if (!this.isEnabled || !this.botToken || !this.channelId)
+            return false;
+        const text = this.buildMessage(article);
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                const response = await axios.post(`${TELEGRAM_API}/bot${this.botToken}/sendMessage`, {
-                    chat_id: this.channelId,
-                    text,
-                    parse_mode: 'HTML',
-                    disable_web_page_preview: false,
+                const response = await fetch(`${TELEGRAM_API}/bot${this.botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: this.channelId,
+                        text,
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: false,
+                    }),
                 });
-                if (response.data.ok) {
+                const data = await response.json();
+                if (data.ok) {
                     console.log(`[Telegram] ✅ Sent article: ${article.title}`);
-                    return { success: true };
+                    return true;
                 }
-                throw new Error(response.data.description || 'Unknown error');
+                console.error(`[Telegram] ❌ Attempt ${attempt} failed: ${data.description}`);
+                if (attempt < MAX_RETRIES)
+                    await new Promise(r => setTimeout(r, 2000 * attempt));
             }
             catch (error) {
-                const status = error.response?.status;
-                const description = error.response?.data?.description || error.message;
-                // CRITICAL: Handle retry_after
-                if (status === 429) {
-                    const retryAfter = error.response?.data?.parameters?.retry_after || 5;
-                    console.warn(`[Telegram] ⏳ Rate limited (429). Waiting ${retryAfter}s...`);
-                    await new Promise(r => setTimeout(r, retryAfter * 1000));
-                    continue; // Re-attempt same logic
-                }
-                console.error(`[Telegram] ❌ Attempt ${attempt} failed: ${description}`);
-                if (attempt < MAX_RETRIES) {
+                console.error(`[Telegram] ❌ Attempt ${attempt} error: ${error.message}`);
+                if (attempt < MAX_RETRIES)
                     await new Promise(r => setTimeout(r, 2000 * attempt));
-                }
-                else {
-                    return { success: false, error: description };
-                }
             }
         }
-        return { success: false, error: 'Exhausted retries' };
+        return false;
     }
     async sendArticleWithPhoto(article) {
-        if (!this.isEnabled || !this.botToken || !this.channelId) {
-            return { success: false, error: 'Telegram service disabled or missing credentials' };
-        }
+        if (!this.isEnabled || !this.botToken || !this.channelId)
+            return false;
         const imageUrl = article.imageUrl;
-        // Fallback to text if no image or relative path (local uploads need full URL or buffer)
         if (!imageUrl || imageUrl.startsWith('/uploads/')) {
             return this.sendArticleToTelegram(article);
         }
-        const text = buildUnifiedMessage(article, 'TELEGRAM', this.platformUrl);
-        // Telegram caption limit is shorter than message limit
-        const safeCaption = text.length > 1024 ? text.substring(0, 1020) + '…' : text;
+        const caption = this.buildMessage(article);
+        const safeCaption = caption.length > 1024 ? caption.substring(0, 1020) + '…' : caption;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                const response = await axios.post(`${TELEGRAM_API}/bot${this.botToken}/sendPhoto`, {
-                    chat_id: this.channelId,
-                    photo: imageUrl,
-                    caption: safeCaption,
-                    parse_mode: 'HTML',
+                const response = await fetch(`${TELEGRAM_API}/bot${this.botToken}/sendPhoto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: this.channelId,
+                        photo: imageUrl,
+                        caption: safeCaption,
+                        parse_mode: 'HTML',
+                    }),
                 });
-                if (response.data.ok) {
+                const data = await response.json();
+                if (data.ok) {
                     console.log(`[Telegram] ✅ Sent article with photo: ${article.title}`);
-                    return { success: true };
+                    return true;
                 }
-                throw new Error(response.data.description || 'Unknown error');
+                console.warn(`[Telegram] ⚠️ Photo attempt ${attempt} failed: ${data.description}`);
+                if (attempt < MAX_RETRIES)
+                    await new Promise(r => setTimeout(r, 2000 * attempt));
             }
             catch (error) {
-                const status = error.response?.status;
-                const description = error.response?.data?.description || error.message;
-                // CRITICAL: Handle retry_after
-                if (status === 429) {
-                    const retryAfter = error.response?.data?.parameters?.retry_after || 5;
-                    console.warn(`[Telegram] ⏳ Rate limited (429). Waiting ${retryAfter}s...`);
-                    await new Promise(r => setTimeout(r, retryAfter * 1000));
-                    continue;
-                }
-                console.warn(`[Telegram] ⚠️ Photo attempt ${attempt} failed: ${description}`);
-                if (attempt < MAX_RETRIES) {
+                console.error(`[Telegram] ❌ Photo attempt ${attempt} error: ${error.message}`);
+                if (attempt < MAX_RETRIES)
                     await new Promise(r => setTimeout(r, 2000 * attempt));
-                }
-                else {
-                    // Final fallback: try sending as text only
-                    console.log(`[Telegram] 🔄 Photo failed after ${MAX_RETRIES} attempts, falling back to text...`);
-                    return this.sendArticleToTelegram(article);
-                }
             }
         }
+        // Final fallback to text
         return this.sendArticleToTelegram(article);
     }
 }

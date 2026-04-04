@@ -62,9 +62,9 @@ export declare const createArticleSchema: z.ZodObject<{
     isFeatured: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
-    content: string;
     categoryId: string;
     excerpt: string;
+    content: string;
     isBreaking: boolean;
     isFeatured: boolean;
     status?: "PUBLISHED" | "DRAFT" | "REVIEW" | "ARCHIVED" | undefined;
@@ -74,9 +74,9 @@ export declare const createArticleSchema: z.ZodObject<{
     tags?: string[] | undefined;
 }, {
     title: string;
-    content: string;
     categoryId: string;
     excerpt: string;
+    content: string;
     status?: string | undefined;
     imageUrl?: string | null | undefined;
     seoTitle?: string | undefined;
@@ -100,10 +100,10 @@ export declare const updateArticleSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status?: "PUBLISHED" | "DRAFT" | "REVIEW" | "ARCHIVED" | undefined;
     title?: string | undefined;
-    content?: string | undefined;
+    imageUrl?: string | null | undefined;
     categoryId?: string | undefined;
     excerpt?: string | undefined;
-    imageUrl?: string | null | undefined;
+    content?: string | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
     isBreaking?: boolean | undefined;
@@ -112,10 +112,10 @@ export declare const updateArticleSchema: z.ZodObject<{
 }, {
     status?: string | undefined;
     title?: string | undefined;
-    content?: string | undefined;
+    imageUrl?: string | null | undefined;
     categoryId?: string | undefined;
     excerpt?: string | undefined;
-    imageUrl?: string | null | undefined;
+    content?: string | undefined;
     seoTitle?: string | undefined;
     seoDesc?: string | undefined;
     isBreaking?: boolean | undefined;
@@ -126,7 +126,6 @@ export declare const articleQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     perPage: z.ZodDefault<z.ZodNumber>;
     category: z.ZodOptional<z.ZodString>;
-    tag: z.ZodOptional<z.ZodString>;
     status: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEnum<["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]>>>;
     authorId: z.ZodOptional<z.ZodString>;
     search: z.ZodOptional<z.ZodString>;
@@ -145,7 +144,6 @@ export declare const articleQuerySchema: z.ZodObject<{
     isBreaking?: boolean | undefined;
     isFeatured?: boolean | undefined;
     authorId?: string | undefined;
-    tag?: string | undefined;
 }, {
     status?: string | undefined;
     category?: string | undefined;
@@ -156,7 +154,6 @@ export declare const articleQuerySchema: z.ZodObject<{
     isBreaking?: unknown;
     isFeatured?: unknown;
     authorId?: string | undefined;
-    tag?: string | undefined;
     sortBy?: "title" | "createdAt" | "publishedAt" | "views" | undefined;
 }>;
 export declare const createUserSchema: z.ZodObject<{
@@ -166,45 +163,37 @@ export declare const createUserSchema: z.ZodObject<{
     role: z.ZodDefault<z.ZodEnum<["ADMIN", "EDITOR", "JOURNALIST", "READER"]>>;
     avatar: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     bio: z.ZodOptional<z.ZodString>;
-    isActive: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     email: string;
     password: string;
     role: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER";
-    isActive?: boolean | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
 }, {
     name: string;
     email: string;
     password: string;
-    isActive?: boolean | undefined;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
 }>;
-export declare const updateUserSchema: z.ZodObject<{
+export declare const updateUserSchema: z.ZodObject<Omit<{
     name: z.ZodOptional<z.ZodString>;
     email: z.ZodOptional<z.ZodString>;
     password: z.ZodOptional<z.ZodString>;
     role: z.ZodOptional<z.ZodDefault<z.ZodEnum<["ADMIN", "EDITOR", "JOURNALIST", "READER"]>>>;
     avatar: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
     bio: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-    isActive: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-}, "strip", z.ZodTypeAny, {
+}, "password">, "strip", z.ZodTypeAny, {
     name?: string | undefined;
-    isActive?: boolean | undefined;
     email?: string | undefined;
-    password?: string | undefined;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
 }, {
     name?: string | undefined;
-    isActive?: boolean | undefined;
     email?: string | undefined;
-    password?: string | undefined;
     role?: "ADMIN" | "EDITOR" | "JOURNALIST" | "READER" | undefined;
     avatar?: string | null | undefined;
     bio?: string | undefined;
@@ -221,14 +210,14 @@ export declare const createCategorySchema: z.ZodObject<{
     slug: string;
     color: string;
     isActive: boolean;
-    icon?: string | undefined;
     description?: string | undefined;
+    icon?: string | undefined;
 }, {
     name: string;
     slug: string;
+    description?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
     isActive?: boolean | undefined;
 }>;
 export declare const updateCategorySchema: z.ZodObject<{
@@ -240,17 +229,17 @@ export declare const updateCategorySchema: z.ZodObject<{
     isActive: z.ZodOptional<z.ZodDefault<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
+    description?: string | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
     isActive?: boolean | undefined;
 }, {
     name?: string | undefined;
+    description?: string | undefined;
     slug?: string | undefined;
     color?: string | undefined;
     icon?: string | undefined;
-    description?: string | undefined;
     isActive?: boolean | undefined;
 }>;
 export declare const createCommentSchema: z.ZodObject<{

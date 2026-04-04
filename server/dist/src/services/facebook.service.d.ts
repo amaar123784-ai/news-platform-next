@@ -9,7 +9,8 @@ declare class FacebookService {
     private isReady;
     private platformUrl;
     constructor();
-    initialize(): Promise<void>;
+    private initialize;
+    private stripHtml;
     private buildMessage;
     postArticleToFacebook(article: any): Promise<boolean>;
 }

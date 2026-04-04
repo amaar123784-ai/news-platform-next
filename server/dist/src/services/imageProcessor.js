@@ -21,14 +21,6 @@ import crypto from 'crypto';
 const DEFAULT_QUALITY = 80;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-const MIME_MAP = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.avif': 'image/avif',
-};
 const DEFAULT_VARIANTS = [
     { name: 'thumbnail', width: 150, height: 150, quality: 75 },
     { name: 'small', width: 320, quality: 75 },
@@ -162,20 +154,9 @@ export class ImageProcessor {
     }
     /**
      * Validate MIME type
-     *
-     * @param mimeType - Provided MIME type
-     * @param filename - Optional filename for inference
-     * @returns boolean
      */
-    validateMimeType(mimeType, filename) {
-        let effectiveMimeType = mimeType;
-        // Try to infer type from filename if provided mime type is generic binary stream
-        if ((effectiveMimeType === 'application/octet-stream' || !effectiveMimeType) &&
-            filename) {
-            const ext = path.extname(filename).toLowerCase();
-            effectiveMimeType = MIME_MAP[ext] || effectiveMimeType;
-        }
-        return this.allowedTypes.includes(effectiveMimeType);
+    validateMimeType(mimeType) {
+        return this.allowedTypes.includes(mimeType);
     }
     /**
      * Delete image and all its variants
@@ -209,14 +190,7 @@ export class ImageProcessingError extends Error {
  */
 export function imageFileFilter(allowedTypes = ALLOWED_TYPES) {
     return (req, file, cb) => {
-        let effectiveMimeType = file.mimetype;
-        // Try to infer type from filename if provided mime type is generic binary stream
-        if ((effectiveMimeType === 'application/octet-stream' || !effectiveMimeType) &&
-            file.originalname) {
-            const ext = path.extname(file.originalname).toLowerCase();
-            effectiveMimeType = MIME_MAP[ext] || effectiveMimeType;
-        }
-        if (allowedTypes.includes(effectiveMimeType)) {
+        if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         }
         else {
@@ -254,7 +228,7 @@ export function processUploadedImage(options = {}) {
         }
         try {
             // Validate MIME type
-            if (!processor.validateMimeType(req.file.mimetype, req.file.originalname)) {
+            if (!processor.validateMimeType(req.file.mimetype)) {
                 throw new ImageProcessingError(`Invalid file type: ${req.file.mimetype}`, 'INVALID_FILE_TYPE');
             }
             // Process the image

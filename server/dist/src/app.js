@@ -34,15 +34,9 @@ export function createApp() {
         crossOriginResourcePolicy: { policy: "cross-origin" },
         contentSecurityPolicy: env.NODE_ENV === 'development' ? false : undefined,
     }));
-    const prodOrigins = [
-        env.FRONTEND_URL,
-        env.FRONTEND_URL.includes('www.')
-            ? env.FRONTEND_URL.replace('www.', '')
-            : env.FRONTEND_URL.replace('https://', 'https://www.')
-    ];
     app.use(cors({
         origin: env.NODE_ENV === 'production'
-            ? Array.from(new Set(prodOrigins))
+            ? [env.FRONTEND_URL]
             : [env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:4000', 'http://localhost:5173'],
         credentials: true,
     }));

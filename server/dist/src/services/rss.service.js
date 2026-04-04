@@ -3,21 +3,18 @@
  * Handles fetching, parsing, and storing RSS feed content
  */
 import Parser from 'rss-parser';
-import { XMLParser } from 'fast-xml-parser';
 import crypto from 'crypto';
 import path from 'path';
 import pLimit from 'p-limit';
 import axios from 'axios';
 import * as iconv from 'iconv-lite';
-import * as cheerio from 'cheerio';
 import { prisma } from '../index.js';
 import { classifyArticle, isMixedCategory } from './categoryClassifier.service.js';
 /** Maximum number of feeds fetched simultaneously to protect DB and network */
 const FEED_CONCURRENCY = 5;
-/** Maximum size of RSS feed to process (5MB) to prevent memory exhaustion */
-const MAX_FEED_SIZE = 5 * 1024 * 1024;
 /**
- * Fallback parser for non-standard XML feeds using fast-xml-parser
+ * Fallback parser for non-standard XML feeds (sitemap-style, custom formats)
+ * Handles: <urlset>, <channel><item>, <feed><entry>, and other variations
  */
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 async function parseNonStandardFeed(feedUrl) {
@@ -28,11 +25,10 @@ async function parseNonStandardFeed(feedUrl) {
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
         },
         responseType: 'arraybuffer',
-        maxContentLength: MAX_FEED_SIZE, // Prevent large file attacks
     });
-    const buffer = Buffer.from(response.data);
     let xml = '';
-    // Auto-detect encoding
+    const buffer = Buffer.from(response.data);
+    // Auto-detect encoding from Content-Type header or XML declaration
     const contentType = response.headers['content-type']?.toLowerCase() || '';
     const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
     if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
@@ -41,69 +37,93 @@ async function parseNonStandardFeed(feedUrl) {
     else {
         xml = buffer.toString('utf8');
     }
-    const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: "@_",
-        cdataPropName: "__cdata",
-    });
-    const jsonObj = parser.parse(xml);
     const items = [];
-    const getValue = (obj) => {
-        if (!obj)
-            return '';
-        if (typeof obj === 'string')
-            return obj.trim();
-        if (obj.__cdata)
-            return obj.__cdata.trim();
-        if (obj['#text'])
-            return obj['#text'].trim();
-        return '';
-    };
-    // Traverse to find items
-    const channel = jsonObj.rss?.channel || jsonObj.feed || jsonObj.urlset || jsonObj;
-    const rawItems = channel.item || channel.entry || channel.url || [];
-    const normalizedItems = Array.isArray(rawItems) ? rawItems : [rawItems];
-    for (const raw of normalizedItems) {
-        const title = getValue(raw.title);
-        let link = '';
-        if (raw.link) {
-            if (typeof raw.link === 'string')
-                link = raw.link;
-            else if (raw.link['@_href'])
-                link = raw.link['@_href'];
-            else if (raw.link['#text'])
-                link = raw.link['#text'];
-        }
-        else if (raw.loc) {
-            link = getValue(raw.loc);
-        }
-        if (!title && !link)
-            continue;
-        const description = getValue(raw.description || raw.content || raw.summary);
-        const pubDate = getValue(raw.pubDate || raw.published || raw.updated || raw.lastmod);
-        let imageUrl;
-        const media = raw['media:content'] || raw.enclosure || raw['media:thumbnail'];
-        if (media && media['@_url']) {
-            imageUrl = media['@_url'];
-        }
-        // Extract categories
-        let categories = [];
-        if (raw.category) {
-            const rawCats = Array.isArray(raw.category) ? raw.category : [raw.category];
-            categories = rawCats.map((c) => getValue(c)).filter(Boolean);
-        }
-        items.push({
-            guid: link || crypto.createHash('md5').update(title).digest('hex'),
-            title,
-            link,
-            description,
-            contentSnippet: description?.replace(/<[^>]*>/g, '').substring(0, 200),
-            pubDate,
-            imageUrl,
-            categories
-        });
+    // Extract feed title
+    const titleMatch = xml.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const feedTitle = titleMatch ? titleMatch[1].trim() : undefined;
+    // Strategy 1: Look for <item> tags (standard RSS structure inside urlset or channel)
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null) {
+        const itemXml = match[1];
+        const item = extractItemFromXml(itemXml);
+        if (item)
+            items.push(item);
     }
-    return { items, title: getValue(channel.title) };
+    // Strategy 2: If no items found, try <entry> tags (Atom format)
+    if (items.length === 0) {
+        const entryRegex = /<entry[^>]*>([\s\S]*?)<\/entry>/gi;
+        while ((match = entryRegex.exec(xml)) !== null) {
+            const itemXml = match[1];
+            const item = extractItemFromXml(itemXml, true);
+            if (item)
+                items.push(item);
+        }
+    }
+    // Strategy 3: If still no items, try <url> tags (sitemap format - less likely for articles)
+    if (items.length === 0) {
+        const urlRegex = /<url[^>]*>([\s\S]*?)<\/url>/gi;
+        while ((match = urlRegex.exec(xml)) !== null) {
+            const itemXml = match[1];
+            const item = extractItemFromXml(itemXml);
+            if (item)
+                items.push(item);
+        }
+    }
+    console.log(`[RSS Fallback] Parsed ${items.length} items from ${feedUrl}`);
+    return { items, title: feedTitle };
+}
+/**
+ * Extract a single item from XML fragment
+ */
+function extractItemFromXml(xml, isAtom = false) {
+    // Extract link
+    let link = '';
+    if (isAtom) {
+        const linkMatch = xml.match(/<link[^>]+href=["']([^"']+)["']/i);
+        link = linkMatch ? linkMatch[1] : '';
+    }
+    else {
+        const linkMatch = xml.match(/<link[^>]*>([^<]+)<\/link>/i);
+        link = linkMatch ? linkMatch[1].trim() : '';
+    }
+    // Extract title
+    const titleMatch = xml.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : '';
+    // Skip if no title or link
+    if (!title && !link)
+        return null;
+    // Extract description/content
+    const descMatch = xml.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)
+        || xml.match(/<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i)
+        || xml.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i);
+    const description = descMatch ? descMatch[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : undefined;
+    // Extract pubDate
+    const pubMatch = xml.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/i)
+        || xml.match(/<published[^>]*>([^<]+)<\/published>/i)
+        || xml.match(/<updated[^>]*>([^<]+)<\/updated>/i)
+        || xml.match(/<lastmod[^>]*>([^<]+)<\/lastmod>/i);
+    const pubDate = pubMatch ? pubMatch[1].trim() : undefined;
+    // Extract image
+    let imageUrl;
+    const imgMatch = xml.match(/<image[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i)
+        || xml.match(/<image[^>]*>[\s\S]*?<url[^>]*>([^<]+)<\/url>/i)
+        || xml.match(/<media:content[^>]+url=["']([^"']+)["']/i)
+        || xml.match(/<enclosure[^>]+url=["']([^"']+)["']/i)
+        || xml.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (imgMatch)
+        imageUrl = imgMatch[1];
+    // Generate guid from link or title
+    const guid = link || crypto.createHash('md5').update(title).digest('hex');
+    return {
+        guid,
+        title,
+        link,
+        description,
+        contentSnippet: description?.replace(/<[^>]*>/g, '').substring(0, 200),
+        pubDate,
+        imageUrl,
+    };
 }
 // Custom parser with Arabic-friendly settings
 const parser = new Parser({
@@ -117,7 +137,6 @@ const parser = new Parser({
             ['media:content', 'mediaContent'],
             ['media:thumbnail', 'mediaThumbnail'],
             ['enclosure', 'enclosure'],
-            ['category', 'categories', { keepArray: true }],
         ],
     },
 });
@@ -136,7 +155,6 @@ function hashTitle(title) {
 import { imageProcessor } from './imageProcessor.js';
 /**
  * Download and process external image
- * Uses realistic browser headers to bypass anti-bot / hotlink protections
  */
 async function downloadAndProcessImage(url, baseUrl) {
     if (!url)
@@ -144,32 +162,15 @@ async function downloadAndProcessImage(url, baseUrl) {
     const absoluteUrl = ensureAbsoluteUrl(url, baseUrl);
     if (!absoluteUrl)
         return null;
-    // Extract the origin from the image URL to use as Referer
-    let referer = baseUrl;
     try {
-        referer = new URL(absoluteUrl).origin;
-    }
-    catch { }
-    try {
-        // Download image with 15s timeout and realistic browser headers
+        // Download image with 10s timeout
         const response = await axios.get(absoluteUrl, {
             responseType: 'arraybuffer',
-            timeout: 15000,
+            timeout: 10000,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Referer': referer,
-                'Sec-Fetch-Dest': 'image',
-                'Sec-Fetch-Mode': 'no-cors',
-                'Sec-Fetch-Site': 'same-origin',
-                'Sec-Ch-Ua': '"Chromium";v="131", "Not_A Brand";v="24"',
-                'Sec-Ch-Ua-Mobile': '?0',
-                'Sec-Ch-Ua-Platform': '"Windows"',
+                'User-Agent': 'YemenNewsBot/1.0',
             },
-            maxContentLength: 10 * 1024 * 1024, // 10MB limit
-            maxRedirects: 5,
+            maxContentLength: 10 * 1024 * 1024 // 10MB limit for external images
         });
         const buffer = Buffer.from(response.data);
         const originalName = path.basename(new URL(absoluteUrl).pathname) || 'rss-image.jpg';
@@ -207,33 +208,67 @@ async function scrapeArticlePage(articleUrl) {
                 'Accept': 'text/html,application/xhtml+xml',
                 'Accept-Language': 'ar,en;q=0.9',
             },
-            responseType: 'arraybuffer',
             maxContentLength: 5 * 1024 * 1024, // 5MB limit
         });
-        const buffer = Buffer.from(response.data);
-        const firstChunk = buffer.subarray(0, 1024).toString('ascii').toLowerCase();
-        const contentType = (response.headers['content-type'] || '').toLowerCase();
-        let html = '';
-        if (contentType.includes('windows-1256') || firstChunk.includes('windows-1256') || firstChunk.includes('cp1256')) {
-            console.log(`[RSS] Detected windows-1256 encoding for page ${articleUrl}`);
-            html = iconv.decode(buffer, 'windows-1256');
-        }
-        else if (contentType.includes('iso-8859-6') || firstChunk.includes('iso-8859-6')) {
-            html = iconv.decode(buffer, 'iso-8859-6');
-        }
-        else {
-            html = buffer.toString('utf8');
-        }
-        // Use safe cheerio/readability instead of manual regex for content extraction
-        const $ = cheerio.load(html);
-        result.ogImage = $('meta[property="og:image"]').attr('content') || null;
-        // Try common article selectors
-        const contentSelectors = ['article', '.article-body', '.post-content', '.entry-content', '.content-body'];
-        for (const selector of contentSelectors) {
-            const el = $(selector);
-            if (el.length > 0) {
-                result.fullContent = el.html();
+        const html = response.data;
+        // Extract image using multiple fallback patterns
+        const imagePatterns = [
+            // og:image (most common)
+            /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+            // twitter:image
+            /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+            /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+            // Schema.org itemprop
+            /<meta[^>]+itemprop=["']image["'][^>]+content=["']([^"']+)["']/i,
+            /<link[^>]+itemprop=["']image["'][^>]+href=["']([^"']+)["']/i,
+            // JSON-LD schema (common in news sites)
+            /"image"\s*:\s*"([^"]+)"/i,
+            /"image"\s*:\s*\[\s*"([^"]+)"/i,
+            // First large image in article body as last resort
+            /<img[^>]+src=["']([^"']+(?:\.jpg|\.jpeg|\.png|\.webp)[^"']*)["']/i,
+        ];
+        for (const pattern of imagePatterns) {
+            const match = html.match(pattern);
+            if (match && match[1] && match[1].startsWith('http')) {
+                result.ogImage = match[1];
+                console.log(`[RSS] 🖼️ Found image via pattern: ${result.ogImage.substring(0, 60)}...`);
                 break;
+            }
+        }
+        if (!result.ogImage) {
+            console.log(`[RSS] ⚠️ No image found in page: ${articleUrl.substring(0, 50)}...`);
+        }
+        // Extract full content using common article selectors
+        // Try multiple common article container patterns
+        const contentPatterns = [
+            /<article[^>]*>([\s\S]*?)<\/article>/i,
+            /<div[^>]+class=["'][^"']*article[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*post-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*entry-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+class=["'][^"']*content-body[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]+id=["']content["'][^>]*>([\s\S]*?)<\/div>/i,
+        ];
+        for (const pattern of contentPatterns) {
+            const match = html.match(pattern);
+            if (match && match[1]) {
+                // Clean HTML: remove scripts, styles, and excessive whitespace
+                let content = match[1]
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+                    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+                    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+                    .trim();
+                // Only use if we got meaningful content (more than 100 chars after stripping tags)
+                const textOnly = content.replace(/<[^>]+>/g, '').trim();
+                if (textOnly.length > 100) {
+                    result.fullContent = content;
+                    console.log(`[RSS] 📄 Extracted full content: ${textOnly.length} chars`);
+                    break;
+                }
             }
         }
     }
@@ -244,20 +279,24 @@ async function scrapeArticlePage(articleUrl) {
 }
 /**
  * Extract image URL from feed item
+ * Checks multiple common feed image formats and resolves relative URLs
  */
 function extractImage(item) {
     let imageUrl = null;
+    // Check enclosure (common in podcasts and some feeds)
     if (item.enclosure?.url && item.enclosure?.type?.startsWith('image/')) {
         imageUrl = item.enclosure.url;
     }
+    // Check media:content
     else if (item.mediaContent?.$?.url) {
         imageUrl = item.mediaContent.$.url;
     }
+    // Check media:thumbnail
     else if (item.mediaThumbnail?.$?.url) {
         imageUrl = item.mediaThumbnail.$.url;
     }
+    // Try to extract from content or description
     else {
-        // Safe regex for simple img tag extraction
         const content = item.content || item['content:encoded'] || item.description || '';
         const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i);
         if (imgMatch) {
@@ -272,9 +311,11 @@ function extractImage(item) {
 function truncateExcerpt(text, maxLength = 200) {
     if (!text)
         return '';
+    // Remove HTML tags
     const cleaned = text.replace(/<[^>]*>/g, '').trim();
     if (cleaned.length <= maxLength)
         return cleaned;
+    // Try to break at word boundary
     const truncated = cleaned.substring(0, maxLength);
     const lastSpace = truncated.lastIndexOf(' ');
     if (lastSpace > maxLength - 50) {
@@ -284,6 +325,7 @@ function truncateExcerpt(text, maxLength = 200) {
 }
 /**
  * Fetch and parse a single RSS feed
+ * Now works with RSSFeed model instead of RSSSource
  */
 export async function fetchRSSFeed(feedId) {
     const errors = [];
@@ -303,166 +345,258 @@ export async function fetchRSSFeed(feedId) {
             return { success: false, newArticles: 0, errors: ['الرابط متوقف أو به خطأ'] };
         }
         console.log(`[RSS] Fetching feed: ${feed.source.name} (${feed.feedUrl})`);
+        // Try standard RSS parser first, fallback to custom parser if it fails
         let feedItems = [];
+        let usedFallback = false;
         try {
+            // First we fetch the raw XML using axios to handle encodings like windows-1256
             const response = await axios.get(feed.feedUrl, {
                 timeout: 30000,
                 headers: {
                     'User-Agent': BROWSER_UA,
                     'Accept': 'application/rss+xml, application/xml, text/xml',
                 },
-                responseType: 'arraybuffer',
-                maxContentLength: MAX_FEED_SIZE
+                responseType: 'arraybuffer'
             });
             const buffer = Buffer.from(response.data);
             const contentType = response.headers['content-type']?.toLowerCase() || '';
             const xmlHeader = buffer.subarray(0, 100).toString('ascii').toLowerCase();
             let xmlString = '';
+            // Check for Windows-1256 encoding (common in some Arabic RSS feeds causing  characters)
             if (contentType.includes('windows-1256') || xmlHeader.includes('windows-1256') || xmlHeader.includes('cp1256')) {
                 xmlString = iconv.decode(buffer, 'windows-1256');
+                console.log(`[RSS] Detected Windows-1256 encoding for ${feed.source.name}`);
             }
             else {
                 xmlString = buffer.toString('utf8');
             }
             const parsedFeed = await parser.parseString(xmlString);
             feedItems = parsedFeed.items;
+            console.log(`[RSS] Parsed ${feedItems.length} items from ${feed.source.name}`);
         }
         catch (parseError) {
+            console.log(`[RSS] Standard parser failed for ${feed.source.name}: ${parseError.message}`);
+            console.log(`[RSS] Trying fallback parser...`);
             try {
                 const fallbackFeed = await parseNonStandardFeed(feed.feedUrl);
                 feedItems = fallbackFeed.items;
+                usedFallback = true;
+                console.log(`[RSS] Fallback parsed ${feedItems.length} items from ${feed.source.name}`);
             }
             catch (fallbackError) {
+                console.error(`[RSS] Both parsers failed for ${feed.source.name}`);
                 errors.push(`فشل تحليل الخلاصة: ${parseError.message}`);
                 return { success: false, newArticles: 0, errors };
             }
         }
-        const maxAgeMs = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
-        const nowMs = Date.now();
         for (const item of feedItems) {
-            if (!item.guid && !item.link)
+            // Skip items without a unique identifier
+            if (!item.guid && !item.link) {
+                errors.push('تم تخطي مقال بدون معرف فريد');
                 continue;
-            // تخطي الأخبار التي مضى عليها أكثر من 48 ساعة
-            if (item.pubDate) {
-                const pubDateMs = new Date(item.pubDate).getTime();
-                if (!isNaN(pubDateMs) && (nowMs - pubDateMs > maxAgeMs)) {
-                    continue;
-                }
             }
-            // Enforce max length of 500 characters for GUID to prevent DB constraint errors
-            const rawGuid = item.guid || item.link;
-            const guid = rawGuid.length > 500 ? rawGuid.substring(0, 500) : rawGuid;
+            const guid = item.guid || item.link;
             const title = item.title || 'بدون عنوان';
             const titleHash = hashTitle(title);
-            // 1. GLOBAL DEDUPLICATION (Cross-feed)
-            const existingByGuid = await prisma.rSSArticle.findUnique({ where: { guid } });
-            if (existingByGuid)
-                continue;
-            const existingByTitle = await prisma.rSSArticle.findFirst({
-                where: { titleHash } // REMOVED feedId to make it global
+            // Check for duplicates by GUID
+            const existingByGuid = await prisma.rSSArticle.findUnique({
+                where: { guid },
             });
-            if (existingByTitle)
-                continue;
+            if (existingByGuid) {
+                continue; // Already have this article
+            }
+            // Check for duplicates by similar title (same feed)
+            const existingByTitle = await prisma.rSSArticle.findFirst({
+                where: {
+                    titleHash,
+                    feedId: feed.id,
+                },
+            });
+            if (existingByTitle) {
+                continue; // Similar article already exists
+            }
+            // ========== 1. CLASSIFICATION & CATEGORY DETERMINATION ==========
             let articleCategoryId = null;
             let targetCategorySlug = feed.category?.slug || '';
             const excerpt = item.contentSnippet || item.content || item.description || '';
+            // If source is Mixed, try to auto-classify first
             if (isMixedCategory(targetCategorySlug)) {
                 const classification = classifyArticle(title, excerpt);
                 if (classification.categorySlug) {
+                    targetCategorySlug = classification.categorySlug;
+                    // Find ID for the classified category
                     const matchedCategory = await prisma.category.findUnique({
                         where: { slug: classification.categorySlug },
                         select: { id: true },
                     });
-                    if (matchedCategory)
+                    if (matchedCategory) {
                         articleCategoryId = matchedCategory.id;
+                    }
                 }
             }
             else {
+                // Non-mixed feed: inherit feed category ID
                 articleCategoryId = feed.categoryId;
             }
+            // ========== 2. FILTER GATE (DISABLED) ==========
+            // Yemen filter is globally disabled - accepting all articles
+            const filterResult = {
+                status: 'ACCEPTED',
+                relevanceScore: 1.0,
+                tierCategory: 1,
+                reasoning: 'Filter disabled globally',
+                action: 'PUBLISH',
+            };
+            // Note: Filter rejection is disabled - all articles pass through
+            if (filterResult.status === 'MERGED' && filterResult.mergeWithId) {
+                console.log(`[RSS] 🔗 Merged with existing article: ${title.substring(0, 40)}...`);
+                continue; // Duplicate detected
+            }
             try {
+                // Extract image from RSS feed first
                 const baseFeedUrl = feed.source.websiteUrl || feed.feedUrl;
                 let rawImageUrl = extractImage(item);
                 let articleContent = item.content || item['content:encoded'] || item.description || '';
-                // 2. POSTPONE FULL-TEXT SCRAPING
-                // Scraper call removed. Content will be basic RSS text.
+                // If no image in RSS or content is too short, scrape the article page
+                const articleLink = item.link || '';
+                if (!rawImageUrl || articleContent.replace(/<[^>]+>/g, '').length < 200) {
+                    console.log(`[RSS] 🔍 Scraping page for missing data: ${articleLink.substring(0, 50)}...`);
+                    const scraped = await scrapeArticlePage(articleLink);
+                    // Use scraped image if RSS didn't have one
+                    if (!rawImageUrl && scraped.ogImage) {
+                        rawImageUrl = scraped.ogImage;
+                    }
+                    // Use scraped content if it's richer
+                    if (scraped.fullContent && scraped.fullContent.replace(/<[^>]+>/g, '').length > articleContent.replace(/<[^>]+>/g, '').length) {
+                        articleContent = scraped.fullContent;
+                    }
+                }
+                // OPTIMIZATION: Save remote image URL only - download will happen when article is approved
+                // This saves storage by not downloading images for articles that may never be approved
                 const remoteImageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl, baseFeedUrl) : null;
-                // 3. CAPTURE CATEGORY METADATA
-                const categories = item.categories || [];
-                const rawCategories = Array.isArray(categories) ? categories.join(', ') : '';
+                // Determine status based on filter result
+                // Note: FLAGGED articles go to PENDING but are logged for attention
+                const articleStatus = 'PENDING';
                 await prisma.rSSArticle.create({
                     data: {
                         guid,
                         title,
                         excerpt: truncateExcerpt(articleContent),
-                        sourceUrl: item.link || '',
+                        sourceUrl: articleLink,
                         imageUrl: remoteImageUrl,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
                         titleHash,
                         feedId: feed.id,
-                        status: 'PENDING',
+                        status: articleStatus,
                         approvedAt: null,
                         categoryId: articleCategoryId,
                     },
                 });
+                // Webhook trigger removed as per user request (only manual publish triggers social post)
+                // webhookService.notifyNewArticle(newArticle.id)...
+                if (filterResult.status === 'FLAGGED') {
+                    console.log(`[RSS] ⚠️ Flagged for review: ${title.substring(0, 40)}... (${filterResult.reasoning})`);
+                }
+                else {
+                    console.log(`[RSS] ✅ Accepted: ${title.substring(0, 40)}... (Score: ${filterResult.relevanceScore}, Tier: ${filterResult.tierCategory})`);
+                }
                 newArticles++;
             }
             catch (err) {
-                errors.push(`فشل حفظ المقال: ${title.substring(0, 50)}`);
+                const errorMsg = `فشل حفظ المقال: ${title.substring(0, 50)}`;
+                errors.push(errorMsg);
+                console.error(`[RSS] ${errorMsg}:`, err.message);
             }
         }
+        // Update feed with successful fetch
         await prisma.rSSFeed.update({
             where: { id: feedId },
-            data: { lastFetchedAt: new Date(), errorCount: 0, lastError: null, status: 'ACTIVE' },
+            data: {
+                lastFetchedAt: new Date(),
+                errorCount: 0,
+                lastError: null,
+                status: 'ACTIVE',
+            },
         });
+        console.log(`[RSS] Completed ${feed.source.name}: ${newArticles} new articles`);
         return { success: true, newArticles, errors };
     }
     catch (error) {
+        console.error(`[RSS] Error fetching feed ${feedId}:`, error.message);
+        // Update feed with error information
         try {
             await prisma.rSSFeed.update({
                 where: { id: feedId },
-                data: { lastError: error.message, errorCount: { increment: 1 }, status: 'ERROR' },
+                data: {
+                    lastError: error.message,
+                    errorCount: { increment: 1 },
+                    status: 'ERROR',
+                },
             });
         }
-        catch (updateError) { }
+        catch (updateError) {
+            console.error('[RSS] Failed to update feed error status');
+        }
         return { success: false, newArticles: 0, errors: [error.message] };
     }
 }
 /**
  * Fetch all active RSS feeds that are due for update
+ * Uses Promise.allSettled for graceful error handling per feed
  */
 export async function fetchAllActiveFeeds() {
+    console.log('[RSS] Starting scheduled feed fetch...');
     const feeds = await prisma.rSSFeed.findMany({
-        where: { status: 'ACTIVE', source: { isActive: true } },
-        include: { source: { select: { name: true } } },
+        where: {
+            status: 'ACTIVE',
+            source: {
+                isActive: true,
+            },
+        },
+        include: {
+            source: { select: { name: true } },
+        },
     });
+    // Filter feeds that are due for fetching
     const dueFeeds = feeds.filter(feed => {
         if (!feed.lastFetchedAt)
             return true;
         const minutesSinceLastFetch = (Date.now() - feed.lastFetchedAt.getTime()) / 60000;
         return minutesSinceLastFetch >= feed.fetchInterval;
     });
-    if (dueFeeds.length === 0)
+    if (dueFeeds.length === 0) {
+        console.log('[RSS] No feeds due for fetching');
         return { feedsChecked: 0, totalNewArticles: 0, successful: 0, failed: 0 };
+    }
+    // Fetch feeds with bounded concurrency — at most FEED_CONCURRENCY in-flight at once.
+    // This prevents DB connection pool exhaustion and excessive outbound HTTP traffic
+    // when many feeds are due simultaneously.
     const limit = pLimit(FEED_CONCURRENCY);
     const results = await Promise.allSettled(dueFeeds.map(feed => limit(() => fetchRSSFeed(feed.id))));
+    // Count results
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
     const totalNewArticles = results
         .filter(r => r.status === 'fulfilled')
         .map(r => r.value.newArticles)
         .reduce((sum, count) => sum + count, 0);
+    console.log(`[RSS] Fetch complete: ${dueFeeds.length} feeds (${successful} ok, ${failed} failed), ${totalNewArticles} new articles`);
     return { feedsChecked: dueFeeds.length, totalNewArticles, successful, failed };
 }
 /**
  * Clean up old RSS articles
+ * Removes articles older than specified days that are not approved
  */
 export async function cleanupOldArticles(daysOld = 30) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
     const result = await prisma.rSSArticle.deleteMany({
-        where: { publishedAt: { lt: cutoffDate }, status: { in: ['PENDING', 'REJECTED', 'EXPIRED'] } },
+        where: {
+            publishedAt: { lt: cutoffDate },
+            status: { in: ['PENDING', 'REJECTED', 'EXPIRED'] },
+        },
     });
+    console.log(`[RSS] Cleaned up ${result.count} old articles`);
     return result.count;
 }
 /**
@@ -472,16 +606,22 @@ export async function expireOldArticles(daysOld = 60) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
     const result = await prisma.rSSArticle.updateMany({
-        where: { publishedAt: { lt: cutoffDate }, status: 'APPROVED' },
-        data: { status: 'EXPIRED' },
+        where: {
+            publishedAt: { lt: cutoffDate },
+            status: 'APPROVED',
+        },
+        data: {
+            status: 'EXPIRED',
+        },
     });
+    console.log(`[RSS] Expired ${result.count} old articles`);
     return result.count;
 }
 /**
- * Get feed statistics
+ * Get feed statistics for monitoring
  */
 export async function getRSSStats() {
-    const [totalSources, totalFeeds, activeFeeds, errorFeeds, totalArticles, pendingArticles, approvedArticles] = await Promise.all([
+    const [totalSources, totalFeeds, activeFeeds, errorFeeds, totalArticles, pendingArticles, approvedArticles,] = await Promise.all([
         prisma.rSSSource.count(),
         prisma.rSSFeed.count(),
         prisma.rSSFeed.count({ where: { status: 'ACTIVE' } }),
@@ -490,14 +630,28 @@ export async function getRSSStats() {
         prisma.rSSArticle.count({ where: { status: 'PENDING' } }),
         prisma.rSSArticle.count({ where: { status: 'APPROVED' } }),
     ]);
-    return { totalSources, totalFeeds, activeFeeds, errorFeeds, totalArticles, pendingArticles, approvedArticles };
+    return {
+        totalSources,
+        totalFeeds,
+        activeFeeds,
+        errorFeeds,
+        totalArticles,
+        pendingArticles,
+        approvedArticles,
+    };
 }
 /**
- * Download and store image locally
+ * Download and store image locally for an RSS article
+ * Called when article is approved to save storage space
  */
 export async function downloadRSSImage(imageUrl) {
-    if (!imageUrl || imageUrl.startsWith('/uploads/'))
+    if (!imageUrl)
+        return null;
+    // Already a local URL, no need to download
+    if (imageUrl.startsWith('/uploads/')) {
         return imageUrl;
+    }
+    // Use the existing download function
     return await downloadAndProcessImage(imageUrl, imageUrl);
 }
 //# sourceMappingURL=rss.service.js.map

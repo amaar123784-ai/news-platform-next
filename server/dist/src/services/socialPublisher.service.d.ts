@@ -2,7 +2,6 @@
  * Social Publisher Service
  *
  * Unified entry point for publishing articles to all social media platforms.
- * Tracks every attempt in the SocialPost database table.
  */
 interface ArticlePayload {
     id: string;
@@ -20,6 +19,7 @@ export interface PlatformResult {
 }
 /**
  * Publish an article to all configured social media channels.
+ * Each platform posts independently — a failure in one does not block others.
  */
 export declare function publishToSocialChannels(article: ArticlePayload): Promise<PlatformResult[]>;
 export {};

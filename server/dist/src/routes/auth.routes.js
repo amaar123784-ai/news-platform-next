@@ -32,7 +32,7 @@ const cookieDomain = env.COOKIE_DOMAIN || undefined;
 const ACCESS_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: IS_PROD, // HTTPS-only in production
-    sameSite: 'lax', // CSRF protection (Lax is safer for cross-port dev)
+    sameSite: 'strict', // CSRF protection
     path: '/',
     maxAge: 15 * 60 * 1000, // 15 minutes (matches access token lifetime)
     ...(cookieDomain && { domain: cookieDomain }),
@@ -40,7 +40,7 @@ const ACCESS_COOKIE_OPTIONS = {
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/api/auth', // Scoped to auth endpoints only
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     ...(cookieDomain && { domain: cookieDomain }),

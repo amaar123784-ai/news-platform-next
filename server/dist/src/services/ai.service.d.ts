@@ -11,7 +11,6 @@
 export interface RewriteResult {
     rewrittenTitle: string;
     rewrittenExcerpt: string;
-    rewrittenContent?: string;
 }
 export interface FullRewriteResult {
     title: string;

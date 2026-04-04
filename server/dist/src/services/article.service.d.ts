@@ -8,7 +8,6 @@ interface ArticleQuery {
     page: number;
     perPage: number;
     category?: string;
-    tag?: string;
     status?: string;
     authorId?: string;
     search?: string;
@@ -28,7 +27,6 @@ interface CreateArticleData {
     categoryId: string;
     status?: string;
     imageUrl?: string | null;
-    tags?: string[];
     seoTitle?: string;
     seoDesc?: string;
     isBreaking?: boolean;
@@ -38,7 +36,7 @@ interface UpdateArticleData {
     excerpt?: string;
     content?: string;
     categoryId?: string;
-    tags?: string[];
+    tags?: any;
     status?: string;
     imageUrl?: string | null;
     seoTitle?: string;
@@ -70,28 +68,18 @@ export declare function listArticles(query: ArticleQuery, user?: ArticleUser | n
             id: string;
             avatar: string | null;
         };
-        tags: ({
-            tag: {
-                name: string;
-                id: string;
-                slug: string;
-            };
-        } & {
-            articleId: string;
-            tagId: string;
-        })[];
     } & {
         status: import(".prisma/client").$Enums.ArticleStatus;
         title: string;
-        content: string;
+        imageUrl: string | null;
         id: string;
         categoryId: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
         excerpt: string;
-        imageUrl: string | null;
         publishedAt: Date | null;
+        content: string;
         deletedAt: Date | null;
         views: number;
         readTime: number;
@@ -134,15 +122,15 @@ export declare function getRelatedArticles(idOrSlug: string, limit: number): Pro
 } & {
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;
@@ -152,30 +140,6 @@ export declare function getRelatedArticles(idOrSlug: string, limit: number): Pro
     isFeatured: boolean;
     authorId: string;
 })[]>;
-/**
- * Increment view count for an article with deduplication logic
- */
-export declare function incrementArticleViews(idOrSlug: string): Promise<{
-    status: import(".prisma/client").$Enums.ArticleStatus;
-    title: string;
-    content: string;
-    id: string;
-    categoryId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    slug: string;
-    excerpt: string;
-    imageUrl: string | null;
-    publishedAt: Date | null;
-    deletedAt: Date | null;
-    views: number;
-    readTime: number;
-    seoTitle: string | null;
-    seoDesc: string | null;
-    isBreaking: boolean;
-    isFeatured: boolean;
-    authorId: string;
-}>;
 /**
  * Get a single article by ID or slug, with access control and view tracking
  */
@@ -200,23 +164,23 @@ export declare function getArticleByIdOrSlug(idOrSlug: string, user?: ArticleUse
             };
         } & {
             status: import(".prisma/client").$Enums.CommentStatus;
-            content: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            articleId: string;
+            content: string;
             authorId: string;
+            articleId: string;
             parentId: string | null;
             likes: number;
         })[];
     } & {
         status: import(".prisma/client").$Enums.CommentStatus;
-        content: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        articleId: string;
+        content: string;
         authorId: string;
+        articleId: string;
         parentId: string | null;
         likes: number;
     })[];
@@ -239,15 +203,15 @@ export declare function getArticleByIdOrSlug(idOrSlug: string, user?: ArticleUse
 } & {
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;
@@ -277,15 +241,15 @@ export declare function updateArticle(id: string, data: UpdateArticleData, user:
 } & {
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;
@@ -315,15 +279,15 @@ export declare function restoreArticle(id: string, userId: string): Promise<{
 } & {
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;
@@ -339,15 +303,15 @@ export declare function restoreArticle(id: string, userId: string): Promise<{
 export declare function publishArticle(id: string, userId: string): Promise<{
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;
@@ -363,15 +327,15 @@ export declare function publishArticle(id: string, userId: string): Promise<{
 export declare function archiveArticle(id: string, userId: string): Promise<{
     status: import(".prisma/client").$Enums.ArticleStatus;
     title: string;
-    content: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
     slug: string;
     excerpt: string;
-    imageUrl: string | null;
     publishedAt: Date | null;
+    content: string;
     deletedAt: Date | null;
     views: number;
     readTime: number;

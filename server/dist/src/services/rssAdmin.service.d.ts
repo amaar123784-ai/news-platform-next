@@ -59,19 +59,18 @@ export declare function listPublicArticles(page: number, perPage: number, catego
     } & {
         status: import(".prisma/client").$Enums.RSSArticleStatus;
         title: string;
+        guid: string;
+        imageUrl: string | null;
         id: string;
         categoryId: string | null;
-        guid: string;
         excerpt: string | null;
         sourceUrl: string;
-        imageUrl: string | null;
         publishedAt: Date;
         fetchedAt: Date;
         approvedAt: Date | null;
         approvedById: string | null;
         feedId: string;
         titleHash: string | null;
-        rawCategories: string | null;
         rewrittenTitle: string | null;
         rewrittenExcerpt: string | null;
         isRewritten: boolean;
@@ -121,10 +120,10 @@ export declare function getSource(id: string): Promise<{
     })[];
 } & {
     name: string;
+    description: string | null;
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    description: string | null;
     isActive: boolean;
     websiteUrl: string | null;
     logoUrl: string | null;
@@ -155,10 +154,10 @@ export declare function createSource(data: CreateSourceData, userId: string): Pr
     })[];
 } & {
     name: string;
+    description: string | null;
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    description: string | null;
     isActive: boolean;
     websiteUrl: string | null;
     logoUrl: string | null;
@@ -189,10 +188,10 @@ export declare function updateSource(id: string, data: UpdateSourceData): Promis
     })[];
 } & {
     name: string;
+    description: string | null;
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    description: string | null;
     isActive: boolean;
     websiteUrl: string | null;
     logoUrl: string | null;
@@ -292,19 +291,18 @@ export declare function getModerationArticles(page: number, perPage: number, sta
     } & {
         status: import(".prisma/client").$Enums.RSSArticleStatus;
         title: string;
+        guid: string;
+        imageUrl: string | null;
         id: string;
         categoryId: string | null;
-        guid: string;
         excerpt: string | null;
         sourceUrl: string;
-        imageUrl: string | null;
         publishedAt: Date;
         fetchedAt: Date;
         approvedAt: Date | null;
         approvedById: string | null;
         feedId: string;
         titleHash: string | null;
-        rawCategories: string | null;
         rewrittenTitle: string | null;
         rewrittenExcerpt: string | null;
         isRewritten: boolean;
@@ -340,19 +338,18 @@ export declare function getArticle(id: string): Promise<{
 } & {
     status: import(".prisma/client").$Enums.RSSArticleStatus;
     title: string;
+    guid: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string | null;
-    guid: string;
     excerpt: string | null;
     sourceUrl: string;
-    imageUrl: string | null;
     publishedAt: Date;
     fetchedAt: Date;
     approvedAt: Date | null;
     approvedById: string | null;
     feedId: string;
     titleHash: string | null;
-    rawCategories: string | null;
     rewrittenTitle: string | null;
     rewrittenExcerpt: string | null;
     isRewritten: boolean;
@@ -374,19 +371,18 @@ export declare function updateArticleStatus(id: string, status: 'APPROVED' | 'RE
 } & {
     status: import(".prisma/client").$Enums.RSSArticleStatus;
     title: string;
+    guid: string;
+    imageUrl: string | null;
     id: string;
     categoryId: string | null;
-    guid: string;
     excerpt: string | null;
     sourceUrl: string;
-    imageUrl: string | null;
     publishedAt: Date;
     fetchedAt: Date;
     approvedAt: Date | null;
     approvedById: string | null;
     feedId: string;
     titleHash: string | null;
-    rawCategories: string | null;
     rewrittenTitle: string | null;
     rewrittenExcerpt: string | null;
     isRewritten: boolean;

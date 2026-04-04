@@ -140,14 +140,9 @@ router.patch('/:id', async (req, res, next) => {
     try {
         const { id } = req.params;
         const data = updateUserSchema.parse(req.body);
-        // If password is provided, hash it
-        const updateData = { ...data };
-        if (data.password) {
-            updateData.password = await bcrypt.hash(data.password, 12);
-        }
         const user = await prisma.user.update({
             where: { id },
-            data: updateData,
+            data,
             select: {
                 id: true,
                 name: true,
