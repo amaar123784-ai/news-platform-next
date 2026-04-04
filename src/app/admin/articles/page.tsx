@@ -111,6 +111,44 @@ export default function ArticleListPage() {
         },
     });
 
+    // Toggle Breaking mutation
+    const toggleBreakingMutation = useMutation({
+        mutationFn: ({ id, isBreaking }: { id: string, isBreaking: boolean }) => 
+            articleService.updateArticle({ id, isBreaking } as any),
+        onSuccess: (data) => {
+            success(data.isBreaking ? 'تم تمييز المقال كخبر عاجل' : 'تم إزالة حالة الخبر العاجل');
+            queryClient.invalidateQueries({ queryKey: ['articles'] });
+        },
+        onError: () => error('فشل تحديث حالة الخبر العاجل'),
+    });
+
+    // Toggle Featured mutation
+    const toggleFeaturedMutation = useMutation({
+        mutationFn: ({ id, isFeatured }: { id: string, isFeatured: boolean }) => 
+            articleService.updateArticle({ id, isFeatured } as any),
+        onSuccess: (data) => {
+            success(data.isFeatured ? 'تم تمييز المقال كمهم' : 'تم إزالة حالة المقال المهم');
+            queryClient.invalidateQueries({ queryKey: ['articles'] });
+        },
+        onError: () => error('فشل تحديث حالة المقال المهم'),
+    });
+
+    // Bulk Breaking/Featured mutation
+    const bulkToggleMutation = useMutation({
+        mutationFn: async ({ ids, field, value }: { ids: string[], field: 'isBreaking' | 'isFeatured', value: boolean }) => {
+            await Promise.all(ids.map(id => articleService.updateArticle({ id, [field]: value } as any)));
+            return { updatedCount: ids.length, field, value };
+        },
+        onSuccess: (data) => {
+            const label = data.field === 'isBreaking' ? 'عاجل' : 'مهم';
+            const action = data.value ? 'تعيين كـ' : 'إزالة';
+            success(`تم ${action} ${label} لـ ${data.updatedCount} مقال بنجاح`);
+            queryClient.invalidateQueries({ queryKey: ['articles'] });
+            setSelectedIds([]);
+        },
+        onError: () => error('فشل تحديث المقالات المختارة'),
+    });
+
     const articles = data?.data || [];
     const meta = data?.meta;
 
@@ -255,6 +293,26 @@ export default function ArticleListPage() {
                             {selectedIds.length} محدد
                         </span>
                         <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => bulkToggleMutation.mutate({ ids: selectedIds, field: 'isBreaking', value: true })}
+                            disabled={bulkToggleMutation.isPending}
+                            className="text-red-600 hover:bg-red-50"
+                        >
+                            <Icon name="ri-flashlight-line" className="ml-1" />
+                            عاجل
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => bulkToggleMutation.mutate({ ids: selectedIds, field: 'isFeatured', value: true })}
+                            disabled={bulkToggleMutation.isPending}
+                            className="text-yellow-600 hover:bg-yellow-50"
+                        >
+                            <Icon name="ri-star-line" className="ml-1" />
+                            مهم
+                        </Button>
+                        <Button
                             variant="primary"
                             size="sm"
                             onClick={() => bulkStatusMutation.mutate({ ids: selectedIds, status: 'PUBLISHED' })}
@@ -372,16 +430,36 @@ export default function ArticleListPage() {
 
                                 {/* Actions - Always visible */}
                                 <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        className={`p-2 rounded-lg transition-colors ${article.isBreaking 
+                                            ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                                        title={article.isBreaking ? "إزالة من العواجل" : "تعيين كخبر عاجل"}
+                                        onClick={() => toggleBreakingMutation.mutate({ id: article.id, isBreaking: !article.isBreaking })}
+                                        disabled={toggleBreakingMutation.isPending}
+                                    >
+                                        <Icon name={article.isBreaking ? "ri-flashlight-fill" : "ri-flashlight-line"} size="lg" />
+                                    </button>
+                                    <button
+                                        className={`p-2 rounded-lg transition-colors ${article.isFeatured 
+                                            ? 'text-yellow-600 bg-yellow-50 hover:bg-yellow-100' 
+                                            : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                                        title={article.isFeatured ? "إزالة من المتميزة" : "تعيين كمقال مهم"}
+                                        onClick={() => toggleFeaturedMutation.mutate({ id: article.id, isFeatured: !article.isFeatured })}
+                                        disabled={toggleFeaturedMutation.isPending}
+                                    >
+                                        <Icon name={article.isFeatured ? "ri-star-fill" : "ri-star-line"} size="lg" />
+                                    </button>
                                     <Link href={`/admin/articles/${article.id}/edit`}>
                                         <button
-                                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                             title="تعديل"
                                         >
                                             <Icon name="ri-edit-line" size="lg" />
                                         </button>
                                     </Link>
                                     <button
-                                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title="حذف"
                                         onClick={() => handleDeleteClick(article.id)}
                                     >
