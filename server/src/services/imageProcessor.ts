@@ -88,6 +88,7 @@ export interface ImageProcessorOptions {
 const DEFAULT_QUALITY = 80;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+const EXTENDED_ALLOWED_TYPES = [...ALLOWED_TYPES, 'application/octet-stream'];
 
 const DEFAULT_VARIANTS: ImageVariant[] = [
     { name: 'thumbnail', width: 150, height: 150, quality: 75 },
@@ -113,7 +114,7 @@ export class ImageProcessor {
         this.baseUrl = options.baseUrl || '/uploads';
         this.quality = options.quality || DEFAULT_QUALITY;
         this.maxFileSize = options.maxFileSize || MAX_FILE_SIZE;
-        this.allowedTypes = options.allowedTypes || ALLOWED_TYPES;
+        this.allowedTypes = options.allowedTypes || EXTENDED_ALLOWED_TYPES;
         this.generateVariants = options.generateVariants ?? true;
         this.variants = options.variants || DEFAULT_VARIANTS;
         this.stripMetadata = options.stripMetadata ?? true;
@@ -312,7 +313,7 @@ import type { FileFilterCallback } from 'multer';
 /**
  * Multer file filter for image validation
  */
-export function imageFileFilter(allowedTypes = ALLOWED_TYPES) {
+export function imageFileFilter(allowedTypes = EXTENDED_ALLOWED_TYPES, displayTypes = ALLOWED_TYPES) {
     return (
         req: Request,
         file: Express.Multer.File,
@@ -322,7 +323,7 @@ export function imageFileFilter(allowedTypes = ALLOWED_TYPES) {
             cb(null, true);
         } else {
             cb(new ImageProcessingError(
-                `Invalid file type: ${file.mimetype}. Allowed: ${allowedTypes.join(', ')}`,
+                `Invalid file type: ${file.mimetype}. Allowed: ${displayTypes.join(', ')}`,
                 'INVALID_FILE_TYPE'
             ) as any);
         }

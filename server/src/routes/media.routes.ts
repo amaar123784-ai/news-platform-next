@@ -103,7 +103,7 @@ router.post(
             if (!imageProcessor.validateMimeType(req.file.mimetype)) {
                 throw createError(
                     400,
-                    'نوع الملف غير مدعوم. يُسمح فقط بـ JPEG, PNG, GIF, WEBP',
+                    'نوع الملف غير مدعوم. يُسمح فقط بالصور (JPEG, PNG, GIF, WEBP, AVIF)',
                     'INVALID_FILE_TYPE'
                 );
             }
@@ -265,4 +265,3 @@ router.delete('/:id', authenticate, requireRole('ADMIN', 'EDITOR'), async (req, 
 });
 
 export default router;
-

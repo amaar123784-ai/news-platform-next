@@ -38,7 +38,12 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         if (file.size > maxBytes) {
             return `${file.name} يتجاوز الحد الأقصى للحجم (${maxSize}MB)`;
         }
+        const isImageExtension = /\.(jpe?g|png|gif|webp|avif)$/i.test(file.name);
         if (accept !== '*' && !file.type.match(accept.replace('*', '.*'))) {
+            // Allow application/octet-stream if the extension is a known image format
+            if (file.type === 'application/octet-stream' && isImageExtension) {
+                return null;
+            }
             return `${file.name} نوع غير مدعوم`;
         }
         return null;
@@ -62,7 +67,8 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
                 newErrors.push(error);
             } else {
                 validFiles.push(file);
-                if (file.type.startsWith('image/')) {
+                const isImage = file.type.startsWith('image/') || (file.type === 'application/octet-stream' && /\.(jpe?g|png|gif|webp|avif)$/i.test(file.name));
+                if (isImage) {
                     newPreviews.push({
                         file,
                         url: URL.createObjectURL(file),
