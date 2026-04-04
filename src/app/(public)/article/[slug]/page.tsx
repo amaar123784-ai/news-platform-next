@@ -117,13 +117,10 @@ export default async function ArticlePage({ params }: Props) {
                                 {/* 3. Metadata: Elegant Author & Date Row */}
                                 <div className="flex flex-wrap items-center gap-y-4 gap-x-8 text-gray-500 text-sm md:text-base border-b border-gray-100 pb-8">
                                     <ArticleMeta
-                                        author={article.author?.name}
-                                        authorImage={article.author?.avatar}
                                         date={formatArticleDate(article.publishedAt || article.createdAt)}
                                         views={article.views}
                                         readTime={article.readTime}
                                         size="md"
-                                        showAvatar={true}
                                     />
                                     
                                     <div className="mr-auto">
