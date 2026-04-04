@@ -4,10 +4,17 @@
 import { articleService } from '@/services/article.service';
 import { CreateArticleRequest } from '@/types/api.types';
 import { revalidateTag } from 'next/cache';
+import { cookies } from 'next/headers';
 
 export async function createArticleAction(data: CreateArticleRequest, idempotencyKey: string) {
     try {
-        const article = await articleService.createArticle(data, idempotencyKey);
+        const cookieStore = await cookies();
+        const token = cookieStore.get('access_token')?.value;
+
+        const article = await articleService.createArticle(data, idempotencyKey, {
+            Cookie: `access_token=${token}`
+        });
+        
         // @ts-ignore - Next.js 16 type signature mismatch
         revalidateTag('articles');
         return { success: true, data: article };

@@ -68,10 +68,13 @@ export const articleService = {
     /**
      * Create new article
      */
-    async createArticle(data: CreateArticleRequest, idempotencyKey?: string): Promise<Article> {
+    async createArticle(data: CreateArticleRequest, idempotencyKey?: string, headers?: Record<string, string>): Promise<Article> {
         const key = idempotencyKey || uuidv4();
         const response = await api.post<ApiResponse<Article>>('/articles', data, {
-            headers: { 'Idempotency-Key': key }
+            headers: { 
+                'Idempotency-Key': key,
+                ...headers 
+            }
         });
         return response.data.data;
     },
