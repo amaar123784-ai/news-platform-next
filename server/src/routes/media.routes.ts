@@ -100,7 +100,7 @@ router.post(
             }
 
             // Validate file type
-            if (!imageProcessor.validateMimeType(req.file.mimetype)) {
+            if (!imageProcessor.validateMimeType(req.file.mimetype, req.file.originalname)) {
                 throw createError(
                     400,
                     'نوع الملف غير مدعوم. يُسمح فقط بـ JPEG, PNG, GIF, WEBP',

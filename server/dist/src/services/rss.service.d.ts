@@ -4,7 +4,6 @@
  */
 /**
  * Fetch and parse a single RSS feed
- * Now works with RSSFeed model instead of RSSSource
  */
 export declare function fetchRSSFeed(feedId: string): Promise<{
     success: boolean;
@@ -13,7 +12,6 @@ export declare function fetchRSSFeed(feedId: string): Promise<{
 }>;
 /**
  * Fetch all active RSS feeds that are due for update
- * Uses Promise.allSettled for graceful error handling per feed
  */
 export declare function fetchAllActiveFeeds(): Promise<{
     feedsChecked: number;
@@ -23,7 +21,6 @@ export declare function fetchAllActiveFeeds(): Promise<{
 }>;
 /**
  * Clean up old RSS articles
- * Removes articles older than specified days that are not approved
  */
 export declare function cleanupOldArticles(daysOld?: number): Promise<number>;
 /**
@@ -31,20 +28,11 @@ export declare function cleanupOldArticles(daysOld?: number): Promise<number>;
  */
 export declare function expireOldArticles(daysOld?: number): Promise<number>;
 /**
- * Get feed statistics for monitoring
+ * Get feed statistics
  */
-export declare function getRSSStats(): Promise<{
-    totalSources: number;
-    totalFeeds: number;
-    activeFeeds: number;
-    errorFeeds: number;
-    totalArticles: number;
-    pendingArticles: number;
-    approvedArticles: number;
-}>;
+export declare function getRSSStats(): Promise<any>;
 /**
- * Download and store image locally for an RSS article
- * Called when article is approved to save storage space
+ * Download and store image locally
  */
 export declare function downloadRSSImage(imageUrl: string | null): Promise<string | null>;
 //# sourceMappingURL=rss.service.d.ts.map

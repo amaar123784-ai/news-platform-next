@@ -4,6 +4,7 @@
  */
 const GRAPH_API = 'https://graph.facebook.com/v19.0';
 const MAX_RETRIES = 3;
+import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
 class FacebookService {
     pageId = null;
     pageToken = null;
@@ -12,11 +13,11 @@ class FacebookService {
     platformUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
     constructor() {
         this.pageId = process.env.FACEBOOK_PAGE_ID || null;
-        const token = process.env.FACEBOOK_PAGE_TOKEN || null;
+        this.pageToken = process.env.FACEBOOK_PAGE_TOKEN || null;
         this.isEnabled = process.env.FACEBOOK_ENABLE === 'true';
-        if (this.isEnabled && this.pageId && token) {
+        if (this.isEnabled && this.pageId && this.pageToken) {
             console.log('[Facebook] ✅ Service enabled. Page ID:', this.pageId);
-            this.initialize(token);
+            this.initialize();
         }
         else if (this.isEnabled) {
             console.warn('[Facebook] ⚠️ Enabled but missing FACEBOOK_PAGE_ID or FACEBOOK_PAGE_TOKEN.');
@@ -25,10 +26,16 @@ class FacebookService {
             console.log('[Facebook] Service is disabled via .env (FACEBOOK_ENABLE).');
         }
     }
-    async initialize(token) {
+    async initialize() {
+        if (!this.isEnabled)
+            return;
+        if (!this.pageId || !this.pageToken)
+            return;
+        if (this.isReady)
+            return;
         try {
             console.log('[Facebook] Fetching Page Access Token via /me/accounts...');
-            const res = await fetch(`${GRAPH_API}/me/accounts?access_token=${token}`);
+            const res = await fetch(`${GRAPH_API}/me/accounts?access_token=${this.pageToken}`);
             const data = await res.json();
             if (data.data && data.data.length > 0) {
                 const page = data.data.find((p) => p.id === this.pageId) || data.data[0];
@@ -39,10 +46,9 @@ class FacebookService {
                 return;
             }
             console.log('[Facebook] /me/accounts returned no pages, trying token directly...');
-            const pageRes = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${token}`);
+            const pageRes = await fetch(`${GRAPH_API}/${this.pageId}?fields=name,id&access_token=${this.pageToken}`);
             const pageData = await pageRes.json();
             if (pageData.name) {
-                this.pageToken = token;
                 this.isReady = true;
                 console.log(`[Facebook] ✅ Page verified (direct): ${pageData.name} (${pageData.id})`);
             }
@@ -54,22 +60,29 @@ class FacebookService {
             console.error('[Facebook] ❌ Failed to initialize:', error.message);
         }
     }
-    stripHtml(html) {
-        if (!html)
-            return '';
-        return html.replace(/<[^>]*>?/gm, '').trim();
-    }
     buildMessage(article) {
-        const title = article.title || '';
-        const excerpt = this.stripHtml(article.excerpt || '');
-        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-        return `📰 ${title}\n\n${excerpt}\n\n🔗 اقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
+        return buildUnifiedMessage(article, 'FACEBOOK', this.platformUrl);
     }
     async postArticleToFacebook(article) {
-        if (!this.isEnabled || !this.isReady || !this.pageId || !this.pageToken)
+        if (!this.isEnabled) {
+            console.log('[Facebook] Service is not enabled.');
             return false;
+        }
+        if (!this.pageId || !this.pageToken) {
+            console.log(`[Facebook] Missing credentials - pageId: ${!!this.pageId}, pageToken: ${!!this.pageToken}`);
+            return false;
+        }
+        await this.initialize();
+        if (!this.isReady) {
+            console.log('[Facebook] Service failed to initialize (isReady=false).');
+            return false;
+        }
         const message = this.buildMessage(article);
         const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
+        // Use full image URL for Facebook metadata
+        const fullImageUrl = article.imageUrl
+            ? (article.imageUrl.startsWith('http') ? article.imageUrl : `${this.platformUrl}${article.imageUrl}`)
+            : null;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 console.log(`[Facebook] Attempting to post (attempt ${attempt}): ${article.title}`);

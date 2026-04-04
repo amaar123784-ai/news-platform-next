@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
+import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
 const prisma = new PrismaClient();
 export class WebhookService {
     static instance;
@@ -46,6 +47,7 @@ export class WebhookService {
                 publishedAt: article.publishedAt,
                 sourceUrl: `https://voiceoftihama.com/article/${article.slug}`,
                 isBreaking: article.isBreaking,
+                formattedMessage: buildUnifiedMessage(article, 'WEBHOOK', process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com'),
             };
             console.log(`[Webhook] Triggering n8n for: "${article.title}"`);
             // Fire payload to n8n

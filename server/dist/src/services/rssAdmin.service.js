@@ -289,7 +289,13 @@ export async function getModerationSources() {
  * List articles for moderation review
  */
 export async function getModerationArticles(page, perPage, status, sourceId, categoryId) {
-    const where = { status };
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const where = {
+        status,
+        fetchedAt: {
+            gte: fortyEightHoursAgo
+        }
+    };
     if (sourceId) {
         where.feed = { sourceId };
     }

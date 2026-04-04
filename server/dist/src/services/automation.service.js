@@ -1,18 +1,26 @@
 /**
  * Automation Service - Full Content Automation Pipeline
- * Handles AI rewriting, platform publishing, and social media posting
+ * Handles Scraping, AI rewriting, platform publishing, and social media posting
  */
 import { AutomationStatus, SocialPostStatus, SocialPlatform } from '@prisma/client';
 import { prisma } from '../index.js';
 import { rewriteArticle as rewriteWithAI } from './ai.service.js';
 import { notificationService } from './notification.service.js';
+import { scrapeArticle } from './scraper.service.js';
+import { indexingService } from './indexing.service.js';
 // @ts-ignore
 import slugify from 'slugify';
 import crypto from 'crypto';
 // Configuration
 const SOCIAL_DELAY_MINUTES = 5; // Delay before posting to social media
+// DEAD WORDS for anti-bot detection
+const DEAD_WORDS = [
+    'access denied', 'cloudflare', 'enable javascript', '403 forbidden',
+    'captcha', 'security check', 'robot', 'automated request'
+];
 export class AutomationService {
     static instance;
+    locks = new Set(); // Basic in-memory lock for concurrency
     constructor() { }
     static getInstance() {
         if (!AutomationService.instance) {
@@ -26,6 +34,11 @@ export class AutomationService {
     async startAutomation(rssArticleId) {
         console.log(`[Automation] Starting pipeline for RSS article: ${rssArticleId}`);
         try {
+            // Check lock
+            if (this.locks.has(rssArticleId)) {
+                console.log(`[Automation] 🔒 Article ${rssArticleId} is already being processed.`);
+                return;
+            }
             // Upsert: create only if not already queued, skip if it exists
             const queueItem = await prisma.automationQueue.upsert({
                 where: { rssArticleId },
@@ -37,13 +50,14 @@ export class AutomationService {
                 update: {} // no-op on duplicate
             });
             // Only launch the pipeline if this is a genuinely new (PENDING) entry
-            if (queueItem.status !== AutomationStatus.PENDING) {
+            if (queueItem.status !== AutomationStatus.PENDING && queueItem.status !== AutomationStatus.FAILED) {
                 console.log(`[Automation] Article already in queue with status: ${queueItem.status}`);
                 return;
             }
-            // Start processing immediately (async)
-            this.processQueue(queueItem.id).catch(err => {
-                console.error(`[Automation] Pipeline error:`, err);
+            // Lock and Start processing immediately (async)
+            this.locks.add(rssArticleId);
+            this.processQueue(queueItem.id, rssArticleId).finally(() => {
+                this.locks.delete(rssArticleId);
             });
         }
         catch (error) {
@@ -54,80 +68,132 @@ export class AutomationService {
     /**
      * Process a queue item through all stages
      */
-    async processQueue(queueId) {
+    async processQueue(queueId, rssArticleId) {
         try {
-            // Step 1: AI Rewriting
-            await this.processAIRewrite(queueId);
-            // Step 2: Publish to Platform
+            // Step 1: Scrape Full Content (On-Demand)
+            const scrapedContent = await this.processScraping(queueId);
+            // Step 2: AI Rewriting (Only if validation passes)
+            await this.processAIRewrite(queueId, scrapedContent);
+            // Step 3: Publish to Platform
             await this.publishToPlatform(queueId);
-            // Step 3: Queue for Social Media
+            // Step 4: Queue for Social Media
             await this.queueForSocial(queueId);
             console.log(`[Automation] Pipeline completed for queue: ${queueId}`);
         }
         catch (error) {
             console.error(`[Automation] Pipeline failed:`, error.message);
+            const isScrapeError = error.message.includes('SCRAPE_VALIDATION');
             await prisma.automationQueue.update({
                 where: { id: queueId },
                 data: {
                     status: AutomationStatus.FAILED,
-                    errorMessage: error.message
+                    errorMessage: error.message.replace('SCRAPE_VALIDATION: ', '')
                 }
             });
         }
     }
     /**
-     * Step 1: AI Rewriting
+     * Step 1: Scrape and Validate
      */
-    async processAIRewrite(queueId) {
-        console.log(`[Automation] Step 1: AI Rewriting for ${queueId}`);
-        const queueItem = await prisma.automationQueue.update({
+    async processScraping(queueId) {
+        console.log(`[Automation] Step 1: Scraping for queue ${queueId}`);
+        await prisma.automationQueue.update({
             where: { id: queueId },
-            data: { status: AutomationStatus.AI_PROCESSING },
-            include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
+            data: { status: AutomationStatus.AI_PROCESSING }
+        });
+        const queueItem = await prisma.automationQueue.findUnique({
+            where: { id: queueId },
+            include: { rssArticle: true }
+        });
+        const rssArticle = queueItem?.rssArticle;
+        if (!rssArticle)
+            throw new Error('RSS Article not found');
+        // Execute Scraper
+        const scrapeResult = await scrapeArticle(rssArticle.id);
+        if (!scrapeResult.success || !scrapeResult.content) {
+            throw new Error(`SCRAPE_VALIDATION: Scraper failed - ${scrapeResult.error || 'Empty content'}`);
+        }
+        const content = scrapeResult.content;
+        const title = rssArticle.title;
+        const excerpt = rssArticle.excerpt || '';
+        // --- SMART VALIDATION LAYER ---
+        // Check 1: Dead Words (Anti-bot detection)
+        const lowerContent = content.toLowerCase();
+        const foundDeadWord = DEAD_WORDS.find(word => lowerContent.includes(word));
+        if (foundDeadWord) {
+            throw new Error(`SCRAPE_VALIDATION: Anti-bot detected (${foundDeadWord})`);
+        }
+        // Check 2: Dynamic Length (3x Title Length)
+        const minLength = title.length * 3;
+        if (content.length < minLength) {
+            throw new Error(`SCRAPE_VALIDATION: Content too short (${content.length} chars, expected >${minLength})`);
+        }
+        // Check 3: Semantic Consistency (Duplicate of Excerpt)
+        // If content is too similar to the excerpt, the scraper likely failed to find the body
+        if (content.trim() === excerpt.trim() || content.length < excerpt.length + 50) {
+            throw new Error(`SCRAPE_VALIDATION: Failed to find main body (content identical to excerpt)`);
+        }
+        return content;
+    }
+    /**
+     * Step 2: AI Rewriting
+     */
+    async processAIRewrite(queueId, fullContent) {
+        console.log(`[Automation] Step 2: AI Rewriting for ${queueId}`);
+        await prisma.automationQueue.update({
+            where: { id: queueId },
+            data: { status: AutomationStatus.AI_PROCESSING }
+        });
+        const queueItem = await prisma.automationQueue.findUnique({
+            where: { id: queueId },
+            include: { rssArticle: true }
         });
         const article = queueItem.rssArticle;
-        // Use existing rewritten content or original
-        let title = article.rewrittenTitle || article.title;
-        let excerpt = article.rewrittenExcerpt || article.excerpt || '';
-        let content = article.fullContent || excerpt;
-        // Try AI rewriting
         try {
-            const aiResult = await rewriteWithAI(title, content);
+            // Pass FULL content to AI for proper rewriting
+            const aiResult = await rewriteWithAI(article.title, fullContent);
             if (aiResult) {
-                title = aiResult.rewrittenTitle;
-                excerpt = aiResult.rewrittenExcerpt;
-                // For full content, we use the excerpt as a summary
-                // The full content would require a more sophisticated prompt
-                content = this.formatArticleContent(article.fullContent || excerpt, article.sourceUrl);
+                await prisma.automationQueue.update({
+                    where: { id: queueId },
+                    data: {
+                        status: AutomationStatus.AI_COMPLETED,
+                        aiRewrittenTitle: aiResult.rewrittenTitle,
+                        aiRewrittenExcerpt: aiResult.rewrittenExcerpt,
+                        aiRewrittenContent: aiResult.rewrittenContent || fullContent,
+                        aiProcessedAt: new Date()
+                    }
+                });
+            }
+            else {
+                throw new Error('AI Service returned null result');
             }
         }
         catch (error) {
-            console.warn(`[Automation] AI rewriting failed, using original content:`, error.message);
+            console.error(`[Automation] AI rewriting failed:`, error.message);
+            // Fallback to original content if AI fails but scraping succeeded
+            await prisma.automationQueue.update({
+                where: { id: queueId },
+                data: {
+                    status: AutomationStatus.AI_COMPLETED,
+                    aiRewrittenTitle: article.title,
+                    aiRewrittenExcerpt: article.excerpt || '',
+                    aiRewrittenContent: fullContent,
+                    aiProcessedAt: new Date()
+                }
+            });
         }
-        await prisma.automationQueue.update({
-            where: { id: queueId },
-            data: {
-                status: AutomationStatus.AI_COMPLETED,
-                aiRewrittenTitle: title,
-                aiRewrittenExcerpt: excerpt.substring(0, 500),
-                aiRewrittenContent: content,
-                aiProcessedAt: new Date()
-            }
-        });
     }
     /**
-     * Step 2: Create Platform Article
+     * Step 3: Create Platform Article
      */
     async publishToPlatform(queueId) {
-        console.log(`[Automation] Step 2: Publishing to platform for ${queueId}`);
+        console.log(`[Automation] Step 3: Publishing to platform for ${queueId}`);
         const queueItem = await prisma.automationQueue.update({
             where: { id: queueId },
             data: { status: AutomationStatus.PUBLISHING },
             include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } }
         });
-        // Step guard: skip if we already created an article (e.g. retry after partial failure)
         if (queueItem.createdArticleId) {
-            console.log(`[Automation] Step 2: Article already created (${queueItem.createdArticleId}), skipping.`);
             await prisma.automationQueue.update({
                 where: { id: queueId },
                 data: { status: AutomationStatus.PUBLISHED }
@@ -136,15 +202,15 @@ export class AutomationService {
         }
         const article = queueItem.rssArticle;
         const category = article.feed.category;
-        // Generate unique slug
+        // Generate unique slug with random hash to prevent Article_slug_key unique constraint error
         const baseSlug = slugify(queueItem.aiRewrittenTitle || article.title, {
             lower: true,
-            strict: true
-        });
-        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(3).toString('hex')}`;
-        // Get default image if no image exists
+            strict: false,
+            remove: /[*+~.()'"!:@]/g
+        }) || 'article';
+        const uniqueHash = crypto.randomBytes(3).toString('hex');
+        const finalSlug = `${baseSlug}-${uniqueHash}`;
         const imageUrl = article.imageUrl || this.getDefaultImage(category?.slug || 'default');
-        // Get or create a system user for automated articles
         let systemUser = await prisma.user.findFirst({
             where: { email: 'system@voiceoftihama.com' }
         });
@@ -154,17 +220,16 @@ export class AutomationService {
                     email: 'system@voiceoftihama.com',
                     name: 'النظام الآلي',
                     role: 'ADMIN',
-                    password: crypto.randomBytes(32).toString('hex') // Random password, won't be used
+                    password: crypto.randomBytes(32).toString('hex')
                 }
             });
         }
-        // Create the article
         const newArticle = await prisma.article.create({
             data: {
                 title: queueItem.aiRewrittenTitle || article.title,
-                slug: uniqueSlug,
+                slug: finalSlug,
                 excerpt: queueItem.aiRewrittenExcerpt || article.excerpt || '',
-                content: queueItem.aiRewrittenContent || article.fullContent || article.excerpt || '',
+                content: queueItem.aiRewrittenContent || article.fullContent || '',
                 imageUrl,
                 categoryId: category?.id || (await this.getDefaultCategory()).id,
                 authorId: systemUser.id,
@@ -181,115 +246,39 @@ export class AutomationService {
             }
         });
         console.log(`[Automation] Created platform article: ${newArticle.slug}`);
-        // Auto-detect breaking news from title
-        const breakingKeywords = ['عاجل', 'خبر عاجل', 'عاجل:', 'عاجل |', 'breaking'];
-        const titleTrimmed = newArticle.title.trim();
-        const isBreaking = breakingKeywords.some(kw => titleTrimmed.startsWith(kw));
-        if (isBreaking) {
-            await prisma.article.update({
-                where: { id: newArticle.id },
-                data: { isBreaking: true }
-            });
-            console.log(`[Automation] 🔴 Marked as BREAKING: "${newArticle.title.substring(0, 40)}..."`);
+        // SEO: Trigger Google Indexing API after Publishing
+        try {
+            const articleUrl = `https://voiceoftihama.com/article/${finalSlug}`;
+            console.log(`[Google Indexing] Triggering for: ${articleUrl}`);
+            await indexingService.submitUrl(articleUrl, 'URL_UPDATED');
+            console.log(`[Google Indexing] Success for: ${finalSlug}`);
         }
-        // Publish to social channels and persist per-platform delivery status
+        catch (error) {
+            console.error(`[Google Indexing] Failed: ${error.message}`);
+        }
+        // Social publishing handled here
         try {
             const { publishToSocialChannels } = await import('./socialPublisher.service.js');
-            const platformResults = await publishToSocialChannels(newArticle);
-            const allSucceeded = platformResults.every(r => r.success);
-            if (!allSucceeded) {
-                const failed = platformResults.filter(r => !r.success).map(r => r.platform).join(', ');
-                console.warn(`[Automation] Some social platforms failed for article ${newArticle.id}: ${failed}`);
-            }
+            await publishToSocialChannels(newArticle);
         }
         catch (err) {
-            console.error('[Automation] Social publishing failed:', err.message);
+            console.error('[Automation] Social publishing trigger failed:', err.message);
         }
     }
     /**
-     * Step 3: Queue for Social Media Posting
+     * Step 4: Queue for Social Media Posting
      */
     async queueForSocial(queueId) {
-        console.log(`[Automation] Step 3: Queuing for social media ${queueId}`);
-        const scheduledTime = new Date(Date.now() + SOCIAL_DELAY_MINUTES * 60 * 1000);
         await prisma.automationQueue.update({
             where: { id: queueId },
             data: {
                 status: AutomationStatus.SOCIAL_PENDING,
                 socialStatus: SocialPostStatus.PENDING,
-                socialScheduledAt: scheduledTime
+                socialScheduledAt: new Date(Date.now() + SOCIAL_DELAY_MINUTES * 60 * 1000)
             }
         });
-        console.log(`[Automation] Scheduled for social at: ${scheduledTime.toISOString()}`);
     }
-    /**
-     * Get posts ready for social media (called by n8n)
-     */
-    async getPendingSocialPosts() {
-        const now = new Date();
-        return prisma.automationQueue.findMany({
-            where: {
-                status: AutomationStatus.SOCIAL_PENDING,
-                socialStatus: SocialPostStatus.PENDING,
-                socialScheduledAt: { lte: now }
-            },
-            include: {
-                rssArticle: {
-                    include: {
-                        feed: { include: { source: true, category: true } }
-                    }
-                }
-            },
-            take: 10
-        });
-    }
-    /**
-     * Mark a post as successfully posted to social media
-     */
-    async markSocialPosted(queueId, postId) {
-        await prisma.automationQueue.update({
-            where: { id: queueId },
-            data: {
-                status: AutomationStatus.COMPLETED,
-                socialStatus: SocialPostStatus.POSTED,
-                socialPostedAt: new Date(),
-                socialPostId: postId
-            }
-        });
-        console.log(`[Automation] Successfully posted to social: ${queueId}`);
-    }
-    /**
-     * Mark a post as failed
-     */
-    async markSocialFailed(queueId, errorMessage) {
-        const queueItem = await prisma.automationQueue.findUnique({
-            where: { id: queueId }
-        });
-        if (!queueItem)
-            return;
-        const newRetryCount = queueItem.retryCount + 1;
-        const shouldRetry = newRetryCount < 3;
-        // Exponential backoff: 5 min × 2^(attempt-1)  →  5 m, 10 m, 20 m …
-        const backoffMs = shouldRetry
-            ? 5 * 60 * 1000 * Math.pow(2, newRetryCount - 1)
-            : undefined;
-        await prisma.automationQueue.update({
-            where: { id: queueId },
-            data: {
-                status: shouldRetry ? AutomationStatus.SOCIAL_PENDING : AutomationStatus.FAILED,
-                socialStatus: shouldRetry ? SocialPostStatus.PENDING : SocialPostStatus.FAILED,
-                errorMessage,
-                retryCount: newRetryCount,
-                socialScheduledAt: backoffMs ? new Date(Date.now() + backoffMs) : undefined
-            }
-        });
-        if (!shouldRetry) {
-            await notificationService.createNotification('social_error', 'فشل النشر على فيسبوك', `فشل نشر المقال بعد 3 محاولات: ${errorMessage}`, { queueId });
-        }
-    }
-    /**
-     * Get default category image URL
-     */
+    // ... (rest of helper methods)
     getDefaultImage(categorySlug) {
         const baseUrl = process.env.SITE_URL || 'https://voiceoftihama.com';
         const imageMap = {
@@ -303,97 +292,49 @@ export class AutomationService {
         const imageName = imageMap[categorySlug] || 'default.jpg';
         return `${baseUrl}/images/categories/${imageName}`;
     }
-    /**
-     * Get default category
-     */
     async getDefaultCategory() {
-        let category = await prisma.category.findFirst({
-            where: { slug: 'misc' }
-        });
-        if (!category) {
+        let category = await prisma.category.findFirst({ where: { slug: 'misc' } });
+        if (!category)
             category = await prisma.category.findFirst();
-        }
-        if (!category) {
-            throw new Error('No categories found in database');
-        }
+        if (!category)
+            throw new Error('No categories found');
         return category;
     }
-    /**
-     * Format article content with source attribution
-     */
-    formatArticleContent(content, sourceUrl) {
-        return content;
-    }
-    /**
-     * Get automation queue for admin dashboard
-     */
     async getQueue(options = {}) {
         const { page = 1, perPage = 20, status } = options;
         const where = status ? { status } : {};
         const [items, total] = await Promise.all([
             prisma.automationQueue.findMany({
                 where,
-                include: {
-                    rssArticle: {
-                        include: {
-                            feed: { include: { source: true, category: true } }
-                        }
-                    }
-                },
+                include: { rssArticle: { include: { feed: { include: { source: true, category: true } } } } },
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * perPage,
                 take: perPage
             }),
             prisma.automationQueue.count({ where })
         ]);
-        return {
-            data: items,
-            meta: {
-                currentPage: page,
-                totalPages: Math.ceil(total / perPage),
-                totalItems: total,
-                perPage
-            }
-        };
+        return { data: items, meta: { currentPage: page, totalPages: Math.ceil(total / perPage), totalItems: total, perPage } };
     }
-    /**
-     * Retry a failed automation
-     */
     async retryAutomation(queueId) {
-        const queueItem = await prisma.automationQueue.findUnique({
-            where: { id: queueId }
-        });
-        if (!queueItem) {
+        const queueItem = await prisma.automationQueue.findUnique({ where: { id: queueId } });
+        if (!queueItem)
             throw new Error('Queue item not found');
+        if (queueItem.status === AutomationStatus.FAILED) { // Fixed FAILED_SCRAPE ref
+            await prisma.automationQueue.update({
+                where: { id: queueId },
+                data: { status: AutomationStatus.PENDING, errorMessage: null, retryCount: 0 }
+            });
+            this.startAutomation(queueItem.rssArticleId).catch(console.error);
         }
-        // Reset status based on where it failed
-        if (queueItem.status === AutomationStatus.FAILED) {
-            if (queueItem.createdArticleId) {
-                // Already published, just retry social
-                await prisma.automationQueue.update({
-                    where: { id: queueId },
-                    data: {
-                        status: AutomationStatus.SOCIAL_PENDING,
-                        socialStatus: SocialPostStatus.PENDING,
-                        socialScheduledAt: new Date(),
-                        errorMessage: null,
-                        retryCount: 0
-                    }
-                });
-            }
-            else {
-                // Restart from beginning
-                await prisma.automationQueue.update({
-                    where: { id: queueId },
-                    data: {
-                        status: AutomationStatus.PENDING,
-                        errorMessage: null,
-                        retryCount: 0
-                    }
-                });
-                this.processQueue(queueId).catch(console.error);
-            }
-        }
+    }
+    async getPendingSocialPosts() {
+        return prisma.automationQueue.findMany({ where: { status: AutomationStatus.SOCIAL_PENDING } });
+    }
+    async markSocialPosted(id, postId) {
+        return prisma.automationQueue.update({ where: { id }, data: { status: AutomationStatus.COMPLETED } });
+    }
+    async markSocialFailed(id, error) {
+        return prisma.automationQueue.update({ where: { id }, data: { status: AutomationStatus.FAILED } });
     }
 }
 export const automationService = AutomationService.getInstance();
