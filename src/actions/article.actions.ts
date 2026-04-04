@@ -11,8 +11,12 @@ export async function createArticleAction(data: CreateArticleRequest, idempotenc
         const cookieStore = await cookies();
         const token = cookieStore.get('access_token')?.value;
 
+        if (!token) {
+            return { success: false, error: 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.' };
+        }
+
         const article = await articleService.createArticle(data, idempotencyKey, {
-            Cookie: `access_token=${token}`
+            Authorization: `Bearer ${token}`
         });
         
         // @ts-ignore - Next.js 16 type signature mismatch
