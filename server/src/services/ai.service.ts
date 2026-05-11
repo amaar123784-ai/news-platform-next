@@ -59,6 +59,31 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number): Promise<
     throw lastError;
 }
 
+/**
+ * Check if text is predominantly Arabic.
+ * Returns true if Arabic characters make up at least 70% of all letter characters.
+ */
+function isArabicText(text: string): boolean {
+    const arabicChars = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || []).length;
+    const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
+    if (arabicChars + latinChars === 0) return true;
+    return arabicChars / (arabicChars + latinChars) > 0.7;
+}
+
+/**
+ * Remove isolated non-Arabic words from text while preserving
+ * numbers, proper nouns in quotes, and HTML tags.
+ */
+function cleanNonArabic(text: string): string {
+    // Preserve HTML tags and quoted text, remove standalone English words
+    return text.replace(/(?<!["«])(\b[a-zA-Z]{3,}\b)(?!["»])/g, (match) => {
+        // Keep common technical/proper terms that are acceptable in Arabic journalism
+        const allowed = ['html', 'http', 'https', 'www', 'email', 'GPS', 'DNA', 'COVID', 'USD', 'API'];
+        if (allowed.some(w => w.toLowerCase() === match.toLowerCase())) return match;
+        return '';
+    }).replace(/\s{2,}/g, ' ').trim();
+}
+
 export interface RewriteResult {
     rewrittenTitle: string;
     rewrittenExcerpt: string;
@@ -82,6 +107,8 @@ const JOURNALIST_SYSTEM_PROMPT = `أنت محرر صحفي محترف وخبير
 
 📌 القواعد الذهبية للغة والصياغة:
 • اللغة: استخدم العربية الفصحى المعاصرة (MSA) فقط. يمنع منعاً باتاً استخدام اللهجة التهامية أو أي مفردات عامية يمنية.
+• ⛔ ممنوع نهائياً استخدام أي كلمة إنجليزية أو أجنبية في النص العربي. اكتب كل شيء بالعربية فقط.
+• إذا وجدت مصطلحاً أجنبياً في النص الأصلي، استبدله بمرادفه العربي أو اتركه كما هو بين علامتي تنصيص.
 • النحو والإملاء: يجب أن يكون النص خالياً تماماً من الأخطاء اللغوية والنحوية والإملائية.
 • الأسلوب: استخدم أسلوباً موضوعياً، بعيداً عن الحشو أو العبارات الإنشائية المبالغ فيها.
 
@@ -96,6 +123,7 @@ const JOURNALIST_SYSTEM_PROMPT = `أنت محرر صحفي محترف وخبير
 
 📌 بنية المخرجات:
 • المخرجات يجب أن تكون بصيغة JSON نظيفة تحتوي على (title, content, excerpt).
+• جميع القيم في JSON يجب أن تكون باللغة العربية فقط.
 • استخدم فقرات قصيرة ومركزة تجعل الخبر سهل القراءة.`;
 
 /**
@@ -178,8 +206,8 @@ export async function rewriteArticle(
                     format: 'json',
                     stream: false,
                     options: {
-                        temperature: 0.7,  // Balanced creativity
-                        top_p: 0.9,
+                        temperature: 0.4,  // Lower = more deterministic Arabic output
+                        top_p: 0.85,
                         num_predict: 500   // Limit response length
                     }
                 }),
@@ -207,9 +235,18 @@ export async function rewriteArticle(
             return null;
         }
 
+        // Clean non-Arabic words from output
+        const cleanTitle = cleanNonArabic(jsonResponse.title);
+        const cleanExcerpt = cleanNonArabic(jsonResponse.excerpt);
+
+        if (!isArabicText(cleanTitle) || !isArabicText(cleanExcerpt)) {
+            console.warn('[AI] Response contains too many non-Arabic words, rejecting');
+            return null;
+        }
+
         return {
-            rewrittenTitle: jsonResponse.title,
-            rewrittenExcerpt: jsonResponse.excerpt
+            rewrittenTitle: cleanTitle,
+            rewrittenExcerpt: cleanExcerpt
         };
 
     } catch (error: any) {
@@ -242,8 +279,8 @@ export async function rewriteAsJournalist(article: {
                     format: 'json',
                     stream: false,
                     options: {
-                        temperature: 0.7,
-                        top_p: 0.9,
+                        temperature: 0.4,  // Lower = more deterministic Arabic output
+                        top_p: 0.85,
                         num_predict: 2000  // Allow longer content
                     }
                 }),
@@ -282,10 +319,20 @@ export async function rewriteAsJournalist(article: {
                 .join('\n');
         }
 
+        // Clean non-Arabic words from output
+        const cleanTitle = cleanNonArabic(jsonResponse.title);
+        const cleanExcerpt = cleanNonArabic(jsonResponse.excerpt);
+        const cleanContent = cleanNonArabic(formattedContent);
+
+        if (!isArabicText(cleanTitle)) {
+            console.warn('[AI] Full rewrite title contains too many non-Arabic words, rejecting');
+            return null;
+        }
+
         return {
-            title: jsonResponse.title,
-            content: formattedContent,
-            excerpt: jsonResponse.excerpt
+            title: cleanTitle,
+            content: cleanContent,
+            excerpt: cleanExcerpt
         };
 
     } catch (error: any) {
