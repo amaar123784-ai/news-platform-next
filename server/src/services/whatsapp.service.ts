@@ -303,7 +303,7 @@ class WhatsAppService {
                                 title: article.title || '',
                                 description: article.excerpt || '',
                                 jpegThumbnail,
-                                previewType: 1,
+                                previewType: 0,
                             }
                         }),
                         { userJid: this.sock.user.id }
@@ -332,7 +332,7 @@ class WhatsAppService {
                                         title: article.title || '',
                                         description: article.excerpt || '',
                                         jpegThumbnail,
-                                        previewType: 1,
+                                        previewType: 0,
                                     }
                                 }),
                                 { userJid: this.sock.user.id }
