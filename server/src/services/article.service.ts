@@ -485,8 +485,12 @@ export async function deleteArticle(id: string, userId: string) {
         throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
     }
 
-    // Soft-delete: set deletedAt instead of destroying the record
-    await prisma.article.update({ where: { id }, data: { deletedAt: new Date() } });
+    // Soft-delete: set deletedAt and clear breaking/featured flags
+    // to prevent stale cache from showing deleted articles
+    await prisma.article.update({
+        where: { id },
+        data: { deletedAt: new Date(), isBreaking: false, isFeatured: false },
+    });
 
     // Log activity (fire-and-forget for performance)
     prisma.activityLog.create({
