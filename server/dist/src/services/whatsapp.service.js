@@ -1,33 +1,110 @@
 // @ts-ignore
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { PrismaClient, SocialPlatform, SocialPostStatus } from '@prisma/client';
+import { buildUnifiedMessage } from '../utils/socialMessageBuilder.js';
+const prisma = new PrismaClient();
 /** WhatsApp message limit */
 const MESSAGE_MAX_LENGTH = 1024;
-/** Delay (ms) before sending so article page/image are ready for link preview. Env: WHATSAPP_SEND_DELAY_MS */
+/** Delay (ms) before sending so article page/image are ready for link preview. */
 const SEND_DELAY_MS = parseInt(process.env.WHATSAPP_SEND_DELAY_MS || '15000', 10) || 15000;
-/** Max retries to wait for WhatsApp connection before giving up */
-const READY_WAIT_RETRIES = 6;
-/** Delay between each ready-check retry (ms) */
-const READY_WAIT_INTERVAL = 8000;
 /** Max pending queue size */
 const MAX_PENDING_QUEUE = 50;
 /** Max retries for sending a single message */
 const MAX_SEND_RETRIES = 3;
-/** Interval between processing messages in the queue (ms) to avoid rate limiting */
-const QUEUE_PROCESS_INTERVAL = 5000;
+/** Interval between processing messages in the queue (ms) to avoid rate limiting. Default base: 5s */
+const QUEUE_PROCESS_BASE_INTERVAL = 5000;
+/** Max delay for jitter (ms). Will add random value up to this to base interval */
+const QUEUE_PROCESS_JITTER_MAX = 7000;
+/** Max reconnection delay (ms) - 2 minutes */
+const MAX_RECONNECT_DELAY = 120000;
+/**
+ * Utility to enforce timeouts on promises
+ */
+const withTimeout = (promise, ms, errorMsg) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+    ]);
+};
 class WhatsAppService {
     sock = null;
     isReady = false;
     channelJid = null;
+    groupJid = null;
+    inviteCode = null;
     platformUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://voiceoftihama.com';
     messageQueue = [];
     isProcessingQueue = false;
+    reconnectAttempts = 0;
     constructor() {
-        this.channelJid = process.env.WHATSAPP_CHANNEL_ID || null;
+        const rawChannelId = process.env.WHATSAPP_CHANNEL_ID || '';
+        // Support multiple formats:
+        // 1. Full URL: https://whatsapp.com/channel/0029VbCPmHj1HspqfKinlk16
+        // 2. Invite code only: 0029VbCPmHj1HspqfKinlk16
+        // 3. Full JID: 120363XXXX@newsletter
+        if (rawChannelId.includes('@newsletter')) {
+            this.channelJid = rawChannelId;
+            console.log('[WhatsApp] Channel JID set directly:', this.channelJid);
+        }
+        else if (rawChannelId) {
+            // Extract invite code from URL or use raw value
+            const urlMatch = rawChannelId.match(/channel\/([a-zA-Z0-9]+)/);
+            this.inviteCode = urlMatch ? urlMatch[1] : rawChannelId;
+            console.log('[WhatsApp] Will resolve channel from invite code:', this.inviteCode);
+        }
         if (process.env.WHATSAPP_ENABLE === 'true') {
             this.initializeClient();
         }
         else {
             console.log('[WhatsApp] Service is disabled via .env (WHATSAPP_ENABLE).');
+        }
+        // Group JID for sending to WhatsApp group as well
+        this.groupJid = process.env.WHATSAPP_GROUP_JID || null;
+        if (this.groupJid) {
+            console.log('[WhatsApp] Group JID configured:', this.groupJid);
+        }
+    }
+    /**
+     * Resolve channel invite code to actual JID using Baileys newsletter API
+     */
+    async resolveChannelJid() {
+        if (this.channelJid || !this.inviteCode || !this.sock)
+            return;
+        try {
+            console.log(`[WhatsApp] 🔍 Resolving channel from invite code: ${this.inviteCode}...`);
+            const metadata = await this.sock.newsletterMetadata('invite', this.inviteCode);
+            if (metadata?.id) {
+                this.channelJid = metadata.id;
+                console.log(`[WhatsApp] ✅ Channel resolved: "${metadata.name || 'Unknown'}" → ${this.channelJid}`);
+            }
+            else {
+                console.error('[WhatsApp] ❌ Could not resolve channel. No metadata returned.');
+            }
+        }
+        catch (error) {
+            console.error(`[WhatsApp] ❌ Failed to resolve channel invite code: ${error.message}`);
+            // Try listing subscribed newsletters as fallback
+            try {
+                console.log('[WhatsApp] 🔄 Attempting to list all subscribed channels...');
+                const newsletters = await this.sock.newsletterList();
+                if (newsletters && newsletters.length > 0) {
+                    console.log(`[WhatsApp] 📋 Found ${newsletters.length} channel(s):`);
+                    newsletters.forEach((ch, i) => {
+                        console.log(`  ${i + 1}. "${ch.name}" → JID: ${ch.id}`);
+                    });
+                    // Auto-select first channel if only one exists
+                    if (newsletters.length === 1) {
+                        this.channelJid = newsletters[0].id;
+                        console.log(`[WhatsApp] ✅ Auto-selected channel: "${newsletters[0].name}"`);
+                    }
+                }
+                else {
+                    console.warn('[WhatsApp] ⚠️ No subscribed channels found.');
+                }
+            }
+            catch (listError) {
+                console.error(`[WhatsApp] ❌ Newsletter list also failed: ${listError.message}`);
+            }
         }
     }
     async initializeClient() {
@@ -39,17 +116,14 @@ class WhatsAppService {
                 version,
                 auth: state,
                 browser: ['VoiceOfTihama', 'Chrome', '120.0'],
-                printQRInTerminal: false, // We handle it manually
+                printQRInTerminal: false,
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
                 keepAliveIntervalMs: 30000,
             });
-            // Save credentials whenever they update
             this.sock.ev.on('creds.update', saveCreds);
-            // Handle connection updates
             this.sock.ev.on('connection.update', async (update) => {
                 const { connection, lastDisconnect, qr } = update;
-                // Show QR code when available
                 if (qr) {
                     console.log('[WhatsApp] Scan this QR Code with your phone:');
                     try {
@@ -67,18 +141,22 @@ class WhatsAppService {
                     console.log(`[WhatsApp] Connection closed. Status: ${statusCode}. Reconnecting: ${shouldReconnect}`);
                     this.isReady = false;
                     if (shouldReconnect) {
-                        // Wait a bit before reconnecting with exponential backoff feel
-                        setTimeout(() => this.initializeClient(), 5000);
+                        this.reconnectAttempts++;
+                        const delay = Math.min(5000 * Math.pow(2, this.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+                        console.log(`[WhatsApp] Reconnecting in ${delay / 1000}s (Attempt ${this.reconnectAttempts})...`);
+                        setTimeout(() => this.initializeClient(), delay);
                     }
                     else {
                         console.error('[WhatsApp] Logged out or critical error. Please check whatsapp-auth folder.');
+                        this.reconnectAttempts = 0;
                     }
                 }
                 if (connection === 'open') {
                     console.log('[WhatsApp] ✅ Connected successfully!');
+                    this.reconnectAttempts = 0;
+                    // Resolve channel JID if we only have invite code
+                    await this.resolveChannelJid();
                     this.isReady = true;
-                    await this.listChannels();
-                    // Start processing queue if items exist
                     if (this.messageQueue.length > 0) {
                         this.processQueue();
                     }
@@ -87,67 +165,14 @@ class WhatsAppService {
         }
         catch (error) {
             console.error('[WhatsApp] Failed to initialize:', error.message);
-            // Retry initialization after a delay
-            setTimeout(() => this.initializeClient(), 10000);
+            this.reconnectAttempts++;
+            const delay = Math.min(10000 * this.reconnectAttempts, MAX_RECONNECT_DELAY);
+            setTimeout(() => this.initializeClient(), delay);
         }
     }
-    /**
-     * List all subscribed newsletters/channels
-     */
-    async listChannels() {
-        try {
-            if (this.sock?.newsletterSubscriptions) {
-                const newsletters = await this.sock.newsletterSubscriptions();
-                console.log('\n--- WhatsApp Channels (Newsletters) ---');
-                if (newsletters && newsletters.length > 0) {
-                    newsletters.forEach((nl) => {
-                        console.log(`  - ${nl.name || 'Unnamed'}: ${nl.id}`);
-                    });
-                }
-                else {
-                    console.log('  No subscribed channels found.');
-                }
-                console.log('---------------------------------------\n');
-            }
-        }
-        catch (error) {
-            console.log('[WhatsApp] Could not list channels:', error.message);
-        }
+    getJitterDelay() {
+        return QUEUE_PROCESS_BASE_INTERVAL + Math.floor(Math.random() * QUEUE_PROCESS_JITTER_MAX);
     }
-    /**
-     * Helper to clean HTML excerpt
-     */
-    stripHtml(html) {
-        if (!html)
-            return '';
-        return html.replace(/<[^>]*>?/gm, '').trim();
-    }
-    /**
-     * Truncate text safely (Arabic-aware)
-     */
-    truncateText(text, maxLen) {
-        const cleaned = text.replace(/\s+/g, ' ').trim();
-        if (cleaned.length <= maxLen)
-            return cleaned;
-        return cleaned.slice(0, maxLen).trim() + '…';
-    }
-    /**
-     * Build message exactly as ShareButtons
-     */
-    buildMessage(article) {
-        const title = article.title || '';
-        const excerpt = article.excerpt || '';
-        const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
-        const message = `*${title}*\n\n${excerpt}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
-        if (message.length <= MESSAGE_MAX_LENGTH)
-            return message;
-        const excerptMax = MESSAGE_MAX_LENGTH - (title.length + articleUrl.length + 60);
-        const excerptTrimmed = this.truncateText(this.stripHtml(excerpt), Math.max(50, excerptMax));
-        return `*${title}*\n\n${excerptTrimmed}\n\nاقرأ المزيد على منصة صوت تهامة:\n${articleUrl}`;
-    }
-    /**
-     * Fetch article image as tiny JPEG buffer
-     */
     async fetchThumbnail(imageUrl, retries = 3) {
         if (!imageUrl)
             return undefined;
@@ -161,9 +186,8 @@ class WhatsAppService {
                     throw new Error(`HTTP ${response.status}`);
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                // Ensure it's not too large for a thumbnail
-                if (buffer.length > 1024 * 1024)
-                    return undefined;
+                if (buffer.length > 5 * 1024 * 1024)
+                    return undefined; // Skip images over 5MB
                 return buffer;
             }
             catch (err) {
@@ -174,34 +198,6 @@ class WhatsAppService {
         }
         return undefined;
     }
-    /**
-     * Verify article page is accessible
-     */
-    async waitForArticlePage(url, maxAttempts = 5) {
-        // Wait for SSR/ISR to potentially finish
-        await new Promise(r => setTimeout(r, 10000));
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                const response = await fetch(url, {
-                    method: 'HEAD',
-                    headers: { 'User-Agent': 'WhatsApp/2.23.20.76' },
-                    signal: AbortSignal.timeout(10000),
-                });
-                if (response.ok)
-                    return true;
-                console.log(`[WhatsApp] ⏳ Article page not ready (HTTP ${response.status}), attempt ${attempt}/${maxAttempts}`);
-            }
-            catch (err) {
-                console.log(`[WhatsApp] ⏳ Article page check failed: ${err.message}, attempt ${attempt}/${maxAttempts}`);
-            }
-            if (attempt < maxAttempts)
-                await new Promise(r => setTimeout(r, 5000));
-        }
-        return false;
-    }
-    /**
-     * Main entry point to send article. Adds to queue.
-     */
     async sendArticleToWhatsApp(article) {
         if (!this.channelJid) {
             console.warn('[WhatsApp] Skip sending: WHATSAPP_CHANNEL_ID not configured.');
@@ -217,51 +213,53 @@ class WhatsAppService {
             this.processQueue();
         }
     }
-    /**
-     * Sequential queue processor
-     */
     async processQueue() {
         if (this.isProcessingQueue || this.messageQueue.length === 0)
             return;
         this.isProcessingQueue = true;
-        while (this.messageQueue.length > 0) {
-            if (!this.isReady || !this.sock) {
-                console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
-                this.isProcessingQueue = false;
-                return;
-            }
-            const item = this.messageQueue[0];
-            const success = await this.attemptSend(item.article);
-            if (success) {
-                this.messageQueue.shift(); // Remove from queue
-                // Cooldown between messages
-                await new Promise(r => setTimeout(r, QUEUE_PROCESS_INTERVAL));
-            }
-            else {
-                item.retries++;
-                if (item.retries >= MAX_SEND_RETRIES) {
-                    console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
+        try {
+            while (this.messageQueue.length > 0) {
+                if (!this.isReady || !this.sock) {
+                    console.log('[WhatsApp] ⏳ Pausing queue: Client not ready.');
+                    return;
+                }
+                const item = this.messageQueue[0];
+                await this.updatePostStatus(item.article.id, SocialPostStatus.PROCESSING);
+                const success = await this.attemptSend(item.article);
+                if (success) {
                     this.messageQueue.shift();
+                    await this.updatePostStatus(item.article.id, SocialPostStatus.POSTED);
+                    const delay = this.getJitterDelay();
+                    console.log(`[WhatsApp] ⏳ Waiting ${delay / 1000}s before next message...`);
+                    await new Promise(r => setTimeout(r, delay));
                 }
                 else {
-                    console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
-                    await new Promise(r => setTimeout(r, 30000)); // Wait longer before retry
+                    item.retries++;
+                    if (item.retries >= MAX_SEND_RETRIES) {
+                        console.error(`[WhatsApp] ❌ Giving up on article after ${MAX_SEND_RETRIES} retries: ${item.article.title}`);
+                        this.messageQueue.shift();
+                        await this.updatePostStatus(item.article.id, SocialPostStatus.FAILED, `Failed after ${MAX_SEND_RETRIES} retries`);
+                    }
+                    else {
+                        console.log(`[WhatsApp] ⏳ Retrying article (${item.retries}/${MAX_SEND_RETRIES}) in 30s: ${item.article.title}`);
+                        await new Promise(r => setTimeout(r, 30000));
+                    }
                 }
             }
         }
-        this.isProcessingQueue = false;
+        catch (error) {
+            console.error(`[WhatsApp] ⚠️ Unexpected error in queue processing: ${error.message}`);
+        }
+        finally {
+            this.isProcessingQueue = false;
+        }
     }
-    /**
-     * Single send attempt
-     */
     async attemptSend(article) {
         try {
-            const text = this.buildMessage(article);
+            // UNIFIED MESSAGE BUILDER
+            const text = buildUnifiedMessage(article, 'WHATSAPP', this.platformUrl);
             const articleUrl = `${this.platformUrl}/article/${article.slug || article.id}`;
             console.log(`[WhatsApp] 📤 Attempting to send: ${article.title}`);
-            // 1. Wait for page visibility
-            await this.waitForArticlePage(articleUrl, 3);
-            // 2. Prepare preview
             let jpegThumbnail;
             if (article.imageUrl) {
                 const fullImageUrl = article.imageUrl.startsWith('http')
@@ -269,8 +267,7 @@ class WhatsAppService {
                     : `${this.platformUrl}${article.imageUrl}`;
                 jpegThumbnail = await this.fetchThumbnail(fullImageUrl);
             }
-            // 3. Send with rich preview if possible
-            if (jpegThumbnail) {
+            if (jpegThumbnail && this.sock?.user?.id) {
                 try {
                     const { generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
                     const msg = generateWAMessageFromContent(this.channelJid, proto.Message.fromObject({
@@ -279,31 +276,79 @@ class WhatsAppService {
                             matchedText: articleUrl,
                             canonicalUrl: articleUrl,
                             title: article.title || '',
-                            description: this.stripHtml(article.excerpt || '').substring(0, 200),
+                            description: article.excerpt || '',
                             jpegThumbnail,
-                            thumbnailWidth: 960,
-                            thumbnailHeight: 540,
-                            previewType: 0,
+                            previewType: 1,
                         }
-                    }), { userJid: this.sock.user?.id || '' });
-                    await this.sock.relayMessage(this.channelJid, msg.message, {
+                    }), { userJid: this.sock.user.id });
+                    await withTimeout(this.sock.relayMessage(this.channelJid, msg.message, {
                         messageId: msg.key.id
-                    });
-                    console.log(`[WhatsApp] ✅ Sent successfully with rich preview: ${article.title}`);
+                    }), 20000, "WhatsApp API timeout (relayMessage)");
+                    console.log(`[WhatsApp] ✅ Sent article with large preview: ${article.title}`);
+                    // Also send to group if configured
+                    if (this.groupJid) {
+                        try {
+                            await new Promise(r => setTimeout(r, 2000));
+                            const groupMsg = generateWAMessageFromContent(this.groupJid, proto.Message.fromObject({
+                                extendedTextMessage: {
+                                    text,
+                                    matchedText: articleUrl,
+                                    canonicalUrl: articleUrl,
+                                    title: article.title || '',
+                                    description: article.excerpt || '',
+                                    jpegThumbnail,
+                                    previewType: 1,
+                                }
+                            }), { userJid: this.sock.user.id });
+                            await withTimeout(this.sock.relayMessage(this.groupJid, groupMsg.message, {
+                                messageId: groupMsg.key.id
+                            }), 20000, "WhatsApp API timeout (group relayMessage)");
+                            console.log(`[WhatsApp] ✅ Also sent to group with large preview: ${article.title}`);
+                        }
+                        catch (groupErr) {
+                            console.warn(`[WhatsApp] ⚠️ Group send failed: ${groupErr.message}`);
+                        }
+                    }
                     return true;
                 }
                 catch (err) {
                     console.warn(`[WhatsApp] ⚠️ Rich preview failed, falling back to text: ${err.message}`);
                 }
             }
-            // 4. Fallback: plain text
-            await this.sock.sendMessage(this.channelJid, { text });
-            console.log(`[WhatsApp] ✅ Sent successfully (text only): ${article.title}`);
+            await withTimeout(this.sock.sendMessage(this.channelJid, { text }), 20000, "WhatsApp API timeout (sendMessage)");
+            // Also send to group if configured
+            if (this.groupJid) {
+                try {
+                    await new Promise(r => setTimeout(r, 2000)); // Small delay between sends
+                    await withTimeout(this.sock.sendMessage(this.groupJid, { text }), 20000, "WhatsApp API timeout (group sendMessage)");
+                    console.log(`[WhatsApp] ✅ Also sent to group: ${article.title}`);
+                }
+                catch (groupErr) {
+                    console.warn(`[WhatsApp] ⚠️ Group send failed: ${groupErr.message}`);
+                }
+            }
             return true;
         }
         catch (error) {
             console.error(`[WhatsApp] ❌ Send attempt failed: ${error.message}`);
             return false;
+        }
+    }
+    async updatePostStatus(articleId, status, error) {
+        try {
+            await prisma.socialPost.upsert({
+                where: { articleId_platform: { articleId, platform: SocialPlatform.WHATSAPP } },
+                update: {
+                    status,
+                    errorMessage: error || null,
+                    postedAt: status === SocialPostStatus.POSTED ? new Date() : undefined,
+                    retryCount: { increment: status === SocialPostStatus.FAILED ? 1 : 0 }
+                },
+                create: { articleId, platform: SocialPlatform.WHATSAPP, status, errorMessage: error || null }
+            });
+        }
+        catch (err) {
+            console.error(`[WhatsApp] ❌ Failed to update SocialPost DB: ${err.message}`);
         }
     }
 }

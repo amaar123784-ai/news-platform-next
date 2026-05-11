@@ -24,7 +24,8 @@ cd /var/www/voiceoftihama
 # 2. سحب التعديلات
 git pull
 
-# 3. إعادة بناء الواجهة الأمامية وتشغيلها
+# 3. تثبيت الحزم وإعادة بناء الواجهة الأمامية وتشغيلها
+npm install
 npm run build
 pm2 restart frontend
 
@@ -43,6 +44,46 @@ pm2 list          # عرض حالة التطبيقات
 pm2 logs          # عرض سجلات الأخطاء والنشاط
 pm2 restart all   # إعادة تشغيل كل شيء
 pm2 stop frontend # إيقاف الموقع مؤقتاً
+```
+
+---
+
+## 🚀 الإعداد لأول مرة (Initial Setup)
+
+في حال الحاجة لنقل الموقع لسيرفر جديد أو إعداده من الصفر، استخدم هذه الأوامر:
+
+### 1. إعداد المشاريع في PM2 لأول مرة
+```bash
+cd /var/www/voiceoftihama
+# تشغيل الواجهة الأمامية
+pm2 start npm --name "frontend" -- start
+
+cd server
+# تشغيل السيرفر الخلفي
+pm2 start index.js --name "api"
+
+# حفظ إعدادات PM2 لتعمل تلقائياً عند إعادة تشغيل السيرفر
+pm2 save
+pm2 startup
+```
+
+### 2. إعداد خادم Nginx
+```bash
+# إنشاء ملف إعدادات Nginx
+sudo nano /etc/nginx/sites-available/voiceoftihama
+
+# تفعيل الإعدادات
+sudo ln -s /etc/nginx/sites-available/voiceoftihama /etc/nginx/sites-enabled/
+
+# فحص الإعدادات وإعادة تشغيل Nginx
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 3. إعداد شهادة SSL (HTTPS)
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d voiceoftihama.com -d www.voiceoftihama.com
 ```
 
 ---

@@ -39,6 +39,7 @@ export const articleQuerySchema = z.object({
     page: z.coerce.number().min(1).default(1),
     perPage: z.coerce.number().min(1).max(50).default(10),
     category: z.string().optional(),
+    tag: z.string().optional(),
     status: z.string().transform(v => v?.toUpperCase()).pipe(z.enum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'])).optional(),
     authorId: z.string().uuid().optional(),
     search: z.string().optional(),
@@ -55,8 +56,9 @@ export const createUserSchema = z.object({
     role: z.enum(['ADMIN', 'EDITOR', 'JOURNALIST', 'READER']).default('READER'),
     avatar: z.string().url().optional().nullable(),
     bio: z.string().max(500).optional(),
+    isActive: z.boolean().optional(),
 });
-export const updateUserSchema = createUserSchema.partial().omit({ password: true });
+export const updateUserSchema = createUserSchema.partial();
 // ============= Category Schemas =============
 export const createCategorySchema = z.object({
     name: z.string().min(2).max(100),

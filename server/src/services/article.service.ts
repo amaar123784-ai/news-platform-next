@@ -119,6 +119,7 @@ export async function listArticles(query: ArticleQuery, user?: ArticleUser | nul
     // Public users can only see published articles
     if (!user || user.role === 'READER') {
         where.status = 'PUBLISHED';
+        where.deletedAt = null;
     } else if (status) {
         where.status = status;
     }
@@ -178,7 +179,7 @@ export async function getFeaturedArticles(limit: number) {
     if (cached) return cached;
 
     const articles = await prisma.article.findMany({
-        where: { status: 'PUBLISHED', isFeatured: true },
+        where: { status: 'PUBLISHED', isFeatured: true, deletedAt: null },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
             category: { select: { id: true, name: true, slug: true, color: true } },
@@ -202,7 +203,7 @@ export async function getBreakingNews(limit: number) {
     if (cached) return cached;
 
     const articles = await prisma.article.findMany({
-        where: { status: 'PUBLISHED', isBreaking: true },
+        where: { status: 'PUBLISHED', isBreaking: true, deletedAt: null },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
             category: { select: { id: true, name: true, slug: true, color: true } },
@@ -234,7 +235,8 @@ export async function getRelatedArticles(idOrSlug: string, limit: number) {
         where: {
             categoryId: article.categoryId,
             id: { not: article.id },
-            status: 'PUBLISHED'
+            status: 'PUBLISHED',
+            deletedAt: null
         },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
@@ -281,6 +283,13 @@ export async function getArticleByIdOrSlug(idOrSlug: string, user?: ArticleUser 
     if (article.status !== 'PUBLISHED') {
         if (!user || (user.role === 'READER' && user.userId !== article.authorId)) {
             throw createError(403, 'ليس لديك صلاحية لعرض هذا المقال', 'FORBIDDEN');
+        }
+    }
+
+    // Check if deleted
+    if (article.deletedAt !== null) {
+        if (!user || user.role === 'READER') {
+            throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
     }
 

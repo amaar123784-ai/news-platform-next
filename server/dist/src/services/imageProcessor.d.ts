@@ -118,7 +118,7 @@ import type { FileFilterCallback } from 'multer';
 /**
  * Multer file filter for image validation
  */
-export declare function imageFileFilter(allowedTypes?: string[]): (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => void;
+export declare function imageFileFilter(allowedTypes?: string[], displayTypes?: string[]): (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => void;
 /**
  * Express middleware for processing uploaded images
  *

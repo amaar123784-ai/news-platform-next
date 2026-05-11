@@ -25,6 +25,7 @@ export function generateSlug(title) {
 const ARTICLE_LIST_INCLUDE = {
     author: { select: { id: true, name: true, avatar: true } },
     category: { select: { id: true, name: true, slug: true, color: true } },
+    tags: { include: { tag: true } },
     _count: { select: { comments: true } },
 };
 const ARTICLE_DETAIL_INCLUDE = {
@@ -53,18 +54,28 @@ const ARTICLE_BASIC_INCLUDE = {
  * List articles with filtering, pagination, and search
  */
 export async function listArticles(query, user) {
-    const { page, perPage, category, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
+    const { page, perPage, category, tag, status, authorId, search, sortBy, sortOrder, isBreaking, isFeatured } = query;
     // Build where clause
     const where = {};
     // Public users can only see published articles
     if (!user || user.role === 'READER') {
         where.status = 'PUBLISHED';
+        where.deletedAt = null;
     }
     else if (status) {
         where.status = status;
     }
     if (category)
         where.category = { slug: category };
+    if (tag) {
+        where.tags = {
+            some: {
+                tag: {
+                    slug: tag
+                }
+            }
+        };
+    }
     if (authorId)
         where.authorId = authorId;
     // Filter by isBreaking or isFeatured
@@ -107,7 +118,7 @@ export async function getFeaturedArticles(limit) {
     if (cached)
         return cached;
     const articles = await prisma.article.findMany({
-        where: { status: 'PUBLISHED', isFeatured: true },
+        where: { status: 'PUBLISHED', isFeatured: true, deletedAt: null },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
             category: { select: { id: true, name: true, slug: true, color: true } },
@@ -128,7 +139,7 @@ export async function getBreakingNews(limit) {
     if (cached)
         return cached;
     const articles = await prisma.article.findMany({
-        where: { status: 'PUBLISHED', isBreaking: true },
+        where: { status: 'PUBLISHED', isBreaking: true, deletedAt: null },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
             category: { select: { id: true, name: true, slug: true, color: true } },
@@ -156,7 +167,8 @@ export async function getRelatedArticles(idOrSlug, limit) {
         where: {
             categoryId: article.categoryId,
             id: { not: article.id },
-            status: 'PUBLISHED'
+            status: 'PUBLISHED',
+            deletedAt: null
         },
         include: {
             author: { select: { id: true, name: true, avatar: true } },
@@ -166,6 +178,20 @@ export async function getRelatedArticles(idOrSlug, limit) {
         take: limit,
     });
     return related;
+}
+/**
+ * Increment view count for an article with deduplication logic
+ */
+export async function incrementArticleViews(idOrSlug) {
+    return prisma.article.update({
+        where: {
+            slug: idOrSlug.includes('-') ? idOrSlug : undefined,
+            id: !idOrSlug.includes('-') ? idOrSlug : undefined,
+        },
+        data: {
+            views: { increment: 1 }
+        }
+    });
 }
 /**
  * Get a single article by ID or slug, with access control and view tracking
@@ -184,6 +210,12 @@ export async function getArticleByIdOrSlug(idOrSlug, user) {
     if (article.status !== 'PUBLISHED') {
         if (!user || (user.role === 'READER' && user.userId !== article.authorId)) {
             throw createError(403, 'ليس لديك صلاحية لعرض هذا المقال', 'FORBIDDEN');
+        }
+    }
+    // Check if deleted
+    if (article.deletedAt !== null) {
+        if (!user || user.role === 'READER') {
+            throw createError(404, 'المقال غير موجود', 'ARTICLE_NOT_FOUND');
         }
     }
     // Increment views via Redis (batched flush to DB)
