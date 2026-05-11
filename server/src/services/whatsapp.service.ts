@@ -202,7 +202,15 @@ class WhatsAppService {
                 const arrayBuffer = await response.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
                 if (buffer.length > 5 * 1024 * 1024) return undefined; // Skip images over 5MB
-                return buffer;
+
+                // Convert to JPEG — WhatsApp expects jpegThumbnail to be actual JPEG.
+                // Images are stored as WebP which WhatsApp misinterprets as video.
+                const sharp = (await import('sharp')).default;
+                const jpegBuffer = await sharp(buffer)
+                    .resize(320, 180, { fit: 'cover' })
+                    .jpeg({ quality: 75 })
+                    .toBuffer();
+                return jpegBuffer;
             } catch (err: any) {
                 console.log(`[WhatsApp] ⚠️ Thumbnail fetch attempt ${attempt}/${retries} failed: ${err.message}`);
                 if (attempt < retries) await new Promise(r => setTimeout(r, 2000));
