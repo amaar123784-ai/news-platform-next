@@ -62,26 +62,34 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number): Promise<
 /**
  * Check if text is predominantly Arabic.
  * Returns true if Arabic characters make up at least 70% of all letter characters.
+ * Detects CJK, Cyrillic, Thai, and other foreign scripts as non-Arabic.
  */
 function isArabicText(text: string): boolean {
     const arabicChars = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || []).length;
-    const latinChars = (text.match(/[a-zA-Z]/g) || []).length;
-    if (arabicChars + latinChars === 0) return true;
-    return arabicChars / (arabicChars + latinChars) > 0.7;
+    const foreignChars = (text.match(/[a-zA-Z\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u0400-\u04FF\u0E00-\u0E7F\u0900-\u097F]/g) || []).length;
+    if (arabicChars + foreignChars === 0) return true;
+    return arabicChars / (arabicChars + foreignChars) > 0.7;
 }
 
 /**
- * Remove isolated non-Arabic words from text while preserving
- * numbers, proper nouns in quotes, and HTML tags.
+ * Remove non-Arabic characters from text while preserving
+ * Arabic text, numbers, punctuation, and HTML tags.
+ * Strips: CJK (Chinese/Japanese/Korean), Cyrillic, Thai, Devanagari,
+ * and isolated Latin words.
  */
 function cleanNonArabic(text: string): string {
-    // Preserve HTML tags and quoted text, remove standalone English words
-    return text.replace(/(?<!["«])(\b[a-zA-Z]{3,}\b)(?!["»])/g, (match) => {
-        // Keep common technical/proper terms that are acceptable in Arabic journalism
+    // 1. Remove CJK, Cyrillic, Thai, Devanagari, Korean characters
+    let cleaned = text.replace(/[\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u0400-\u04FF\u0E00-\u0E7F\u0900-\u097F\u31F0-\u31FF\uF900-\uFAFF]/g, '');
+
+    // 2. Remove standalone Latin words (3+ chars) unless they are allowed terms
+    cleaned = cleaned.replace(/(?<!["«])(\b[a-zA-Z]{3,}\b)(?!["»])/g, (match) => {
         const allowed = ['html', 'http', 'https', 'www', 'email', 'GPS', 'DNA', 'COVID', 'USD', 'API'];
         if (allowed.some(w => w.toLowerCase() === match.toLowerCase())) return match;
         return '';
-    }).replace(/\s{2,}/g, ' ').trim();
+    });
+
+    // 3. Clean up extra whitespace
+    return cleaned.replace(/\s{2,}/g, ' ').trim();
 }
 
 export interface RewriteResult {
