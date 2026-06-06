@@ -21,19 +21,26 @@ const TAG_DISPLAY_NAMES: Record<string, string> = {
     'yemen-news': 'أخبار اليمن',
 };
 
-export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: TagPageProps): Promise<Metadata> {
     const { slug } = await params;
+    const resolvedSearchParams = await searchParams;
+    const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page, 10) : 1;
     const tagName = TAG_DISPLAY_NAMES[slug] || decodeURIComponent(slug).replace(/-/g, ' ');
+    const isPaginated = page > 1;
+
+    const title = isPaginated ? `${tagName} - صفحة ${page} | صوت تهامة` : `موضوع: ${tagName} | صوت تهامة`;
+    const desc = `أحدث المقالات والتقارير المتعلقة بـ ${tagName} على منصة صوت تهامة.`;
 
     return {
-        title: `موضوع: ${tagName} | صوت تهامة`,
-        description: `أحدث المقالات والتقارير المتعلقة بـ ${tagName} على منصة صوت تهامة.`,
+        title,
+        description: desc,
+        robots: isPaginated ? { index: false, follow: true } : undefined,
         alternates: {
             canonical: `${siteUrl}/tag/${slug}`,
         },
         openGraph: {
-            title: `${tagName} | صوت تهامة`,
-            description: `تغطية شاملة لموضوع ${tagName}`,
+            title,
+            description: desc,
             url: `${siteUrl}/tag/${slug}`,
             type: 'website',
             locale: 'ar_YE',

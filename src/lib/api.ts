@@ -4,7 +4,7 @@
  * These functions run on the server and use Next.js fetch with caching.
  */
 
-const API_URL = process.env.API_URL || "http://127.0.0.1:5000/api";
+const API_URL = process.env.API_URL || "http://localhost:5000/api";
 
 // Revalidation times (seconds)
 export const REVALIDATE = {

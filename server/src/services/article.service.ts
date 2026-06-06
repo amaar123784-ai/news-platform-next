@@ -68,7 +68,7 @@ interface UpdateArticleData {
 export function generateSlug(title: string): string {
     return title
         .toLowerCase()
-        .replace(/[^\u0621-\u064Aa-z0-9\s-]/g, '')
+        .replace(/[^\u0600-\u06FFa-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .substring(0, 100);

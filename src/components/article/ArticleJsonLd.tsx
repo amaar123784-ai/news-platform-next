@@ -19,9 +19,12 @@ export default function ArticleJsonLd({ article }: ArticleJsonLdProps) {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
         "headline": article.seoTitle || article.title,
-        "image": [
-            absoluteImageUrl || `${SITE_URL}/images/logo.png`
-        ],
+        "image": {
+            "@type": "ImageObject",
+            "url": absoluteImageUrl || `${SITE_URL}/images/logo.png`,
+            "width": 1200,
+            "height": 630
+        },
         "datePublished": article.publishedAt || article.createdAt,
         "dateModified": article.updatedAt || article.createdAt,
         "author": [{
@@ -41,7 +44,9 @@ export default function ArticleJsonLd({ article }: ArticleJsonLdProps) {
         "mainEntityOfPage": {
             "@type": "WebPage",
             "@id": `${SITE_URL}/article/${article.slug || article.id}`
-        }
+        },
+        "isAccessibleForFree": true,
+        "articleSection": article.category?.name || "أخبار"
     };
 
     return (

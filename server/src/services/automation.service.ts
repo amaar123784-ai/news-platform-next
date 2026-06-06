@@ -249,7 +249,7 @@ export class AutomationService {
         const baseSlug = (slugify as any)(queueItem.aiRewrittenTitle || article.title, {
             lower: true,
             strict: false,
-            remove: /[*+~.()'"!:@]/g
+            remove: /[*+~.()'"!:@?]/g
         }) || 'article';
         
         const uniqueHash = crypto.randomBytes(3).toString('hex');

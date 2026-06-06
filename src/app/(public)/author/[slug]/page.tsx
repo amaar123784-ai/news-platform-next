@@ -16,22 +16,28 @@ interface AuthorPageProps {
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
 
-export async function generateMetadata({ params }: AuthorPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: AuthorPageProps): Promise<Metadata> {
     const { slug } = await params;
+    const resolvedSearchParams = await searchParams;
+    const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page, 10) : 1;
+    const isPaginated = page > 1;
     
     // Fetch one article to get author metadata (assuming slug works or id is slug)
     const { data: articles } = await getArticles({ authorId: slug, perPage: 1, status: "PUBLISHED" });
     const authorName = articles[0]?.author?.name || 'محرر';
+    const title = isPaginated ? `مقالات ${authorName} - صفحة ${page} | صوت تهامة` : `مقالات ${authorName} | صوت تهامة`;
+    const desc = `جميع المقالات والتقارير المنشورة بواسطة ${authorName} على منصة صوت تهامة.`;
     
     return {
-        title: `مقالات ${authorName} | صوت تهامة`,
-        description: `جميع المقالات والتقارير المنشورة بواسطة ${authorName} على منصة صوت تهامة.`,
+        title,
+        description: desc,
+        robots: isPaginated ? { index: false, follow: true } : undefined,
         alternates: {
             canonical: `${siteUrl}/author/${slug}`,
         },
         openGraph: {
-            title: `مقالات ${authorName} | صوت تهامة`,
-            description: `جميع المقالات والتقارير المنشورة بواسطة ${authorName}`,
+            title,
+            description: desc,
             url: `${siteUrl}/author/${slug}`,
             type: 'profile',
             locale: 'ar_YE',

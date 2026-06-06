@@ -30,6 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
         google: "googlea4c038509d2813c1",
       },
       metadataBase: new URL(siteUrl),
+      alternates: {
+        languages: {
+          'ar': siteUrl,
+        },
+      },
       openGraph: {
         type: "website",
         locale: "ar_YE",
@@ -37,6 +42,8 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       twitter: {
         card: "summary_large_image",
+        site: "@voiceoftihama",
+        creator: "@voiceoftihama",
       },
       icons: {
         icon: [

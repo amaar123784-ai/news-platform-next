@@ -6,30 +6,6 @@ export const revalidate = 60; // ISR every 60 seconds
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
 
-// Organization JSON-LD Schema for Google Knowledge Panel
-const organizationSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'NewsMediaOrganization',
-  name: 'صوت تهامة',
-  alternateName: 'Voice of Tihama',
-  url: siteUrl,
-  logo: {
-    '@type': 'ImageObject',
-    url: `${siteUrl}/images/logo.webp`,
-  },
-  sameAs: [
-    'https://facebook.com/voiceoftihama',
-    'https://twitter.com/voiceoftihama',
-    'https://telegram.me/voiceoftihama',
-  ],
-  contactPoint: {
-    '@type': 'ContactPoint',
-    email: 'info@voiceoftihama.com',
-    contactType: 'customer service',
-    availableLanguage: ['Arabic'],
-  },
-};
-
 // WebSite JSON-LD Schema for Sitelinks Search Box
 const websiteSchema = {
   '@context': 'https://schema.org',
@@ -69,11 +45,6 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Organization JSON-LD Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
       {/* WebSite JSON-LD Schema with SearchAction */}
       <script
         type="application/ld+json"
@@ -82,6 +53,7 @@ export default async function HomePage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 min-h-screen">
+        <h1 className="sr-only">صوت تهامة - آخر الأخبار والتقارير</h1>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
           {/* Main Content Column */}
           <div className="lg:col-span-3">

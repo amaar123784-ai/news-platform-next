@@ -1,19 +1,43 @@
 import { NextResponse } from 'next/server';
 
-const API_URL = process.env.API_URL || "http://127.0.0.1:5000/api";
+const API_URL = process.env.API_URL || "http://localhost:5000/api";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://voiceoftihama.com";
+const FETCH_TIMEOUT = 5000;
+
+function escapeXml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function buildEmptySitemap(): string {
+    return '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"></urlset>';
+}
 
 export async function GET() {
     try {
-        // Fetch published articles
-        const res = await fetch(`${API_URL}/articles?status=PUBLISHED&perPage=1000&sortBy=publishedAt&sortOrder=desc`, {
-            next: { revalidate: 600 }, // 10 minutes cache
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-        let articles = [];
+        const res = await fetch(`${API_URL}/articles?status=PUBLISHED&perPage=1000&sortBy=publishedAt&sortOrder=desc`, {
+            signal: controller.signal,
+            next: { revalidate: 600 },
+        });
+        clearTimeout(timeout);
+
+        let articles: any[] = [];
         if (res.ok) {
             const data = await res.json();
             articles = data.data || [];
+        } else {
+            console.error(`[NewsSitemap] API responded with ${res.status}`);
+            return new NextResponse(buildEmptySitemap(), {
+                status: 200,
+                headers: { 'Content-Type': 'application/xml' },
+            });
         }
 
         // Google News sitemap only allows articles from the last 48 hours
@@ -25,20 +49,26 @@ export async function GET() {
             return pubDate >= twoDaysAgo;
         });
 
-        const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
-    ${recentArticles.map((article: any) => `
+        const urlEntries = recentArticles.map((article: any) => {
+            const loc = `${SITE_URL}/article/${article.slug || article.id}`;
+            const pubDate = new Date(article.publishedAt || article.createdAt).toISOString();
+            const title = escapeXml(article.title || '');
+            return `
     <url>
-        <loc>${SITE_URL}/article/${article.slug || article.id}</loc>
+        <loc>${loc}</loc>
         <news:news>
             <news:publication>
                 <news:name>صوت تهامة</news:name>
                 <news:language>ar</news:language>
             </news:publication>
-            <news:publication_date>${new Date(article.publishedAt || article.createdAt).toISOString()}</news:publication_date>
-            <news:title>${article.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</news:title>
+            <news:publication_date>${pubDate}</news:publication_date>
+            <news:title>${title}</news:title>
         </news:news>
-    </url>`).join('')}
+    </url>`;
+        }).join('');
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${urlEntries}
 </urlset>`;
 
         return new NextResponse(xml, {
@@ -49,8 +79,8 @@ export async function GET() {
             },
         });
     } catch (error) {
-        console.error('Error generating Google News sitemap:', error);
-        return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"></urlset>', {
+        console.error('[NewsSitemap] Error:', error);
+        return new NextResponse(buildEmptySitemap(), {
             status: 200,
             headers: { 'Content-Type': 'application/xml' },
         });

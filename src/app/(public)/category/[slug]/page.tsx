@@ -25,19 +25,26 @@ const CATEGORY_NAMES: Record<string, string> = {
     miscellaneous: "منوع",
 };
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
     const { slug } = await params;
+    const resolvedSearchParams = await searchParams;
+    const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page, 10) : 1;
     const categoryName = CATEGORY_NAMES[slug] || slug;
+    const isPaginated = page > 1;
+
+    const title = isPaginated ? `${categoryName} - صفحة ${page} | صوت تهامة` : `${categoryName} | صوت تهامة`;
+    const desc = `آخر أخبار ${categoryName} من منصة صوت تهامة.`;
 
     return {
-        title: `${categoryName} | صوت تهامة`,
-        description: `آخر أخبار ${categoryName} من منصة صوت تهامة. أحدث المقالات والتقارير في قسم ${categoryName}.`,
+        title,
+        description: desc,
+        robots: isPaginated ? { index: false, follow: true } : { index: true, follow: true },
         alternates: {
             canonical: `${siteUrl}/category/${slug}`,
         },
         openGraph: {
-            title: `${categoryName} | صوت تهامة`,
-            description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+            title,
+            description: desc,
             url: `${siteUrl}/category/${slug}`,
             type: 'website',
             locale: 'ar_YE',
@@ -45,8 +52,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
         },
         twitter: {
             card: 'summary',
-            title: `${categoryName} | صوت تهامة`,
-            description: `آخر أخبار ${categoryName} من منصة صوت تهامة`,
+            title,
+            description: desc,
         },
     };
 }

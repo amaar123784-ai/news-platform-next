@@ -1,21 +1,32 @@
 import { MetadataRoute } from 'next';
 
-const API_URL = process.env.API_URL || "http://127.0.0.1:5000/api";
+const API_URL = process.env.API_URL || "http://localhost:5000/api";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://voiceoftihama.com";
 const ITEMS_PER_SITEMAP = 1000;
+const FETCH_TIMEOUT = 5000;
 
 /**
  * Generate multiple sitemap IDs based on total article count
  */
 export async function generateSitemaps() {
     try {
-        const res = await fetch(`${API_URL}/articles?status=PUBLISHED&perPage=1`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+        const res = await fetch(`${API_URL}/articles?status=PUBLISHED&perPage=1`, {
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (!res.ok) throw new Error(`API responded with ${res.status}`);
+
         const json = await res.json();
-        const total = json.pagination?.total || 2000; // Fallback to 2000
+        const total = json.pagination?.total || 0;
+        if (total === 0) return [{ id: 0 }];
+
         const numberOfSitemaps = Math.ceil(total / ITEMS_PER_SITEMAP);
-        
         return Array.from({ length: numberOfSitemaps }, (_, id) => ({ id }));
     } catch (error) {
+        console.error('[Sitemap] generateSitemaps failed:', error);
         return [{ id: 0 }];
     }
 }
@@ -42,14 +53,25 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
 
     try {
         const page = id + 1;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
         const res = await fetch(`${API_URL}/articles?status=PUBLISHED&page=${page}&perPage=${ITEMS_PER_SITEMAP}`, {
+            signal: controller.signal,
             next: { revalidate: 3600 },
         });
+        clearTimeout(timeout);
 
-        if (!res.ok) return id === 0 ? [...staticRoutes, ...categoryRoutes] : [];
+        if (!res.ok) {
+            console.error(`[Sitemap] API responded with ${res.status} for page ${page}`);
+            return id === 0 ? [...staticRoutes, ...categoryRoutes] : [];
+        }
 
         const json = await res.json();
         const articles = json.data || [];
+
+        if (articles.length === 0) {
+            return id === 0 ? [...staticRoutes, ...categoryRoutes] : [];
+        }
 
         const articleRoutes: MetadataRoute.Sitemap = articles.map((article: any) => ({
             url: `${SITE_URL}/article/${article.slug || article.id}`,
@@ -65,7 +87,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
 
         return articleRoutes;
     } catch (error) {
-        console.error('Sitemap fetch error:', error);
+        console.error('[Sitemap] Fetch error:', error);
         return id === 0 ? [...staticRoutes, ...categoryRoutes] : [];
     }
 }

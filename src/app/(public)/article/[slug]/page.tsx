@@ -16,6 +16,8 @@ import { SubscribeCTA } from '@/components/molecules/SubscribeCTA';
 import { categoryBadges } from '@/design-system/tokens';
 import ArticleJsonLd from '@/components/article/ArticleJsonLd';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceoftihama.com';
+
 interface Props {
     params: Promise<{ slug: string }>;
 }
@@ -79,9 +81,20 @@ export default async function ArticlePage({ params }: Props) {
         });
     };
 
+    const breadcrumbSchema = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": `${SITE_URL}/` },
+            { "@type": "ListItem", "position": 2, "name": article.category?.name || "أخبار", "item": `${SITE_URL}/category/${categorySlug}` },
+            { "@type": "ListItem", "position": 3, "name": article.title }
+        ]
+    };
+
     return (
         <div className="bg-white min-h-screen">
             <ArticleJsonLd article={article} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
             {/* Main Layout Container */}
             <main className="container mx-auto px-4 py-8 lg:py-12">
                 <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 lg:gap-16">
