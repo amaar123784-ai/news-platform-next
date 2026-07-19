@@ -43,6 +43,7 @@ interface CreateArticleData {
     seoTitle?: string;
     seoDesc?: string;
     isBreaking?: boolean;
+    isFeatured?: boolean;
 }
 
 interface UpdateArticleData {
@@ -142,8 +143,12 @@ export async function listArticles(query: ArticleQuery, user?: ArticleUser | nul
 
     if (search) {
         // Use MySQL FULLTEXT search (@@fulltext index on title, excerpt, content)
-        where.title = { search };
-        where.excerpt = { search };
+        // Use OR to match any field, not AND which requires all fields to match
+        where.OR = [
+            { title: { search } },
+            { excerpt: { search } },
+            { content: { search } },
+        ];
     }
 
     const [articles, total] = await Promise.all([
@@ -196,7 +201,7 @@ export async function getFeaturedArticles(limit: number) {
  * Get breaking news articles with caching
  */
 export async function getBreakingNews(limit: number) {
-    const cacheKey = cacheKeys.breakingNews();
+    const cacheKey = cacheKeys.breakingNews(limit);
 
     // Try cache first
     const cached = await cache.get(cacheKey);
@@ -253,10 +258,11 @@ export async function getRelatedArticles(idOrSlug: string, limit: number) {
  * Increment view count for an article with deduplication logic
  */
 export async function incrementArticleViews(idOrSlug: string) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
     return prisma.article.update({
         where: {
-            slug: idOrSlug.includes('-') ? idOrSlug : undefined,
-            id: !idOrSlug.includes('-') ? idOrSlug : undefined,
+            slug: isUUID ? undefined : idOrSlug,
+            id: isUUID ? idOrSlug : undefined,
         },
         data: {
             views: { increment: 1 }
@@ -360,6 +366,7 @@ export async function createArticle(data: CreateArticleData, userId: string) {
                         seoTitle: data.seoTitle ? sanitizeText(data.seoTitle) : undefined,
                         seoDesc: data.seoDesc ? sanitizeText(data.seoDesc) : undefined,
                         isBreaking: data.isBreaking,
+                        isFeatured: data.isFeatured,
                         readTime,
                     },
                     include: ARTICLE_BASIC_INCLUDE,
@@ -394,7 +401,7 @@ export async function createArticle(data: CreateArticleData, userId: string) {
     if (article.status === 'PUBLISHED') {
         await Promise.all([
             cache.invalidatePattern('articles:featured:*'),
-            cache.invalidatePattern('articles:breaking'),
+            cache.invalidatePattern('articles:breaking:*'),
         ]);
 
         const { webhookService } = await import('./webhook.service.js');
@@ -468,7 +475,7 @@ export async function updateArticle(id: string, data: UpdateArticleData, user: A
     // Invalidate caches
     await Promise.all([
         cache.invalidatePattern('articles:featured:*'),
-        cache.invalidatePattern('articles:breaking'),
+        cache.invalidatePattern('articles:breaking:*'),
         cache.del(cacheKeys.article(existing.slug)),
         cache.del(cacheKeys.article(article.slug)), // In case slug changed
     ]);
@@ -506,7 +513,7 @@ export async function deleteArticle(id: string, userId: string) {
     // Invalidate caches
     await Promise.all([
         cache.invalidatePattern('articles:featured:*'),
-        cache.invalidatePattern('articles:breaking'),
+        cache.invalidatePattern('articles:breaking:*'),
         cache.del(cacheKeys.article(article.slug)),
     ]);
 }
@@ -565,7 +572,7 @@ export async function publishArticle(id: string, userId: string) {
     // Invalidate caches
     await Promise.all([
         cache.invalidatePattern('articles:featured:*'),
-        cache.invalidatePattern('articles:breaking'),
+        cache.invalidatePattern('articles:breaking:*'),
         cache.del(cacheKeys.article(article.slug)),
     ]);
 
@@ -599,7 +606,7 @@ export async function archiveArticle(id: string, userId: string) {
     // Invalidate caches
     await Promise.all([
         cache.invalidatePattern('articles:featured:*'),
-        cache.invalidatePattern('articles:breaking'),
+        cache.invalidatePattern('articles:breaking:*'),
         cache.del(cacheKeys.article(article.slug)),
     ]);
 

@@ -28,6 +28,8 @@ export interface Article {
     readTime: number;
     seoTitle?: string;
     seoDesc?: string;
+    isBreaking: boolean;
+    isFeatured: boolean;
     publishedAt?: string;
     createdAt: string;
     updatedAt: string;

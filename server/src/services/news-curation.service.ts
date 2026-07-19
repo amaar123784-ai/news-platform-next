@@ -3,9 +3,7 @@
  * Auto-manages featured articles based on engagement and relevance scoring.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../index.js';
 
 /** Local/regional category slugs that get a relevance boost */
 const LOCAL_SLUGS = ['local', 'yemen', 'tihama', 'politics'];
@@ -113,10 +111,15 @@ export async function refreshFeaturedArticles(): Promise<{ featured: number }> {
 export async function expireBreakingNews(maxAgeHours: number = 6): Promise<number> {
     const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
 
+    console.log(`[Curation] Running expireBreakingNews - cutoff: ${cutoff.toISOString()}`);
+
     const result = await prisma.article.updateMany({
         where: {
             isBreaking: true,
-            publishedAt: { lt: cutoff },
+            OR: [
+                { publishedAt: { lt: cutoff } },
+                { publishedAt: null },
+            ],
         },
         data: { isBreaking: false },
     });
@@ -126,7 +129,7 @@ export async function expireBreakingNews(maxAgeHours: number = 6): Promise<numbe
 
         try {
             const { cache } = await import('./cache.service.js');
-            await cache.invalidatePattern('articles:breaking');
+            await cache.invalidatePattern('articles:breaking:*');
         } catch {
             // Cache may not be available
         }

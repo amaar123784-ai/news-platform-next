@@ -40,7 +40,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
         imageUrl: initialData?.imageUrl || '',
         tagsString: initialData?.tags?.join(', ') || '',
         seoTitle: initialData?.seoTitle || '',
-        seoDescription: initialData?.seoDescription || '',
+        seoDesc: initialData?.seoDesc || '',
         isBreaking: initialData?.isBreaking || false,
         isFeatured: initialData?.isFeatured || false,
     });
@@ -117,7 +117,7 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
             imageUrl: formData.imageUrl,
             tags: formData.tagsString.split(',').map(tag => tag.trim()).filter(Boolean),
             seoTitle: formData.seoTitle,
-            seoDescription: formData.seoDescription,
+            seoDesc: formData.seoDesc,
             isBreaking: formData.isBreaking,
             isFeatured: formData.isFeatured,
         };
@@ -232,8 +232,8 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                                 />
                                 <FormField
                                     label="وصف الميتا (Meta Description)"
-                                    value={formData.seoDescription}
-                                    onChange={(e) => setFormData({ ...formData, seoDescription: e.target.value })}
+                                    value={formData.seoDesc}
+                                    onChange={(e) => setFormData({ ...formData, seoDesc: e.target.value })}
                                     placeholder={formData.excerpt}
                                     multiline
                                     rows={3}
@@ -253,14 +253,14 @@ export const ArticleForm: React.FC<ArticleFormProps> = ({ initialData, categorie
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value as CreateArticleRequest['status'] })}
                                     >
-                                        <option value="draft">مسودة</option>
-                                        <option value="review">قيد المراجعة</option>
-                                        <option value="published">منشور</option>
-                                        <option value="archived">مؤرشف</option>
+                                        <option value="DRAFT">مسودة</option>
+                                        <option value="REVIEW">قيد المراجعة</option>
+                                        <option value="PUBLISHED">منشور</option>
+                                        <option value="ARCHIVED">مؤرشف</option>
                                     </select>
                                 </div>
 
-                                {formData.status !== 'draft' && (
+                                {formData.status !== 'DRAFT' && (
                                     <div className="pt-2">
                                         <StatusBadge status={formData.status} className="w-full justify-center py-2" />
                                     </div>

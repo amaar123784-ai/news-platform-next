@@ -52,7 +52,7 @@ export default async function BreakingNewsPage() {
                                     category={article.category?.slug || 'politics'}
                                     timeAgo={formatTimeAgo(article.createdAt)}
                                     author={article.author?.name}
-                                    isBreaking={true}
+                                    isBreaking={article.isBreaking ?? true}
                                 />
                             ))}
                         </div>

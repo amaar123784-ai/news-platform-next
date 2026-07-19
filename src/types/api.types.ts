@@ -77,7 +77,7 @@ export interface Article {
     content: string;
     category: Category;
     author: User;
-    status: 'draft' | 'review' | 'published' | 'archived';
+    status: 'DRAFT' | 'REVIEW' | 'PUBLISHED' | 'ARCHIVED';
     imageUrl?: string;
     tags: string[];
     views: number;
@@ -98,7 +98,7 @@ export interface CreateArticleRequest {
     imageUrl?: string;
     tags?: string[];
     seoTitle?: string;
-    seoDescription?: string;
+    seoDesc?: string;
     isBreaking?: boolean;
     isFeatured?: boolean;
 }
@@ -173,4 +173,4 @@ export interface ActivityLog {
     createdAt: string;
 }
 
-export type StatusType = 'published' | 'draft' | 'review' | 'archived' | 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StatusType = 'published' | 'draft' | 'review' | 'archived' | 'DRAFT' | 'REVIEW' | 'PUBLISHED' | 'ARCHIVED' | 'PENDING' | 'APPROVED' | 'REJECTED';

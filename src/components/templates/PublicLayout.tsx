@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { articleService } from '@/services';
 import { Container } from '@/components/atoms';
 import { Header, BreakingNewsTicker, Footer } from '@/components/organisms';
+import type { Article } from '@/types/api.types';
 
 export interface PublicLayoutProps {
     /** Main content */
@@ -26,7 +27,7 @@ export interface PublicLayoutProps {
     /** Whether to show breaking news ticker */
     showBreakingNews?: boolean;
     /** Breaking news items */
-    breakingNewsItems?: string[];
+    breakingNewsItems?: Article[];
     /** Current path for nav highlighting */
     currentPath?: string;
     /** Whether user is logged in */

@@ -265,7 +265,7 @@ export const cache = {
 // Cache key builders for consistent naming
 export const cacheKeys = {
     featuredArticles: (limit: number) => `articles:featured:${limit}`,
-    breakingNews: () => 'articles:breaking',
+    breakingNews: (limit: number = 10) => `articles:breaking:${limit}`,
     categories: () => 'categories:all',
     publicSettings: () => 'settings:public',
     article: (slug: string) => `article:${slug}`,

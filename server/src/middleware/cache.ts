@@ -215,13 +215,20 @@ export function cache(options: CacheOptions = {}) {
 
 /**
  * Invalidate cache by pattern
- * Use with caution - scans can be expensive on large datasets
+ * Use SCAN instead of KEYS to avoid blocking Redis
  */
 export async function invalidateCache(pattern: string): Promise<number> {
     if (!isCacheAvailable()) return 0;
 
     try {
-        const keys = await redis!.keys(`news:${pattern}`);
+        const stream = redis!.scanStream({ match: `news:${pattern}`, count: 100 });
+        const keys: string[] = [];
+        await new Promise<void>((resolve, reject) => {
+            stream.on('data', (batch: string[]) => keys.push(...batch));
+            stream.on('end', resolve);
+            stream.on('error', reject);
+        });
+
         if (keys.length > 0) {
             const deleted = await redis!.del(...keys);
             console.log(`🗑️ Invalidated ${deleted} cache entries for pattern: ${pattern}`);

@@ -31,7 +31,7 @@ function CreateArticleContent() {
                 excerpt: article.rewrittenExcerpt || article.excerpt || '',
                 content: article.fullContent || article.rewrittenExcerpt || article.excerpt || '',
                 imageUrl: article.imageUrl || '',
-                status: 'draft' as const,
+            status: 'DRAFT' as const,
                 // Pass source info potentially as tags or extra meta if needed
             };
         }
@@ -49,7 +49,7 @@ function CreateArticleContent() {
             excerpt: rawContent,
             content: rawContent,
             imageUrl,
-            status: 'draft' as const,
+            status: 'DRAFT' as const,
         };
     };
 
